@@ -1,0 +1,7 @@
+aiormq==6.3.3
+asyncpg==0.26.0
+coloredlogs==15.0.1
+disnake==2.5.1
+SQLAlchemy==1.4.39
+tabulate==0.8.10
+more_itertools==8.13.0

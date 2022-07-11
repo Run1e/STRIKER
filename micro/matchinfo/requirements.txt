@@ -1,0 +1,3 @@
+aiormq==6.3.3
+csgo==1.0.0
+protobuf==3.20.0

@@ -1,0 +1,43 @@
+config.py
+
+# bot
+bot/nav
+bot/config.py
+
+# demoparse microservice
+micro/demoparse/config.py
+
+# matchinfo microservice
+micro/matchinfo/cred
+micro/matchinfo/config.py
+
+# recorder microservice
+micro/recorder/hlae
+micro/recorder/mmcfg
+micro/recorder/config.py
+
+# test data
+tests/data.py
+
+# tooling
+tooling/demoinfogo-json
+tooling/demoinfogo-linux
+
+# docker stuff
+.env
+Makefile
+docker-compose.yml
+Dockerfile
+
+# misc
+notes.md
+test.py
+venv
+.vscode
+.idea
+__pycache__
+
+# glob
+*.exe
+*.sum
+*.mod
