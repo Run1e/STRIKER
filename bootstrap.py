@@ -21,10 +21,6 @@ async def bootstrap(
     if start_orm:
         await orm.start_orm()
 
-    # CSGO-vhk5Y-VBFMh-4HA6y-rZpyC-7JxbE
-    # CSGO-UKDiq-NpDxB-vwhY8-i7ip7-moi9Q
-    # CSGO-pWjAk-kU8SY-V7m7H-XyYU9-PBdqA
-
     if start_bot:
         bot_instance = bot.start_bot()
         await bot_instance.wait_until_ready()
