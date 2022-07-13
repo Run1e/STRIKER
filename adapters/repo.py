@@ -43,7 +43,8 @@ class JobRepository(SqlRepository):
     async def waiting_for_demo(self, demo_id):
         stmt = select(Job).where(
             Job.state == JobState.DEMO,
-            Job.started_at > datetime.now(timezone.utc) - timedelta(minutes=INTERACTION_MINUTES),
+            Job.started_at
+            > datetime.now(timezone.utc) - timedelta(minutes=INTERACTION_MINUTES),
             Job.demo_id == demo_id,
         )
         result = await self.session.execute(stmt)

@@ -30,4 +30,5 @@ jobs:
         pip install -r dev_requirements.txt
     - name: Test with pytest
       run: |
+        cp bot/example_config.py bot/config.py
         pytest tests

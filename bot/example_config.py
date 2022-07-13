@@ -1,0 +1,16 @@
+DEBUG = False
+DROP_TABLES = False
+DUMP_EVENTS = False
+
+BOT_TOKEN = None
+DB_BIND = None
+TEST_GUILDS = []
+
+RABBITMQ_HOST = None
+QUEUE_PREFIX = ''
+
+VIDEO_DIR = ''
+
+CT_COIN = ''
+T_COIN = ''
+SPINNER = ''
