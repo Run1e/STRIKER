@@ -3,6 +3,7 @@ config.py
 # bot
 bot/navparse/nav
 bot/config.py
+bot/config copy.py
 
 # demoparse microservice
 micro/demoparse_py
