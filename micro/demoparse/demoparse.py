@@ -43,11 +43,7 @@ def decompress(archive, file):
 
 
 def parse_demo(demofile):
-    if config.WSL:
-        letter = demofile[0].lower()
-        demofile = re.sub(r'^(\w)\:[\\\/]', f'/mnt/{letter}/', demofile)
-
-    p = run([*config.DEMOINFOGO_BIN, demofile], capture_output=True)
+    p = run(['node', 'micro/demoparse/parse/index.js', demofile], capture_output=True)
     return p.stdout
 
 

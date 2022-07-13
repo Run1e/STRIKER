@@ -111,8 +111,12 @@ class RoundView(disnake.ui.View):
         self.embed_factory = embed_factory
         self.demo = job.demo
         self.player = player
+        self.player_team = self.demo.get_player_team(player)
         self.kills: List[Death] = self.demo.get_player_kills(player)
         self.round_buttons = list()
+
+        self.first_half.emoji = T_COIN if self.player_team == 0 else CT_COIN
+        self.second_half.emoji = CT_COIN if self.player_team == 0 else T_COIN
 
         self.highlights = {
             True: self.create_table(True),
@@ -131,7 +135,7 @@ class RoundView(disnake.ui.View):
             self.add_item(button)
 
     # TODO: add emoji for these buttons
-    @disnake.ui.button(emoji=CT_COIN, row=0)
+    @disnake.ui.button(row=0)
     async def first_half(
         self, button: disnake.Button, inter: disnake.MessageInteraction
     ):
@@ -143,7 +147,7 @@ class RoundView(disnake.ui.View):
             view=self,
         )
 
-    @disnake.ui.button(emoji=T_COIN, row=0)
+    @disnake.ui.button(row=0)
     async def second_half(
         self, button: disnake.Button, inter: disnake.MessageInteraction
     ):
@@ -240,7 +244,9 @@ class RoundView(disnake.ui.View):
         embed = self.embed_factory()
 
         table = self.highlights[first_half]
-        team = 'CT' if first_half else 'T'
+        half_one = 'T' if self.player_team == 0 else 'CT'
+        half_two = 'CT' if self.player_team == 0 else 'T'
+        team = half_one if first_half else half_two
 
         # embed.title = 'Select a round to render'
 

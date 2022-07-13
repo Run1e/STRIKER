@@ -57,6 +57,26 @@ def test_demo_is_out_of_date():
     assert not demo.can_record()
 
 
+def test_demo_misc():
+    demo = new_demo(
+        state=DemoState.SUCCESS,
+        queued=False,
+        sharecode='asd',
+        has_matchinfo=True,
+        data=loads(demo_data[0]),
+    )
+
+    demo.parse()
+
+    assert demo.score == [9, 4]
+    assert demo.score_string == '9-4'
+
+    assert demo.protocol == 4
+    assert demo.map == 'de_dust2'
+    assert demo.halftime == demo.max_rounds // 2
+    assert demo.max_rounds == 16
+
+
 def test_demo_players():
     demo = new_demo(
         state=DemoState.SUCCESS,
@@ -68,8 +88,6 @@ def test_demo_players():
 
     demo.parse()
 
-    assert demo.score == [4, 9]
-    assert demo.score_string == '4-9'
     assert len(demo.teams[0]) == 5
     assert len(demo.teams[1]) == 5
 
@@ -80,21 +98,6 @@ def test_demo_players():
     player = demo.teams[0][0]
     assert player is demo.get_player_by_id(player.userid)
     assert player is demo.get_player_by_xuid(player.xuid)
-
-
-def test_demo_match():
-    demo = new_demo(
-        state=DemoState.SUCCESS,
-        queued=False,
-        sharecode='asd',
-        has_matchinfo=True,
-        data=loads(demo_data[0]),
-    )
-
-    demo.parse()
-
-    assert demo.halftime == demo.max_rounds // 2
-    assert demo.map == 'de_dust2'
 
 
 def test_demo_kills():

@@ -75,6 +75,8 @@ async def new_job(
         # of course the demo could literally also just be ready to record
         if demo.can_record():
             bus.dispatch(events.JobReadyForSelect(job=job))
+        else:
+            pass  # TODO: uuuhhh
 
 
 async def handle_demo_step(demo: Demo, dispatcher=None):
@@ -163,7 +165,7 @@ async def record(
     MAX_FILE_SIZE = 8 * 1024 * 1024 * 8  # 8 MB
 
     start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(
-        demo.tick_rate, kills
+        demo.tickrate, kills
     )
 
     # video_bitrate = 20 * 1024 * 1024

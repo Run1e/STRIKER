@@ -31,8 +31,8 @@ class Entity:
         return f'<{self.__class__.__name__} id={self.id}>'
 
 
-Player = namedtuple('Player', 'xuid name userid guid friendsid fakeplayer ishltv')
-Death = namedtuple('Death', 'tick victim attacker pos weapon headshot')
+Player = namedtuple('Player', 'xuid name userid fakeplayer')
+Death = namedtuple('Death', 'tick victim attacker pos weapon')
 
 
 class Demo(Entity):
@@ -82,7 +82,10 @@ class Demo(Entity):
         )
 
     def get_player_team(self, player: Player) -> int:
-        return self._player_team.get(player.userid, None)
+        for teamidx, players in enumerate(self.teams):
+            if player in players:
+                return teamidx
+        return None
 
     def death_is_tk(self, death: Death) -> bool:
         attacker_team = self.get_player_team(death.attacker)
@@ -144,18 +147,32 @@ class Demo(Entity):
         self._id_mapper = dict()
 
         data = deepcopy(self.data)
-        self._parse_cvars(data['cvars'])
-        self._parse_serverinfo(data['serverinfo'])
+        self._parse_stringtables(data['stringtables'])
+        self._parse_convars(data['convars'])
+        self._parse_demoheader(data['demoheader'])
         self._parse_events(data['events'])
+
+        self.score = data['score']
+        self.teams = [
+            [self.get_player_by_id(_id) for _id in lst]
+            for teamnum, lst in data['teams'].items()
+        ]
 
         self._parsed = True
 
-    def _parse_cvars(self, cvars: dict):
-        self.max_rounds = int(cvars['mp_maxrounds'])
+    def _parse_convars(self, convars: dict):
+        self.max_rounds = int(convars['mp_maxrounds'])
 
-    def _parse_serverinfo(self, serverinfo: dict):
-        self.map = serverinfo['map_name']
-        self.tick_rate = int(1.0 / serverinfo['tick_interval'])
+    def _parse_demoheader(self, header: dict):
+        self.map = header['mapname']
+        self.tickrate = header['tickrate']
+        self.protocol = header['protocol']
+
+    def _parse_stringtables(self, tables: List[dict]):
+        for table in tables:
+            table_name = table.pop('table')
+            if table_name == 'userinfo':
+                self._add_player(table)
 
     def _parse_events(self, events: List[dict]):
         rnd = 0
@@ -163,43 +180,13 @@ class Demo(Entity):
         for data in events:
             event = data.pop('event')
 
-            if event == 'MatchStart':
+            if event == 'round_announce_match_start':
                 rnd = 1
 
-            if event == 'RoundStart':
+            if event == 'round_officially_ended':
                 rnd += 1
 
-            elif event == 'RoundEnd':
-                winning_team = self._team_idx_at_round(data['winning_team'], rnd)
-                self._win_reasons[rnd] = data['reason']
-
-                self.score[winning_team] += 1
-
-            elif event == 'PlayerAdd':
-                # fires when player joins server
-                self._add_player(data)
-
-            elif event == 'PlayerUpdate':
-                # player update
-                self._update_player(data)
-
-            elif event == 'PlayerSpawn':
-                # fires when player first spawns in the map
-                # this is needed since it contains the team_id of the player
-                player = self.get_player_by_id(data['userid'])
-                if player is None or player.fakeplayer:
-                    continue
-
-                team_id = data['team']
-                if team_id not in (2, 3):
-                    continue
-
-                team_idx = self._team_idx_at_round(team_id, rnd)
-                if player not in self.teams[team_idx]:
-                    self.teams[team_idx].append(player)
-                    self._player_team[player.userid] = team_idx
-
-            elif event == 'Death':
+            elif event == 'player_death':
                 self._add_death(rnd, data)
 
         self.round_count = rnd
@@ -212,21 +199,20 @@ class Demo(Entity):
         return self._id_mapper.get(id, id)
 
     def _add_player(self, data):
-        player = Player(**data)
-        self._players[player.userid] = player
+        xuid = data['xuid']
+        data['xuid'] = (xuid[1] << 32) + xuid[0]  # I truly hate javascript
 
-    def _update_player(self, data):
         player = Player(**data)
         actual_user = self.get_player_by_xuid(player.xuid)
 
         if actual_user is None:
-            self._add_player(data)
+            self._players[player.userid] = player
         else:
             self._id_mapper[player.userid] = actual_user.userid
 
     def _add_death(self, rnd, data):
-        data['victim'] = self.get_player_by_id(data.pop('victimid'))
-        data['attacker'] = self.get_player_by_id(data.pop('attackerid'))
+        data['victim'] = self.get_player_by_id(data.pop('victim'))
+        data['attacker'] = self.get_player_by_id(data.pop('attacker'))
         self._rounds[rnd].append(Death(**data))
 
 

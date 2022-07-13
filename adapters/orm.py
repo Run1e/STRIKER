@@ -23,6 +23,7 @@ demo_table = sa.Table(
     sa.Column('matchtime', sa.DateTime(timezone=True), nullable=True),
     sa.Column('url', sa.TEXT, nullable=True),
     sa.Column('map', sa.TEXT, nullable=True),
+    sa.Column('protocol', sa.Integer, nullable=True),
     sa.Column('version', sa.SmallInteger, nullable=True),
     sa.Column('downloaded_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('score', pg.ARRAY(sa.SmallInteger), nullable=True),

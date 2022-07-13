@@ -127,6 +127,4 @@ async def main():
         queue=config.RECORDER_QUEUE, consumer_callback=on_message, no_ack=False
     )
 
-    # await chan.basic_recover
-
     log.info('Ready to record!')

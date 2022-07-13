@@ -5,7 +5,10 @@ bot/nav
 bot/config.py
 
 # demoparse microservice
+micro/demoparse_py
 micro/demoparse/config.py
+micro/demoparse/parse/amqp_tests.js
+micro/demoparse/parse/asd
 
 # matchinfo microservice
 micro/matchinfo/cred
@@ -18,10 +21,6 @@ micro/recorder/config.py
 
 # test data
 tests/data.py
-
-# tooling
-tooling/demoinfogo-json
-tooling/demoinfogo-linux
 
 # docker stuff
 .env
@@ -36,6 +35,8 @@ venv
 .vscode
 .idea
 __pycache__
+node_modules
+package-lock.json
 
 # glob
 *.exe
