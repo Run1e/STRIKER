@@ -20,9 +20,6 @@ micro/recorder/hlae
 micro/recorder/mmcfg
 micro/recorder/config.py
 
-# test data
-tests/data.py
-
 # docker stuff
 .env
 Makefile
