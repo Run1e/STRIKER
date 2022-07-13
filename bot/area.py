@@ -79,7 +79,7 @@ places = {}
 
 for file in os.listdir('bot/nav'):
     map_name = file.split('.')[0]
-    with open(f'bot/nav/{file}', 'r') as f:
+    with open(f'bot/navparse/nav/{file}', 'r') as f:
         data = json.loads(f.read())
         if not data:
             continue

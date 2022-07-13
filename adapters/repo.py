@@ -5,6 +5,8 @@ from domain.domain import Demo, DemoState, Job, JobState
 from sqlalchemy import inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+INTERACTION_MINUTES = 13
+
 
 class SqlRepository:
     def __init__(self, session: AsyncSession, _type):
@@ -41,13 +43,13 @@ class JobRepository(SqlRepository):
     async def waiting_for_demo(self, demo_id):
         stmt = select(Job).where(
             Job.state == JobState.DEMO,
-            Job.started_at > datetime.now(timezone.utc) - timedelta(minutes=14),
+            Job.started_at > datetime.now(timezone.utc) - timedelta(minutes=INTERACTION_MINUTES),
             Job.demo_id == demo_id,
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_restart(self, minutes=14) -> List[Job]:
+    async def get_restart(self, minutes=INTERACTION_MINUTES) -> List[Job]:
         """Gets jobs that were made within the last {minutes} minutes and have state JobState.SELECT"""
 
         stmt = select(Job).where(

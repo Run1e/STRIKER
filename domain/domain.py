@@ -155,7 +155,7 @@ class Demo(Entity):
         self.score = data['score']
         self.teams = [
             [self.get_player_by_id(_id) for _id in lst]
-            for teamnum, lst in data['teams'].items()
+            for lst in (data['teams']['2'], data['teams']['3'])
         ]
 
         self._parsed = True

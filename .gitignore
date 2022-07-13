@@ -1,7 +1,7 @@
 config.py
 
 # bot
-bot/nav
+bot/navparse/nav
 bot/config.py
 
 # demoparse microservice
@@ -41,4 +41,3 @@ package-lock.json
 # glob
 *.exe
 *.sum
-*.mod
