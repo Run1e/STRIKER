@@ -231,6 +231,8 @@ class RecorderCog(commands.Cog):
             job=job,
             player_callback=partial(self.select_round, job),
             abort_callback=partial(self.abort_job, job),
+            timeout_callback=partial(self.view_timeout, job),
+            timeout=300.0,
         )
 
         embed = job.embed(self.bot)
@@ -251,28 +253,42 @@ class RecorderCog(commands.Cog):
 
         edit_kwargs = dict(content=None, embed=embed, view=view)
 
+        # depends on whether we came here from an appcmdinter
+        # or from a button interaction
         if isinstance(inter, disnake.MessageInteraction):
             await inter.response.edit_message(**edit_kwargs)
         elif isinstance(inter, disnake.AppCmdInter):
             message = await inter.original_message()
             await message.edit(**edit_kwargs)
 
-    async def abort_job(self, job: Job, inter: disnake.Interaction):
+    async def abort_job(self, job: Job, inter: disnake.Interaction, reason=None):
         await services.abort_job(uow=SqlUnitOfWork(), job=job)
 
         embed = job.embed(self.bot)
-        embed.description = 'Aborted.'
+        embed.description = reason or 'Aborted.'
 
         await inter.response.edit_message(content=None, embed=embed, view=None)
+
+    async def view_timeout(self, job: Job):
+        await services.abort_job(uow=SqlUnitOfWork(), job=job)
+
+        embed = job.embed(self.bot)
+        embed.description = 'Command timed out.'
+
+        inter = job.get_inter(self.bot)
+        message = await inter.original_message()
+        await message.edit(content=None, embed=embed, view=None)
 
     async def select_round(self, job: Job, inter: disnake.AppCmdInter, player: Player):
         view = RoundView(
             round_callback=partial(self.record_highlight, job, player),
             reselect_callback=partial(self.select_player, job),
             abort_callback=partial(self.abort_job, job),
+            timeout_callback=partial(self.view_timeout, job),
             job=job,
             embed_factory=partial(job.embed, self.bot),
             player=player,
+            timeout=300.0,
         )
 
         embed = await view.set_half(True)

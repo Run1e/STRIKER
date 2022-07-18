@@ -123,8 +123,8 @@ class Broker:
         for infront, (corr_id, last_update) in corr_updates:
             if now - last_update >= self.update_interval:
                 self._dispatch_enqueue(corr_id=corr_id, infront=infront + 1, now=now)
+                updates += 1
 
-            updates += 1
             if updates >= self.max_updates:
                 return
 

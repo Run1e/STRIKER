@@ -33,11 +33,20 @@ class PlayerButton(disnake.ui.Button):
 
 
 class PlayerView(disnake.ui.View):
-    def __init__(self, *, job: Job, player_callback, abort_callback, timeout=180.0):
+    def __init__(
+        self,
+        *,
+        job: Job,
+        player_callback,
+        abort_callback,
+        timeout_callback,
+        timeout=180.0,
+    ):
         super().__init__(timeout=timeout)
         self.job = job
         self.player_callback = player_callback
         self.abort_callback = abort_callback
+        self.on_timeout = timeout_callback
 
         # team one starts as T, team two starts as CT
         team_one, team_two = job.demo.teams
@@ -97,6 +106,7 @@ class RoundView(disnake.ui.View):
         round_callback,
         reselect_callback,
         abort_callback,
+        timeout_callback,
         job: Job,
         embed_factory,
         player: Player,
@@ -107,6 +117,8 @@ class RoundView(disnake.ui.View):
         self.round_callback = round_callback
         self.reselect_callback = reselect_callback
         self.abort_callback = abort_callback
+        self.on_timeout = timeout_callback
+        self.timeout_callback = timeout_callback
         self.job = job
         self.embed_factory = embed_factory
         self.demo = job.demo

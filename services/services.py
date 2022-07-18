@@ -64,6 +64,8 @@ async def new_job(
         # THROUGH THE BROKER
         # also: no try catch since it causes an exception
         # which goes to the slash command error handler
+        # also 2: we could .flush() to get the id but this is fine
+        # also 3: is it really? it should fail the command if it fails here
         if not can_record:
             async with uow:
                 uow.demos.add(demo)
