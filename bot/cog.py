@@ -5,6 +5,7 @@ import re
 from functools import partial
 
 import disnake
+from rapidfuzz import fuzz, process
 from disnake.ext import commands
 from domain import events
 from domain.domain import Job, JobState, Player
@@ -48,7 +49,19 @@ class RecorderCog(commands.Cog):
 
     @commands.slash_command(description='Record again from a previous demo')
     async def demos(self, inter: disnake.AppCmdInter, search: str):
-        demo_id = self._autocomplete_mapping.get(search, None)
+        aum = self._autocomplete_user_mapping[inter.author.id]
+        fuzzed = process.extract(
+            query=search,
+            choices=aum,
+            scorer=fuzz.ratio,
+            processor=None,
+            limit=1,
+        )
+
+        if fuzzed is None:
+            raise commands.CommandError('Demo not found, please try again.')
+
+        demo_id = self._autocomplete_mapping.get(fuzzed[0][0], None)
 
         await inter.response.defer(ephemeral=True)
 
@@ -79,6 +92,17 @@ class RecorderCog(commands.Cog):
 
         else:
             aum = self._autocomplete_user_mapping[inter.author.id]
+
+        if search:
+            fuzzed = process.extract(
+                query=search,
+                choices=aum,
+                scorer=fuzz.ratio,
+                processor=None,
+                limit=8,
+            )
+
+            aum = [v[0] for v in fuzzed]
 
         # TODO: fix this it ain't right
         # this gets all the autocompleted demo names
@@ -329,7 +353,7 @@ class RecorderCog(commands.Cog):
         await inter.channel.send(
             content=inter.author.mention,
             file=disnake.File(f'{config.VIDEO_DIR}/{job.id}.mp4'),
-            components=disnake.ui.ActionRow(*buttons)
+            components=disnake.ui.ActionRow(*buttons),
         )
 
         log.info(end())

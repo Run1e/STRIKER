@@ -5,3 +5,4 @@ disnake==2.5.1
 SQLAlchemy==1.4.39
 tabulate==0.8.10
 more_itertools==8.13.0
+rapidfuzz==2.1.4

@@ -122,7 +122,12 @@ class Demo(Entity):
 
     @property
     def matchtime_string(self):
-        return self.matchtime.strftime('%Y-%m-%d')
+        ordinal = {1: 'st', 2: 'nd', 3: 'rd', 4: 'th'}[min(self.matchtime.day % 10, 4)]
+        return (
+            self.matchtime.strftime('%d').strip('0')
+            + ordinal
+            + self.matchtime.strftime(' %b %Y at %I:%M')
+        )
 
     @property
     def score_string(self):
@@ -132,7 +137,7 @@ class Demo(Entity):
         date = self.matchtime_string
         score = self.score_string
 
-        return f'{date} {self.map} {score}'
+        return f'{self.map} [{score}] - {date}'
 
     def parse(self):
         if self._parsed:

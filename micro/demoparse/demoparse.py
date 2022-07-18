@@ -44,6 +44,8 @@ def decompress(archive, file):
 
 def parse_demo(demofile):
     p = run(['node', 'micro/demoparse/parse/index.js', demofile], capture_output=True)
+    if p.returncode != 0:
+        raise MessageError('Failed parsing demo')
     return p.stdout
 
 

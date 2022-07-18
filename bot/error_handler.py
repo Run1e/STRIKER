@@ -13,15 +13,15 @@ class ErrorHandler(commands.Cog):
         if not inter.response.is_done():
             await inter.response.defer(ephemeral=True)
 
-        is_ok = isinstance(exc, commands.UserInputError)
-
         embed = disnake.Embed(color=disnake.Color.red())
 
         embed.set_author(name='Oops!', icon_url=self.bot.user.display_avatar)
 
         kwargs = dict(content=None, embed=embed)
 
-        if is_ok:
+        if isinstance(exc, commands.UserInputError):
+            embed.description = str(exc)
+        elif type(exc) is commands.CommandError:
             embed.description = str(exc)
         else:
             embed.description = 'Some undefined error occurred, sorry about that!'
