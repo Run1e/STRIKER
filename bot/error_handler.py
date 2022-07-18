@@ -19,11 +19,13 @@ class ErrorHandler(commands.Cog):
 
         kwargs = dict(content=None, embed=embed)
 
+        is_ok = True
         if isinstance(exc, commands.UserInputError):
             embed.description = str(exc)
         elif type(exc) is commands.CommandError:
             embed.description = str(exc)
         else:
+            is_ok = False
             embed.description = 'Some undefined error occurred, sorry about that!'
 
         try:
