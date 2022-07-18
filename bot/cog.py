@@ -343,8 +343,6 @@ class RecorderCog(commands.Cog):
         embed.author.name = 'Upload complete!'
         embed.description = 'Enjoy!'
 
-        raise Exception
-
         try:
             await message.edit(content=None, embed=embed, view=None)
         except:
