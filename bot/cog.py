@@ -313,11 +313,23 @@ class RecorderCog(commands.Cog):
         job: Job = event.job
         inter = job.get_inter(self.bot)
 
+        buttons = []
+
+        if config.GITHUB_URL is not None:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label='Star the project on GitHub',
+                    url=config.GITHUB_URL,
+                )
+            )
+
         end = timer(f'Upload for job {job.id}')
         log.info('Starting upload for job %s', job.id)
         await inter.channel.send(
             content=inter.author.mention,
             file=disnake.File(f'{config.VIDEO_DIR}/{job.id}.mp4'),
+            components=disnake.ui.ActionRow(*buttons)
         )
 
         log.info(end())
@@ -330,6 +342,8 @@ class RecorderCog(commands.Cog):
         embed = job.embed(self.bot)
         embed.author.name = 'Upload complete!'
         embed.description = 'Enjoy!'
+
+        raise Exception
 
         try:
             await message.edit(content=None, embed=embed, view=None)

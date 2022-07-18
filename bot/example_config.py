@@ -14,3 +14,5 @@ VIDEO_DIR = ''
 CT_COIN = ''
 T_COIN = ''
 SPINNER = ''
+
+GITHUB_URL = None
