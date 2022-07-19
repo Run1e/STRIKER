@@ -8,7 +8,15 @@ from uuid import UUID
 from adapters import broker
 from bot import sequencer
 from domain import events
-from domain.domain import Demo, DemoState, Job, JobState, Player
+from domain.domain import (
+    Demo,
+    DemoState,
+    Job,
+    JobState,
+    Player,
+    Recording,
+    RecordingType,
+)
 from shared.const import DEMOPARSE_VERSION
 from shared.utils import utcnow
 
@@ -205,8 +213,11 @@ async def record(
             raise
         else:
             job.state = JobState.RECORD
-            job.player_xuid = player.xuid
-            job.round_id = round_id
+            job.recording = Recording(
+                recording_type=RecordingType.HIGHLIGHT,
+                player_xuid=player.xuid,
+                round_id=round_id,
+            )
         finally:
             await uow.commit()
 

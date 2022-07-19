@@ -93,10 +93,32 @@ def weapon_by_order(kills, n=2):
 
 def area_by_order(kills, map_area, n=2):
     if map_area is None:
-        return 'None'
+        return '?'
 
     areas = Counter([map_area.get_vec_name(kill.pos) for kill in kills])
     return ', '.join(area for area, _ in areas.most_common(n))
+
+
+def kills_info(demo, round_id, kills, map_area=None):
+    k = 0
+    tk = 0
+    for kill in kills:
+        if demo.death_is_tk(kill):
+            tk += 1
+        else:
+            k += 1
+
+    info = [f'{k}k']
+    if tk:
+        info.append(f'({tk}tk)')
+
+    info.append(weapon_by_order(kills))
+
+    return (
+        f'R{round_id}',
+        ' '.join(info),
+        area_by_order(kills, map_area),
+    )
 
 
 class RoundView(disnake.ui.View):
@@ -197,30 +219,8 @@ class RoundView(disnake.ui.View):
 
         for round_id in round_range:
             kills = self.kills.get(round_id, None)
-            if kills is None:
-                continue
-
-            k = 0
-            tk = 0
-            for kill in kills:
-                if demo.death_is_tk(kill):
-                    tk += 1
-                else:
-                    k += 1
-
-            info = [f'{k}k']
-            if tk:
-                info.append(f'({tk}tk)')
-
-            info.append(weapon_by_order(kills))
-
-            data.append(
-                (
-                    f'R{round_id}',
-                    ' '.join(info),
-                    area_by_order(kills, map_area),
-                )
-            )
+            if kills is not None:
+                data.append(kills_info(demo, round_id, kills, map_area))
 
         if not data:
             return 'This player got zero kills this half.'

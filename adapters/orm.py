@@ -5,7 +5,7 @@ import sqlalchemy as sa
 import sqlalchemy.ext.asyncio as aio
 import sqlalchemy.orm as orm
 from bot import config
-from domain.domain import Demo, DemoState, Job, JobState
+from domain.domain import Demo, DemoState, Job, JobState, RecordingType, Recording
 from sqlalchemy.dialects import postgresql as pg
 
 log = logging.getLogger(__name__)
@@ -42,7 +42,15 @@ job_table = sa.Table(
     sa.Column('started_at', sa.DateTime(timezone=True)),
     sa.Column('inter_payload', sa.LargeBinary),
     sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('player_xuid', sa.BigInteger, nullable=True),
+    sa.Column('recording_id', sa.ForeignKey('recording.id'), nullable=True),
+)
+
+recording_table = sa.Table(
+    'recording',
+    meta,
+    sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+    sa.Column('recording_type', pg.ENUM(RecordingType), unique=False, nullable=False),
+    sa.Column('player_xuid', sa.BigInteger, nullable=False),
     sa.Column('round_id', sa.Integer, nullable=True),
 )
 
@@ -82,8 +90,13 @@ async def start_orm():
     registry.map_imperatively(
         Job,
         job_table,
-        properties=dict(demo=orm.relationship(Demo, lazy='joined')),
+        properties=dict(
+            demo=orm.relationship(Demo, lazy='joined'),
+            recording=orm.relationship(Recording, lazy='joined'),
+        ),
     )
+
+    registry.map_imperatively(Recording, recording_table)
 
     async with engine.begin() as conn:
         if config.DROP_TABLES:

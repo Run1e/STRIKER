@@ -5,10 +5,10 @@ import re
 from functools import partial
 
 import disnake
-from rapidfuzz import fuzz, process
 from disnake.ext import commands
 from domain import events
 from domain.domain import Job, JobState, Player
+from rapidfuzz import fuzz, process
 from services import bus, services
 from services.uow import SqlUnitOfWork
 from shared.utils import TimedDict, timer
@@ -17,7 +17,7 @@ from tabulate import tabulate
 from bot.sharecode import is_valid_sharecode
 
 from . import config
-from .ui import PlayerView, RoundView
+from .ui import PlayerView, RoundView, kills_info
 
 log = logging.getLogger(__name__)
 
@@ -357,11 +357,30 @@ class RecorderCog(commands.Cog):
                 )
             )
 
+        demo = job.demo
+        recording = job.recording
+
+        try:
+            demo.parse()
+
+            player = demo.get_player_by_xuid(recording.player_xuid)
+            round_id = recording.round_id
+            kills = demo.get_player_kills_round(player, round_id)
+
+            info = kills_info(demo, recording.round_id, kills)
+            file_name = ' '.join([info[0], player.name, info[1]])
+        except Exception:
+            # the above is not *that* important
+            # if anything in there fails, just revert to the job id
+            file_name = str(job.id)
+
         end = timer(f'Upload for job {job.id}')
         log.info('Starting upload for job %s', job.id)
         await inter.channel.send(
             content=inter.author.mention,
-            file=disnake.File(f'{config.VIDEO_DIR}/{job.id}.mp4'),
+            file=disnake.File(
+                fp=f'{config.VIDEO_DIR}/{job.id}.mp4', filename=file_name + '.mp4'
+            ),
             components=disnake.ui.ActionRow(*buttons),
         )
 

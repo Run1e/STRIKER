@@ -26,6 +26,10 @@ class DemoState(Enum):
     SUCCESS = auto()  # demo successful, can be used by jobs
 
 
+class RecordingType(Enum):
+    HIGHLIGHT = auto()
+
+
 class Entity:
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__} id={self.id}>'
@@ -106,14 +110,24 @@ class Demo(Entity):
         # in half two if round > .halftime
         return self.max_rounds // 2
 
+    def get_player_kills_round(self, player: Player, round_id, kills=None):
+        deaths = kills or self._rounds.get(round_id, None)
+
+        if deaths is None:
+            return None
+
+        from_player = list()
+        for death in deaths:
+            if death.attacker.xuid == player.xuid:
+                from_player.append(death)
+
+        return from_player or None
+
     def get_player_kills(self, player: Player):
         kills = dict()  # round_id: List[Death]
 
         for round_id, deaths in self._rounds.items():
-            from_player = list()
-            for death in deaths:
-                if death.attacker.xuid == player.xuid:
-                    from_player.append(death)
+            from_player = self.get_player_kills_round(player, round_id, deaths)
 
             if from_player:
                 kills[round_id] = from_player
@@ -221,12 +235,22 @@ class Demo(Entity):
         self._rounds[rnd].append(Death(**data))
 
 
+class Recording(Entity):
+    def __init__(
+        self, recording_type: RecordingType, player_xuid: int, round_id: int = None
+    ):
+        self.recording_type = recording_type
+        self.player_xuid = player_xuid
+        self.round_id = round_id
+
+
 # this job class is discord-specific
 # which does mean some discord (frontend) specific things
 # kind of flow into the domain, which is not the best,
 # but it'll have to do. it's just the easiest way of doing this
 class Job(Entity):
     demo: Demo
+    recording: Recording
 
     def __init__(
         self,
