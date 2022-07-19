@@ -101,6 +101,11 @@ class Broker:
             )
 
     def _handle_recv_event(self, correlation_id):
+        # this method looks very messy, however it has to be messy
+        # as it's dealing with a quite messy piece of logic
+        # of when, which, and how many events should be fired
+        # off when a new recv event comes in
+
         # response received, it can be removed from the queue
         next_cid = self._get_next_in_queue()
         self._set_finished(correlation_id)
@@ -184,6 +189,8 @@ matchinfo = Broker(
     enqueue_event=events.MatchInfoEnqueued,
     processing_event=events.MatchInfoProcessing,
     id_type_cast=int,
+    update_interval=8.0,
+    max_updates=2,
 )
 
 demoparse = Broker(
@@ -195,6 +202,8 @@ demoparse = Broker(
     enqueue_event=events.DemoParseEnqueued,
     processing_event=events.DemoParseProcessing,
     id_type_cast=int,
+    update_interval=12.0,
+    max_updates=2,
 )
 
 recorder = Broker(
@@ -206,6 +215,8 @@ recorder = Broker(
     enqueue_event=events.RecorderEnqueued,
     processing_event=events.RecorderProcessing,
     id_type_cast=lambda uuid: UUID(str(uuid)),
+    update_interval=20.0,
+    max_updates=3,
 )
 
 
