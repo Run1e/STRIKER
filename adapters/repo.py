@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 
 from domain.domain import Demo, DemoState, Job, JobState
-from sqlalchemy import inspect, select, update
+from sqlalchemy import func, inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 INTERACTION_MINUTES = 13
@@ -93,7 +93,7 @@ class DemoRepository(SqlRepository):
             .join(Job)
             .where(Job.user_id == user_id, Demo.state == DemoState.SUCCESS)
             .group_by(Demo.id)
-            .order_by(Demo.id.desc())
+            .order_by(func.max(Job.started_at).desc())
         )
 
         result = await self.session.execute(stmt)

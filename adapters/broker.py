@@ -28,7 +28,7 @@ class Broker:
         processing_event: Event,
         id_type_cast: type,
         update_interval: float = 8.0,
-        max_updates: int = 1,
+        max_updates: int = 3,
     ):
         self.send_queue = queue_prefix + send_queue
         self.recv_queue = queue_prefix + recv_queue
