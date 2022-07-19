@@ -16,3 +16,4 @@ T_COIN = ''
 SPINNER = ''
 
 GITHUB_URL = None
+DISCORD_INVITE_URL = 'https://discord.gg/akAyfP9z53'

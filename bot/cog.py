@@ -339,6 +339,15 @@ class RecorderCog(commands.Cog):
 
         buttons = []
 
+        if config.DISCORD_INVITE_URL is not None:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label='Join the Discord',
+                    url=config.DISCORD_INVITE_URL,
+                )
+            )
+
         if config.GITHUB_URL is not None:
             buttons.append(
                 disnake.ui.Button(
