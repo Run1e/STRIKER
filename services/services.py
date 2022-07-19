@@ -133,9 +133,21 @@ async def handle_demo_step(demo: Demo, dispatcher=None):
 async def restore(uow: SqlUnitOfWork):
     # restores jobs and demos that were cut off during last restart
     async with uow:
-        jobs = await uow.jobs.where(state=JobState.SELECT)
+        jobs = await uow.jobs.get_restart()
         for job in jobs:
             uow.add_event(events.JobReadyForSelect(job))
+
+        # handle queued demos
+        demos = await uow.demos.queued()
+        for demo in demos:
+            if demo.state is DemoState.MATCH:
+                broker_instance = broker.matchinfo
+            elif demo.state is DemoState.PARSE:
+                broker_instance = broker.demoparse
+            else:
+                continue
+
+            broker_instance._handle_send_event(broker_instance.id_type_cast(demo.id))
 
         demos = await uow.demos.unqueued()
         for demo in demos:
@@ -143,6 +155,11 @@ async def restore(uow: SqlUnitOfWork):
             # which is probably what we want to know
             # on startup
             await handle_demo_step(demo, dispatcher=uow.add_event)
+
+        # handle queued recording jobs
+        jobs = await uow.jobs.get_recording()
+        for job in jobs:
+            broker.recorder._handle_send_event(broker.recorder.id_type_cast(job.id))
 
         await uow.commit()
 

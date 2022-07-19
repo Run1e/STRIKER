@@ -42,6 +42,7 @@ class Broker:
 
         self.queue = deque()
         self.enqueued_updates = dict()  # correlation_id: monotonic
+        self.processing_sent = set()
 
     async def start(self, channel: aiormq.Channel):
         self.channel = channel
@@ -87,6 +88,11 @@ class Broker:
         infront = len(self.queue)
         self.queue.append(correlation_id)
 
+        # since .restore() doesn't provide a dispatcher
+        # it will not dispatch these events when restoring
+        if dispatcher is None:
+            return
+
         if not infront:
             self._dispatch_processing(corr_id=correlation_id, dispatcher=dispatcher)
         else:
@@ -105,8 +111,11 @@ class Broker:
             return
 
         # if we need to send a new processing event
-        if next_cid == correlation_id:
-            self._dispatch_processing(corr_id=self._get_next_in_queue())
+        # if next_cid == correlation_id:
+        for elem in self.queue:
+            if elem not in self.processing_sent:
+                self._dispatch_processing(corr_id=elem)
+                break
 
         # no enqueue updates to be done if len is less than 2
         if queue_len < 2:
@@ -121,6 +130,9 @@ class Broker:
         # otherwise, iterate through the enqueued_updates,
         # oldest first, and send enqueued updates
         for infront, (corr_id, last_update) in corr_updates:
+            if corr_id in self.processing_sent:
+                continue
+
             if now - last_update >= self.update_interval:
                 self._dispatch_enqueue(corr_id=corr_id, infront=infront + 1, now=now)
                 updates += 1
@@ -139,6 +151,7 @@ class Broker:
     def _dispatch_processing(self, corr_id, dispatcher=None):
         disp = dispatcher or bus.dispatch
         disp(self.processing_event(id=corr_id))
+        self.processing_sent.add(corr_id)
         self.enqueued_updates.pop(corr_id, None)
 
     def _dispatch_enqueue(self, corr_id, infront, now=None, dispatcher=None):
@@ -150,6 +163,11 @@ class Broker:
         try:
             self.queue.remove(corr_id)
         except ValueError:
+            pass
+
+        try:
+            self.processing_sent.remove(corr_id)
+        except KeyError:
             pass
 
         self.enqueued_updates.pop(corr_id, None)
@@ -190,8 +208,6 @@ recorder = Broker(
     id_type_cast=lambda uuid: UUID(str(uuid)),
 )
 
-brokers = (matchinfo, demoparse, recorder)
-
 
 async def start_brokers():
     log.info('Initializing broker')
@@ -201,7 +217,7 @@ async def start_brokers():
     mq = await aiormq.connect(config.RABBITMQ_HOST)
     channel: aiormq.Channel = await mq.channel()
 
-    for broker in brokers:
+    for broker in (matchinfo, demoparse, recorder):
         await broker.start(channel)
 
     log.info('Broker initialized')

@@ -282,9 +282,9 @@ class Job(Entity):
 
     def embed(self, bot: commands.InteractionBot) -> disnake.Embed:
         color = {
-            JobState.DEMO: disnake.Color.yellow(),
+            JobState.DEMO: disnake.Color.orange(),
             JobState.SELECT: disnake.Color.blurple(),
-            JobState.RECORD: disnake.Color.yellow(),
+            JobState.RECORD: disnake.Color.orange(),
             JobState.SUCCESS: disnake.Color.green(),
             JobState.FAILED: disnake.Color.red(),
             JobState.ABORTED: disnake.Color.red(),

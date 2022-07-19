@@ -61,6 +61,17 @@ class JobRepository(SqlRepository):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def get_recording(self, minutes=INTERACTION_MINUTES) -> List[Job]:
+        """Gets jobs that were made within the last {minutes} minutes and have state JobState.SELECT"""
+
+        stmt = select(Job).where(
+            Job.state == JobState.RECORD,
+            Job.started_at > datetime.now(timezone.utc) - timedelta(minutes=minutes),
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
 
 class DemoRepository(SqlRepository):
     def __init__(self, session: AsyncSession):
@@ -80,6 +91,14 @@ class DemoRepository(SqlRepository):
     async def unqueued(self):
         stmt = select(Demo).where(
             Demo.queued == False, Demo.state.in_((DemoState.MATCH, DemoState.PARSE))
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def queued(self):
+        stmt = select(Demo).where(
+            Demo.queued == True, Demo.state.in_((DemoState.MATCH, DemoState.PARSE))
         )
 
         result = await self.session.execute(stmt)

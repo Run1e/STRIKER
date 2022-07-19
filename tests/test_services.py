@@ -6,6 +6,7 @@ from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
+from adapters import broker
 from domain import events
 from domain.domain import DemoState, JobState, Recording, RecordingType
 from services import services
@@ -79,6 +80,22 @@ class FakeJobRepository(FakeRepository):
 
         return super().add(instance)
 
+    async def get_recording(self):
+        jobs = []
+        for job in self.store.values():
+            if job.state is JobState.RECORD:
+                jobs.append(job)
+
+        return jobs
+
+    async def get_restart(self):
+        jobs = []
+        for job in self.store.values():
+            if job.state is JobState.SELECT:
+                jobs.append(job)
+
+        return jobs
+
     async def waiting_for_demo(self, demo_id):
         jobs = []
         for job in self.store.values():
@@ -108,6 +125,22 @@ class FakeDemoRepository(FakeRepository):
             if instance.sharecode == sharecode:
                 return instance
         return None
+
+    async def queued(self):
+        demos = []
+        for demo in self.store.values():
+            if demo.queued and demo.state in (DemoState.MATCH, DemoState.PARSE):
+                demos.append(demo)
+
+        return demos
+
+    async def unqueued(self):
+        demos = []
+        for demo in self.store.values():
+            if not demo.queued and demo.state in (DemoState.MATCH, DemoState.PARSE):
+                demos.append(demo)
+
+        return demos
 
 
 class FakeUnitOfWork:
@@ -771,5 +804,105 @@ async def test_abort_job(demo_job):
 
 
 @pytest.mark.asyncio
-async def test_restore():
-    pass
+async def test_restore_restart_jobs():
+    demo = new_demo(
+        state=DemoState.SUCCESS,
+        queued=False,
+        sharecode='sharecode',
+        has_matchinfo=True,
+        data=loads(demo_data[0]),
+    )
+
+    demo.parse()
+
+    job = new_job(state=JobState.SELECT)
+    job.demo = demo
+    uow = FakeUnitOfWork(jobs=[job], demos=[demo])
+    job.demo_id = demo.id
+
+    await services.restore(uow)
+
+    event = uow.events[0]
+    assert isinstance(event, events.JobReadyForSelect)
+    assert event.job is job
+
+
+@pytest.mark.asyncio
+async def test_restore_unqueued_demos_matchinfo(matchinfo_send):
+    demo = new_demo(
+        state=DemoState.MATCH,
+        queued=False,
+        sharecode='sharecode',
+        has_matchinfo=False,
+    )
+
+    uow = FakeUnitOfWork(demos=[demo])
+
+    await services.restore(uow)
+
+    matchinfo_send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_restore_unqueued_demos_demoparse(demoparse_send):
+    demo = new_demo(
+        state=DemoState.PARSE,
+        queued=False,
+        sharecode='sharecode',
+        has_matchinfo=True,
+    )
+
+    uow = FakeUnitOfWork(demos=[demo])
+
+    await services.restore(uow)
+
+    demoparse_send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_restore_queued_demos(matchinfo_send, demoparse_send):
+    demo_one = new_demo(
+        state=DemoState.MATCH, queued=True, sharecode='sharecode', has_matchinfo=False
+    )
+
+    demo_two = new_demo(
+        state=DemoState.PARSE,
+        queued=True,
+        sharecode='sharecode',
+        has_matchinfo=True,
+    )
+
+    demo_three = new_demo(
+        state=DemoState.PARSE,
+        queued=True,
+        sharecode='sharecode',
+        has_matchinfo=True,
+    )
+
+    uow = FakeUnitOfWork(demos=[demo_one, demo_two, demo_three])
+
+    await services.restore(uow)
+
+    assert broker.matchinfo.queue[0] == demo_one.id
+    assert broker.demoparse.queue[0] == demo_two.id
+    assert broker.demoparse.queue[1] == demo_three.id
+
+
+@pytest.mark.asyncio
+async def test_restore_get_recording():
+    demo = new_demo(
+        state=DemoState.SUCCESS,
+        queued=True,
+        sharecode='sharecode',
+        has_matchinfo=True,
+        data=loads(demo_data[0]),
+    )
+
+    job = new_job(state=JobState.RECORD)
+    job.demo = demo
+    uow = FakeUnitOfWork(jobs=[job], demos=[demo])
+    job.demo_id = demo.id
+
+    await services.restore(uow)
+
+    assert broker.recorder.queue[0] == job.id

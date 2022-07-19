@@ -55,7 +55,7 @@ def event_at(mock, pos):
 
 @pytest.mark.asyncio
 async def test_broker_processing(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
 
     mock_dispatch.assert_called_once()
     processing_event = mock_dispatch.call_args[0][0]
@@ -65,8 +65,8 @@ async def test_broker_processing(broker: Broker, mock_dispatch):
 
 @pytest.mark.asyncio
 async def test_broker_enqueued(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
-    broker._handle_send_event(2)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
+    broker._handle_send_event(2, dispatcher=mock_dispatch)
 
     processing_event = event_at(mock_dispatch, 0)
     assert isinstance(processing_event, Processing)
@@ -80,8 +80,8 @@ async def test_broker_enqueued(broker: Broker, mock_dispatch):
 
 @pytest.mark.asyncio
 async def test_broker_on_recv(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
-    broker._handle_send_event(2)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
+    broker._handle_send_event(2, dispatcher=mock_dispatch)
     broker._handle_recv_event(1)
 
     processing_event = event_at(mock_dispatch, 0)
@@ -100,9 +100,9 @@ async def test_broker_on_recv(broker: Broker, mock_dispatch):
 
 @pytest.mark.asyncio
 async def test_broker_on_recv_multiple(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
-    broker._handle_send_event(2)
-    broker._handle_send_event(3)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
+    broker._handle_send_event(2, dispatcher=mock_dispatch)
+    broker._handle_send_event(3, dispatcher=mock_dispatch)
     broker._handle_recv_event(1)
 
     processing_event = event_at(mock_dispatch, 0)
@@ -126,14 +126,14 @@ async def test_broker_on_recv_multiple(broker: Broker, mock_dispatch):
 
 @pytest.mark.asyncio
 async def test_broker_recv_then_send(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
-    broker._handle_send_event(2)
-    broker._handle_send_event(3)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
+    broker._handle_send_event(2, dispatcher=mock_dispatch)
+    broker._handle_send_event(3, dispatcher=mock_dispatch)
 
     await asyncio.sleep(UPDATE_INTERVAL * 2)
 
     broker._handle_recv_event(1)
-    broker._handle_send_event(4)
+    broker._handle_send_event(4, dispatcher=mock_dispatch)
 
     processing_event = event_at(mock_dispatch, 0)
     assert isinstance(processing_event, Processing)
@@ -165,9 +165,9 @@ async def test_broker_recv_then_send(broker: Broker, mock_dispatch):
 
 @pytest.mark.asyncio
 async def test_broker_on_recv_multiple_with_update_delay(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
-    broker._handle_send_event(2)
-    broker._handle_send_event(3)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
+    broker._handle_send_event(2, dispatcher=mock_dispatch)
+    broker._handle_send_event(3, dispatcher=mock_dispatch)
 
     await asyncio.sleep(UPDATE_INTERVAL * 2)
 
@@ -193,9 +193,9 @@ async def test_broker_on_recv_multiple_with_update_delay(broker: Broker, mock_di
 
 @pytest.mark.asyncio
 async def test_broker_on_recv_multiple_out_of_order(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
-    broker._handle_send_event(2)
-    broker._handle_send_event(3)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
+    broker._handle_send_event(2, dispatcher=mock_dispatch)
+    broker._handle_send_event(3, dispatcher=mock_dispatch)
 
     await asyncio.sleep(UPDATE_INTERVAL * 2)
 
@@ -216,18 +216,17 @@ async def test_broker_on_recv_multiple_out_of_order(broker: Broker, mock_dispatc
     assert enqueued_event.infront == 2
 
     enqueued_event = event_at(mock_dispatch, 3)
-    assert isinstance(enqueued_event, Enqueued)
+    assert isinstance(enqueued_event, Processing)
     assert enqueued_event.id == 3
-    assert enqueued_event.infront == 1
 
 
 @pytest.mark.asyncio
 async def test_broker_enqueued_updates_before_interval(broker: Broker, mock_dispatch):
-    broker._handle_send_event(1)
-    broker._handle_send_event(2)
-    broker._handle_send_event(3)
-    broker._handle_send_event(4)
-    broker._handle_send_event(5)
+    broker._handle_send_event(1, dispatcher=mock_dispatch)
+    broker._handle_send_event(2, dispatcher=mock_dispatch)
+    broker._handle_send_event(3, dispatcher=mock_dispatch)
+    broker._handle_send_event(4, dispatcher=mock_dispatch)
+    broker._handle_send_event(5, dispatcher=mock_dispatch)
     broker._handle_recv_event(1)
 
     a = event_at(mock_dispatch, 0)
