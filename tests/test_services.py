@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 from domain import events
-from domain.domain import DemoState, JobState
+from domain.domain import DemoState, JobState, Recording, RecordingType
 from services import services
 from shared.const import DEMOPARSE_VERSION
 
@@ -653,8 +653,10 @@ async def test_record(recorder_send):
     await services.record(uow, job=job, player=player, round_id=round_id)
 
     assert job.state is JobState.RECORD
-    assert job.player_xuid == player.xuid
-    assert job.round_id == round_id
+    assert isinstance(job.recording, Recording)
+    assert job.recording.recording_type is RecordingType.HIGHLIGHT
+    assert job.recording.player_xuid == player.xuid
+    assert job.recording.round_id == round_id
 
     recorder_send.assert_awaited_once()
 
