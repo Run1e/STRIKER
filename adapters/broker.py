@@ -221,7 +221,7 @@ recorder = Broker(
 
 
 async def start_brokers():
-    log.info('Initializing broker')
+    log.info('Initializing brokers')
 
     logging.getLogger('aiormq').setLevel(logging.WARN)
 
@@ -231,4 +231,4 @@ async def start_brokers():
     for broker in (matchinfo, demoparse, recorder):
         await broker.start(channel)
 
-    log.info('Broker initialized')
+    log.info('Brokers initialized')

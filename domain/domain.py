@@ -136,9 +136,9 @@ class Demo(Entity):
 
     @property
     def matchtime_string(self):
-        ordinal = {1: 'st', 2: 'nd', 3: 'rd', 4: 'th'}[min(self.matchtime.day % 10, 4)]
+        ordinal = {1: 'st', 2: 'nd', 3: 'rd'}.get(self.matchtime.day % 10, 'th')
         return (
-            self.matchtime.strftime('%d').strip('0')
+            self.matchtime.strftime('%d').lstrip('0')
             + ordinal
             + self.matchtime.strftime(' %b %Y at %I:%M')
         )

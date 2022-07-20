@@ -165,6 +165,9 @@ class FakeUnitOfWork:
     def add_event(self, event):
         self.events.append(event)
 
+    async def flush(self):
+        pass
+
     async def commit(self):
         self.jobs.commit()
         self.demos.commit()
@@ -224,8 +227,6 @@ async def test_new_job_sharecode(matchinfo_send, new_job_junk):
     job = get_first(uow.jobs)
     demo = get_first(uow.demos)
 
-    assert uow.commit_count == 2
-
     assert job.id is not None
     assert demo.id is not None
     assert demo.state is DemoState.MATCH
@@ -280,8 +281,6 @@ async def test_new_job_demo_id_no_data(demoparse_send, new_job_junk):
 
     job = get_first(uow.jobs)
 
-    assert uow.commit_count == 2
-
     assert not demo.can_record()
     assert not demo.is_up_to_date()
     assert demo.queued
@@ -313,8 +312,6 @@ async def test_new_job_demo_id_not_up_to_date(demoparse_send, new_job_junk):
 
     job = get_first(uow.jobs)
 
-    assert uow.commit_count == 2
-
     assert not demo.can_record()
     assert not demo.is_up_to_date()
     assert demo.state is DemoState.PARSE
@@ -344,8 +341,6 @@ async def test_new_job_demo_id_no_matchinfo(matchinfo_send, new_job_junk):
     await services.new_job(uow, demo_id=demo.id, **new_job_junk)
 
     job = get_first(uow.jobs)
-
-    assert uow.commit_count == 2
 
     assert not demo.can_record()
     assert not demo.is_up_to_date()

@@ -48,8 +48,17 @@ async def new_job(
                     )
                     uow.demos.add(demo)
 
+                    # gives the new demo an autoincremented id
+                    # which is needed in handle_demo_step
+                    await uow.flush()
+
+                    log.info(
+                        'Demo with sharecode %s created with id %s', sharecode, demo.id
+                    )
+
             elif demo_id is not None:
                 demo = await uow.demos.get(demo_id)
+                log.info('Demo with sharecode %s exists with id %s', sharecode, demo.id)
 
             can_record = demo.can_record()
 
@@ -62,23 +71,13 @@ async def new_job(
                 inter_payload=inter_payload,
             )
 
+            uow.jobs.add(job)
             job.demo = demo
 
-            uow.jobs.add(job)
-            await uow.commit()
-
-        # future me: this has to be outside the above ouw
-        # because it NEEDS AN ID BEFORE BEING SENT
-        # THROUGH THE BROKER
-        # also: no try catch since it causes an exception
-        # which goes to the slash command error handler
-        # also 2: we could .flush() to get the id but this is fine
-        # also 3: is it really? it should fail the command if it fails here
-        if not can_record:
-            async with uow:
-                uow.demos.add(demo)
+            if not can_record:
                 await handle_demo_step(demo, dispatcher=uow.add_event)
-                await uow.commit()
+
+            await uow.commit()
 
         # if can_record was false above, it might've gotten "fixed" by
         # having its state set to success, in which case we can actually gogogo
@@ -95,10 +94,8 @@ async def handle_demo_step(demo: Demo, dispatcher=None):
         log.info('Demo %s already queued, not finding next step', demo.id)
         return
 
-    log.info('Demo %s not queued, finding next step', demo.id)
-
     if not demo.has_matchinfo():
-        log.info('New demo, need to fetch matchinfo first')
+        log.info('Demo %s has no matchinfo, dispatching to matchinfo', demo.id)
         await broker.matchinfo.send(
             id=demo.id, dispatcher=dispatcher, sharecode=demo.sharecode
         )
@@ -111,9 +108,7 @@ async def handle_demo_step(demo: Demo, dispatcher=None):
         # 1. the demo has not been parsed yet
         # 2. the demo has been parsed but is out of date
         # in both cases we need to send it on to the demoparser
-        log.info(
-            'Demo exists but has no data or is out of date, dispatching to demoparse'
-        )
+        log.info('Demo %s needs to be parsed, dispatching to demoparse', demo.id)
         await broker.demoparse.send(
             id=demo.id,
             dispatcher=dispatcher,
@@ -149,17 +144,17 @@ async def restore(uow: SqlUnitOfWork):
 
             broker_instance._handle_send_event(broker_instance.id_type_cast(demo.id))
 
+        # handle queued recording jobs
+        jobs = await uow.jobs.get_recording()
+        for job in jobs:
+            broker.recorder._handle_send_event(broker.recorder.id_type_cast(job.id))
+
         demos = await uow.demos.unqueued()
         for demo in demos:
             # on broker failure this will except
             # which is probably what we want to know
             # on startup
             await handle_demo_step(demo, dispatcher=uow.add_event)
-
-        # handle queued recording jobs
-        jobs = await uow.jobs.get_recording()
-        for job in jobs:
-            broker.recorder._handle_send_event(broker.recorder.id_type_cast(job.id))
 
         await uow.commit()
 
@@ -169,6 +164,16 @@ async def get_user_demos(uow: SqlUnitOfWork, user_id: int) -> List[Demo]:
         demos = await uow.demos.user_associated(user_id)
 
     return demos
+
+
+async def get_jobs_waiting_for_demo(uow: SqlUnitOfWork, demo_id: int):
+    async with uow:
+        return await uow.jobs.waiting_for_demo(demo_id=demo_id)
+
+
+async def get_job(uow: SqlUnitOfWork, job_id: UUID):
+    async with uow:
+        return await uow.jobs.get(job_id)
 
 
 async def abort_job(uow: SqlUnitOfWork, job: Job):
@@ -241,34 +246,33 @@ async def record(
 
 @bus.listen(events.MatchInfoSuccess)
 async def matchinfo_success(uow: SqlUnitOfWork, event: events.MatchInfoSuccess):
-    async with DEMO_LOCK:
-        async with uow:
-            demo = await uow.demos.get(event.id)
+    async with uow:
+        demo = await uow.demos.get(event.id)
 
-            if demo is None:
-                raise ValueError(
-                    f'Received MatchInfoSuccess for nonexistent demo with id {event.id}'
-                )
+        if demo is None:
+            raise ValueError(
+                f'Received MatchInfoSuccess for nonexistent demo with id {event.id}'
+            )
 
-            demo.state = DemoState.PARSE
-            demo.queued = False
-            demo.matchid = event.matchid
-            demo.matchtime = datetime.fromtimestamp(event.matchtime, timezone.utc)
-            demo.url = event.url
+        demo.state = DemoState.PARSE
+        demo.queued = False
+        demo.matchid = event.matchid
+        demo.matchtime = datetime.fromtimestamp(event.matchtime, timezone.utc)
+        demo.url = event.url
 
-            try:
-                await handle_demo_step(demo=demo, dispatcher=uow.add_event)
-            except:
-                jobs = await uow.jobs.waiting_for_demo(demo.id)
-                for job in jobs:
-                    uow.add_event(
-                        events.JobDemoParseFailed(
-                            job=job, reason='Failed communicating with message broker'
-                        )
+        try:
+            await handle_demo_step(demo=demo, dispatcher=uow.add_event)
+        except:
+            jobs = await uow.jobs.waiting_for_demo(demo.id)
+            for job in jobs:
+                uow.add_event(
+                    events.JobDemoParseFailed(
+                        job=job, reason='Failed communicating with message broker'
                     )
-                raise
-            finally:
-                await uow.commit()
+                )
+            raise
+        finally:
+            await uow.commit()
 
 
 @bus.listen(events.MatchInfoFailure)
@@ -289,46 +293,46 @@ async def matchinfo_failure(uow: SqlUnitOfWork, event: events.MatchInfoFailure):
         await uow.commit()
 
 
-async def get_jobs_waiting_for_demo(uow: SqlUnitOfWork, demo_id: int):
-    async with uow:
-        return await uow.jobs.waiting_for_demo(demo_id=demo_id)
-
-
-async def get_job(uow: SqlUnitOfWork, job_id: UUID):
-    async with uow:
-        return await uow.jobs.get(job_id)
-
-
 @bus.listen(events.DemoParseSuccess)
 async def demoparse_success(uow: SqlUnitOfWork, event: events.DemoParseSuccess):
     if event.version != DEMOPARSE_VERSION:
-        async with uow:
-            demo = await uow.demos.get(event.id)
+        await demoparse_success_out_of_date(uow, event)
+    else:
+        await demoparse_success_up_to_date(uow, event)
 
-            if demo is None:
-                raise ValueError(
-                    f'Received success from demoparse for non-existent demo with id: {event.id}'
-                )
 
-            demo.queued = False
+async def demoparse_success_out_of_date(
+    uow: SqlUnitOfWork, event: events.DemoParseSuccess
+):
+    async with uow:
+        demo = await uow.demos.get(event.id)
 
-            try:
-                await handle_demo_step(demo=demo, dispatcher=uow.add_event)
-            except:
-                jobs = await uow.jobs.waiting_for_demo(demo_id=demo.id)
-                for job in jobs:
-                    job.state = JobState.FAILED
-                    uow.add_event(
-                        events.JobDemoParseFailed(
-                            job=job, reason='Failed communicating with message broker'
-                        )
+        if demo is None:
+            raise ValueError(
+                f'Received success from demoparse for non-existent demo with id: {event.id}'
+            )
+
+        demo.queued = False
+
+        try:
+            await handle_demo_step(demo=demo, dispatcher=uow.add_event)
+        except:
+            jobs = await uow.jobs.waiting_for_demo(demo_id=demo.id)
+            for job in jobs:
+                job.state = JobState.FAILED
+                uow.add_event(
+                    events.JobDemoParseFailed(
+                        job=job, reason='Failed communicating with message broker'
                     )
-                raise
-            finally:
-                await uow.commit()
+                )
+            raise
+        finally:
+            await uow.commit()
 
-        return
 
+async def demoparse_success_up_to_date(
+    uow: SqlUnitOfWork, event: events.DemoParseSuccess
+):
     async with uow:
         demo = await uow.demos.get(event.id)
 

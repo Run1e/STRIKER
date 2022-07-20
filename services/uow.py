@@ -33,6 +33,9 @@ class SqlUnitOfWork:
     def add_event(self, event):
         self.events.append(event)
 
+    async def flush(self):
+        await self.session.flush()
+
     async def commit(self):
         await self.transaction.commit()
         self._committed = True
