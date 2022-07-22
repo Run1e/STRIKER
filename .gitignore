@@ -24,7 +24,6 @@ micro/recorder/config.py
 .env
 Makefile
 docker-compose.yml
-Dockerfile
 
 # misc
 notes.md

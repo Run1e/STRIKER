@@ -172,8 +172,13 @@ class Demo(Entity):
         self._parse_events(data['events'])
 
         self.score = data['score']
+
+        # list(dict.fromkeys(iter)) forces an in ordered list with unique elements
+        # the teams hold all the userids of players that played for a team
+        # players can reconnect and they get a new id, hence duplicates
+        # can occur, and they need to be made unique
         self.teams = [
-            [self.get_player_by_id(_id) for _id in lst]
+            list(dict.fromkeys([self.get_player_by_id(_id) for _id in lst]))
             for lst in (data['teams']['2'], data['teams']['3'])
         ]
 
@@ -230,8 +235,12 @@ class Demo(Entity):
             self._id_mapper[player.userid] = actual_user.userid
 
     def _add_death(self, rnd, data):
-        data['victim'] = self.get_player_by_id(data.pop('victim'))
-        data['attacker'] = self.get_player_by_id(data.pop('attacker'))
+        victim_id = data.pop('victim')
+        attacker_id = data.pop('attacker')
+
+        data['victim'] = self.get_player_by_id(victim_id)
+        data['attacker'] = self.get_player_by_id(attacker_id)
+
         self._rounds[rnd].append(Death(**data))
 
 

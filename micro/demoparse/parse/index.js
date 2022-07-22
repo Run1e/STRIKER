@@ -28,6 +28,9 @@ demoFile.on('start', e => {
 });
 
 demoFile.gameEvents.on('player_team', e => {
+  // no need to update which team players are on after warmup
+  // this is because of how we convert later userids to the original once
+  // in the Demo domain entity
   if (warmupOver) return;
 
   const player = demoFile.entities.getByUserId(e.userid);
@@ -42,6 +45,8 @@ demoFile.gameEvents.on('player_team', e => {
 });
 
 demoFile.gameEvents.on('player_spawn', e => {
+  // as this also does team userid list updates, same as above
+  // applied here
   if (warmupOver) return;
 
   const player = demoFile.entities.getByUserId(e.userid);
@@ -62,8 +67,6 @@ demoFile.conVars.on('change', e => {
 });
 
 demoFile.stringTables.on('update', e => {
-  if (warmupOver) return;
-
   var tableName = e.table.name;
   if (tableName == 'userinfo' && e.userData != null) {
     var xuid = e.userData.xuid;
@@ -95,6 +98,8 @@ demoFile.gameEvents.on("player_death", e => {
   if (!warmupOver) return;
 
   if (e.attacker == e.userid) return;
+
+  if (e.attacker == 0) return;
 
   const attacker = demoFile.entities.getByUserId(e.attacker);
   var pos = attacker.position;
