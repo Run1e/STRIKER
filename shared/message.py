@@ -18,7 +18,7 @@ class MessageWrapper:
     def __init__(
         self,
         message: aiormq.types.DeliveredMessage,
-        default_error='An error occured.',
+        default_error='An error occurred.',
         ack_on_failure=True,
         requeue_on_nack=False,
     ):

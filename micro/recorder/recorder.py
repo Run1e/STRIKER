@@ -2,12 +2,13 @@ import logging
 import os
 import subprocess
 from glob import glob
+from random import randint
 from shutil import rmtree
 
 import aiormq
 import aiormq.types
 from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper
+from shared.message import MessageWrapper
 
 from . import config
 from .craft_vdm import TICK_PADDING, craft_vdm
@@ -115,9 +116,14 @@ async def main():
         mmcfg_dir=config.MMCFG_FOLDER,
         width=720,
         height=480,
+        port=str(randint(20000, 60000)),
     )
 
     await csgo.connect()
+
+    log.info('Ready to record!')
+    while True:
+        continue
 
     mq = await aiormq.connect(config.RABBITMQ_HOST)
     chan = await mq.channel()
