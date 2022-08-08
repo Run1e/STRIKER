@@ -20,15 +20,17 @@ class MessageWrapper:
         message: aiormq.types.DeliveredMessage,
         default_error='An error occurred.',
         ack_on_failure=True,
+        raise_on_message_error=False,
         requeue_on_nack=False,
     ):
         self.message: aiormq.types.DeliveredMessage = message
         self.default_error = default_error
         self.ack_on_failure = ack_on_failure
+        self.raise_on_message_error = raise_on_message_error
         self.requeue_on_nack = requeue_on_nack
         self.data = loads(message.body.decode('utf-8'))
         self.correlation_id = message.header.properties.correlation_id
-        self.end_timer = timer(f'message processing for id {self.correlation_id}')
+        self.end_timer = timer(f'PERF {self.correlation_id}')
 
         log.info('INIT %s', self.correlation_id)
 
@@ -36,10 +38,11 @@ class MessageWrapper:
         log.info('ACK %s', self.correlation_id)
         await self.message.channel.basic_ack(self.message.delivery.delivery_tag)
 
-    async def nack(self):
+    async def nack(self, requeue):
         log.info('NACK %s', self.correlation_id)
         await self.message.channel.basic_nack(
-            self.message.delivery.delivery_tag, requeue=self.requeue_on_nack
+            self.message.delivery.delivery_tag,
+            requeue=requeue,
         )
 
     async def send(self, **kwargs):
@@ -63,6 +66,9 @@ class MessageWrapper:
         log.info('FAILURE %s', self.correlation_id)
         await self.send(success=0, **kwargs)
 
+    def should_requeue(self):
+        return self.requeue_on_nack and not self.message.redelivered
+
     async def __aenter__(self):
         return self
 
@@ -71,17 +77,16 @@ class MessageWrapper:
             is_ok = isinstance(exc_val, MessageError)
             reason = str(exc_val) if is_ok else self.default_error
 
-            await self.failure(reason=reason)
-
             if self.ack_on_failure:
+                await self.failure(reason=reason)
                 await self.ack()
             else:
-                await self.nack()
+                requeue = self.should_requeue()
+                if not requeue:
+                    await self.failure(reason=reason)
+                await self.nack(requeue)
 
-            if is_ok:
-                log.debug(f'Failed: {reason}')
+            if is_ok and not self.raise_on_message_error:
                 return True
-            else:
-                raise exc_val
         else:
             await self.ack()

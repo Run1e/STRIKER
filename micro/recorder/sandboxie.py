@@ -1,11 +1,8 @@
 import logging
+from asyncio import sleep
 from subprocess import run
-from time import sleep
 
 from psutil import pid_exists
-import psutil
-
-psutil.process_iter
 
 log = logging.getLogger(__name__)
 
@@ -30,13 +27,16 @@ class Sandboxie:
     def terminateall(self, box=None):
         self.run('/terminateall', box=box)
 
-    def cleanup(self, boxes):
+    async def cleanup(self, *boxes):
         log.info(f'Cleaning up boxes: {boxes}')
 
         pids = set()
         for box in boxes:
             box_pids = self.listpids(box=box)[1:]
             pids.update(int(pid) for pid in box_pids)
+
+        if not pids:
+            return
 
         log.info(f'Running pids: {pids}')
 
@@ -49,4 +49,4 @@ class Sandboxie:
                 break
             log.info(f'Waiting for {len(pids_running)} to exit...')
             log.info(f'Remaining pids: {pids_running}')
-            sleep(1)
+            await sleep(1)

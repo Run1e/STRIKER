@@ -1,10 +1,10 @@
 import asyncio
 import logging
 import os
-import re
-import subprocess
-import string
 import random
+import re
+import string
+from asyncio import shield, wait_for
 
 log = logging.getLogger(__name__)
 
@@ -19,48 +19,23 @@ class CSGO:
     reader: asyncio.StreamReader
     writer: asyncio.StreamWriter
 
-    def __init__(
-        self,
-        hlae_exe,
-        csgo_exe,
-        mmcfg_dir,
-        host='localhost',
-        port='2121',
-        width=1280,
-        height=720,
-    ):
+    def __init__(self, host, port, box=None):
         self.host = host
         self.port = port
-        self.hlae_exe = hlae_exe
-        self.csgo_exe = csgo_exe
+        self.box = box
 
-        self.process = subprocess.Popen(
-            [
-                hlae_exe,
-                '-csgoLauncher',
-                '-noGui',
-                '-autoStart',
-                '-csgoExe',
-                csgo_exe,
-                '-gfxEnabled',
-                'true',
-                '-gfxWidth',
-                str(width),
-                '-gfxHeight',
-                str(height),
-                '-gfxFull',
-                'false',
-                '-mmcfgEnabled',
-                'true',
-                '-mmcfg',
-                mmcfg_dir,
-                '-customLaunchOptions',
-                f'-netconport {port} -console -novid',
-            ],
-        )
+        self.log(f'Listening on port {port}')
+
+    def log(self, *msgs):
+        for msg in msgs:
+            if self.box is not None:
+                msg = f'[{self.box}] ' + msg
+
+            log.info(msg)
 
     async def connect(self):
-        log.info('Waiting for CSGO to launch...')
+        self.log('Waiting for CSGO to launch...')
+
         while True:
             try:
                 reader, writer = await asyncio.open_connection(self.host, self.port)
@@ -72,36 +47,36 @@ class CSGO:
         self.writer = writer
 
         await asyncio.sleep(2.0)
-        log.info('Connected to CSGO!')
+
+        self.log('Connected to CSGO!')
 
     async def run(self, command):
-        log.info(command)
+        self.log(command)
 
         start_token = random_string()
         end_token = random_string()
 
         await self.send_commands([f'echo {start_token}', command, f'echo {end_token}'])
 
-        await self.readuntil(start_token)
-        result = await self.readuntil(end_token)
+        await self.readuntil(start_token, timeout=15.0)
+        result = await self.readuntil(end_token, timeout=15.0)
         return result[0 : -len(end_token)].strip()
 
-    async def readuntil(self, s):
-        return (await self.reader.readuntil(s.encode())).decode()
+    async def readuntil(self, s, timeout):
+        result = await shield(wait_for(self.reader.readuntil(s.encode()), timeout))
+        return result.decode()
 
-    async def send_commands(self, commands):
+    async def send_commands(self, commands, timeout=10.0):
         to_send = ''
         for command in commands:
             to_send += command + sep
         self.writer.write(to_send.encode())
-        await self.writer.drain()
+        await shield(wait_for(self.writer.drain(), timeout))
 
     async def set_resolution(self, w, h):
         await self.run(f'mat_setvideomode {w} {h} 1')
 
-    async def playdemo(
-        self, demo, vdm, return_take=False, unblock_at=None, start_at=None
-    ):
+    async def playdemo(self, demo, vdm, unblock_at=None, start_at=None):
         vdm_path = demo[:-3] + 'vdm'
 
         if os.path.isfile(vdm_path):
@@ -121,18 +96,24 @@ class CSGO:
 
         take = None
 
-        if return_take:
-            while True:
-                line = await self.readuntil(sep)
-                if line.startswith('Recording to "'):
-                    match = re.findall(r'Recording to \"(.*)\"\.', line)
+        self.log('Waiting for recording to start...')
+        while True:
+            line = await self.readuntil(sep, timeout=40.0)
+            if line.startswith('Recording to "'):
+                match = re.findall(r'Recording to \"(.*)\"\.', line)
 
-                    take = match[0]
-                    break
+                take = match[0]
 
-        if unblock_at is not None:
-            await self.readuntil(unblock_at)
+                self.log(f'Recording to {take}')
+                break
+
+        self.log(f'Waiting for unblock string "{unblock_at}"')
+        await self.readuntil(unblock_at, timeout=240.0)
+
+        try:
             os.remove(vdm_path)
+        except OSError:
+            pass
 
         return take
 
