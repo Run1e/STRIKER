@@ -69,6 +69,8 @@ async def main():
     mq = await aiormq.connect(config.RABBITMQ_HOST)
     channel = await mq.channel()
     await channel.basic_qos(prefetch_count=3)
+
+    await channel.queue_declare(config.MATCHINFO_QUEUE)
     await channel.basic_consume(
         queue=config.MATCHINFO_QUEUE, consumer_callback=on_message, no_ack=False
     )

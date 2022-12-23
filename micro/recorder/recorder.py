@@ -118,9 +118,10 @@ async def setup_box(sb: Sandboxie, box: str, sleep) -> CSGO:
         # '-nocache',
         '-nofriendsui',
         '-silent',
-        '-login',
-        config.STEAM_USER,
-        config.STEAM_PASS,
+        '-offline',
+        # '-login',
+        # config.STEAM_USER,
+        # config.STEAM_PASS,
         box=box,
     )
 
@@ -204,6 +205,8 @@ async def main():
     chan = await mq.channel()
 
     await chan.basic_qos(prefetch_count=len(config.BOXES))
+    
+    await chan.queue_declare(config.RECORDER_QUEUE)
     await chan.basic_consume(
         queue=config.RECORDER_QUEUE, consumer_callback=on_message, no_ack=False
     )

@@ -26,6 +26,9 @@ class Bot(commands.InteractionBot):
             self._started = True
             self.log.info('Bot initialized')
 
+        await self.change_presence()
+        await self.change_presence(activity=disnake.Game(name='try /help'))
+
     @property
     def invite_link(self):
         return disnake.utils.oauth_url(

@@ -130,6 +130,8 @@ async def main():
     chan = await mq.channel()
 
     await chan.basic_qos(prefetch_count=3)
+
+    await chan.queue_declare(config.DEMOPARSE_QUEUE)
     await chan.basic_consume(
         queue=config.DEMOPARSE_QUEUE, consumer_callback=on_demoparse, no_ack=False
     )

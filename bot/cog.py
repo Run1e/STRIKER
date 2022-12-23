@@ -47,6 +47,25 @@ class RecorderCog(commands.Cog):
 
         bus.register_instance(self)
 
+    @commands.slash_command(name='help', description='How to use the bot!')
+    async def _help(self, inter: disnake.AppCmdInter):
+        e = disnake.Embed(
+            color=disnake.Color.orange(),
+        )
+
+        e.set_author(name='How to use the bot!', icon_url=self.bot.user.display_avatar)
+
+        e.description = (
+            'This bot can record and upload CS:GO clips from matchmaking games straight to Discord. '
+            'To do so you will need to give the bot a sharecode from one of your matchmaking matches.\n\n'
+            'The below image shows how you find and copy one of your matchmaking sharecodes.\n\n'
+            'To record a highlight, run the `/record` command and paste a sharecode.'
+        )
+
+        e.set_image(url=config.SHARECODE_IMG_URL)
+
+        await inter.send(embed=e)
+
     @commands.slash_command(description='Record again from a previous demo')
     async def demos(self, inter: disnake.AppCmdInter, search: str):
         aum = self._autocomplete_user_mapping[inter.author.id]
