@@ -1,5 +1,5 @@
 import pickle
-from collections import defaultdict, namedtuple
+from collections import Counter, defaultdict, namedtuple
 from copy import deepcopy
 from datetime import datetime
 from enum import Enum, auto
@@ -7,6 +7,7 @@ from typing import List
 
 import disnake
 from disnake.ext import commands
+
 from shared.const import DEMOPARSE_VERSION
 
 
@@ -14,6 +15,7 @@ class JobState(Enum):
     DEMO = auto()  # associated demo is currently processing
     SELECT = auto()  # job is or can have user selecting
     RECORD = auto()  # job is on record queue
+    UPLOAD = auto()  # job is on upload queue
     ABORTED = auto()  # job was aborted by the user or a view timeout
     FAILED = auto()  # job failed for some reason
     SUCCESS = auto()  # job completed successfully
@@ -242,6 +244,42 @@ class Demo(Entity):
         data['attacker'] = self.get_player_by_id(attacker_id)
 
         self._rounds[rnd].append(Death(**data))
+
+    # remaining stuff is presentation related
+
+    @staticmethod
+    def weapon_by_order(kills, n=2):
+        c = Counter([k.weapon for k in kills])
+        return ', '.join(weap for weap, _ in c.most_common(n))
+
+    @staticmethod
+    def area_by_order(kills, map_area, n=2):
+        if map_area is None:
+            return '?'
+
+        areas = Counter([map_area.get_vec_name(kill.pos) for kill in kills])
+        return ', '.join(area for area, _ in areas.most_common(n))
+
+    def kills_info(self, round_id, kills, map_area=None):
+        k = 0
+        tk = 0
+        for kill in kills:
+            if self.death_is_tk(kill):
+                tk += 1
+            else:
+                k += 1
+
+        info = [f'{k}k']
+        if tk:
+            info.append(f'({tk}tk)')
+
+        info.append(self.weapon_by_order(kills))
+
+        return (
+            f'R{round_id}',
+            ' '.join(info),
+            self.area_by_order(kills, map_area),
+        )
 
 
 class Recording(Entity):

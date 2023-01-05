@@ -6,18 +6,18 @@ from functools import partial
 
 import disnake
 from disnake.ext import commands
-from domain import events
-from domain.domain import Job, JobState, Player
 from rapidfuzz import fuzz, process
-from services import bus, services
-from services.uow import SqlUnitOfWork
-from shared.utils import TimedDict, timer
 from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
+from domain import events
+from domain.domain import Job, JobState, Player
+from services import bus, services
+from services.uow import SqlUnitOfWork
+from shared.utils import TimedDict
 
 from . import config
-from .ui import PlayerView, RoundView, kills_info
+from .ui import PlayerView, RoundView
 
 log = logging.getLogger(__name__)
 
@@ -244,7 +244,7 @@ class RecorderCog(commands.Cog):
     @bus.mark(events.JobMatchInfoFailed)
     @bus.mark(events.JobDemoParseFailed)
     @bus.mark(events.JobRecordingFailed)
-    @bus.mark(events.JobRecordingUploadFailed)
+    @bus.mark(events.JobUploadFailed)
     async def job_failed(self, event: events.Event):
         job = event.job
         inter: disnake.AppCmdInter = job.get_inter(self.bot)
@@ -351,59 +351,10 @@ class RecorderCog(commands.Cog):
             uow=SqlUnitOfWork(), job=job, player=player, round_id=round_id
         )
 
-    @bus.mark(events.JobRecordingComplete)
-    async def job_recording_complete(self, event: events.JobRecordingComplete):
+    @bus.mark(events.JobUploadSuccess)
+    async def job_upload_success(self, event: events.JobUploadSuccess):
         job: Job = event.job
         inter = job.get_inter(self.bot)
-
-        buttons = []
-
-        if config.DISCORD_INVITE_URL is not None:
-            buttons.append(
-                disnake.ui.Button(
-                    style=disnake.ButtonStyle.url,
-                    label='Join the Discord',
-                    url=config.DISCORD_INVITE_URL,
-                )
-            )
-
-        if config.GITHUB_URL is not None:
-            buttons.append(
-                disnake.ui.Button(
-                    style=disnake.ButtonStyle.url,
-                    label='Star the project on GitHub',
-                    url=config.GITHUB_URL,
-                )
-            )
-
-        demo = job.demo
-        recording = job.recording
-
-        try:
-            demo.parse()
-
-            player = demo.get_player_by_xuid(recording.player_xuid)
-            round_id = recording.round_id
-            kills = demo.get_player_kills_round(player, round_id)
-
-            info = kills_info(demo, recording.round_id, kills)
-            file_name = ' '.join([info[0], player.name, info[1]])
-        except Exception:
-            # the above is not *that* important
-            # if anything in there fails, just revert to the job id
-            file_name = str(job.id)
-
-        end = timer(f'Upload for job {job.id}')
-        log.info('Starting upload for job %s', job.id)
-        await inter.channel.send(
-            content=inter.author.mention,
-            file=disnake.File(
-                fp=f'{config.VIDEO_DIR}/{job.id}.mp4', filename=file_name + '.mp4'
-            ),
-            components=disnake.ui.ActionRow(*buttons),
-        )
-
-        log.info(end())
 
         try:
             message = await inter.original_message()

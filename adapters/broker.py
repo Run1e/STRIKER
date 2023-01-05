@@ -22,11 +22,11 @@ class Broker:
         queue_prefix: str,
         send_queue: str,
         recv_queue: str,
+        id_type_cast: type,
         success_event: Event,
         failure_event: Event,
-        enqueue_event: Event,
-        processing_event: Event,
-        id_type_cast: type,
+        enqueue_event: Event = None,
+        processing_event: Event = None,
         update_interval: float = 8.0,
         max_updates: int = 3,
     ):
@@ -39,6 +39,8 @@ class Broker:
         self.id_type_cast = id_type_cast
         self.update_interval = update_interval
         self.max_updates = max_updates
+
+        self._status_enabled = enqueue_event and processing_event
 
         self.queue = deque()
         self.enqueued_updates = dict()  # correlation_id: monotonic
@@ -65,7 +67,8 @@ class Broker:
             ),
         )
 
-        self._handle_send_event(self.id_type_cast(id), dispatcher=dispatcher)
+        if self._status_enabled:
+            self._handle_send_event(self.id_type_cast(id), dispatcher=dispatcher)
         return conf
 
     async def recv(self, message: aiormq.abc.DeliveredMessage):
@@ -76,7 +79,9 @@ class Broker:
         correlation_id = self.id_type_cast(correlation_id)
 
         body['id'] = correlation_id
-        self._handle_recv_event(correlation_id)
+
+        if self._status_enabled:
+            self._handle_recv_event(correlation_id)
 
         event = self.success_event if success else self.failure_event
         await bus.call(event(**body))
@@ -197,11 +202,11 @@ demoparse = Broker(
     queue_prefix=_queue_prefix,
     send_queue='demoparse_send',
     recv_queue='demoparse_recv',
+    id_type_cast=int,
     success_event=events.DemoParseSuccess,
     failure_event=events.DemoParseFailure,
     enqueue_event=events.DemoParseEnqueued,
     processing_event=events.DemoParseProcessing,
-    id_type_cast=int,
     update_interval=12.0,
     max_updates=2,
 )
@@ -210,13 +215,22 @@ recorder = Broker(
     queue_prefix=_queue_prefix,
     send_queue='recorder_send',
     recv_queue='recorder_recv',
+    id_type_cast=lambda uuid: UUID(str(uuid)),
     success_event=events.RecorderSuccess,
     failure_event=events.RecorderFailure,
     enqueue_event=events.RecorderEnqueued,
     processing_event=events.RecorderProcessing,
-    id_type_cast=lambda uuid: UUID(str(uuid)),
     update_interval=20.0,
     max_updates=3,
+)
+
+uploader = Broker(
+    queue_prefix=_queue_prefix,
+    send_queue='uploader_send',
+    recv_queue='uploader_recv',
+    id_type_cast=lambda uuid: UUID(str(uuid)),
+    success_event=events.UploaderSuccess,
+    failure_event=events.UploaderFailure,
 )
 
 
@@ -228,7 +242,7 @@ async def start_brokers():
     mq = await aiormq.connect(config.RABBITMQ_HOST)
     channel: aiormq.Channel = await mq.channel()
 
-    for broker in (matchinfo, demoparse, recorder):
+    for broker in (matchinfo, demoparse, recorder, uploader):
         await broker.start(channel)
 
     log.info('Brokers initialized')

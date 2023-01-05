@@ -3,8 +3,9 @@ from collections import Counter
 from typing import List
 
 import disnake
-from domain.domain import Death, Job, Player
 from tabulate import tabulate
+
+from domain.domain import Death, Job, Player
 
 from .area import places
 from .config import CT_COIN, T_COIN
@@ -84,41 +85,6 @@ class RoundButton(disnake.ui.Button):
     async def callback(self, inter: disnake.MessageInteraction):
         self.view.stop()
         asyncio.create_task(self._callback(inter, int(self.label)))
-
-
-def weapon_by_order(kills, n=2):
-    c = Counter([k.weapon for k in kills])
-    return ', '.join(weap for weap, _ in c.most_common(n))
-
-
-def area_by_order(kills, map_area, n=2):
-    if map_area is None:
-        return '?'
-
-    areas = Counter([map_area.get_vec_name(kill.pos) for kill in kills])
-    return ', '.join(area for area, _ in areas.most_common(n))
-
-
-def kills_info(demo, round_id, kills, map_area=None):
-    k = 0
-    tk = 0
-    for kill in kills:
-        if demo.death_is_tk(kill):
-            tk += 1
-        else:
-            k += 1
-
-    info = [f'{k}k']
-    if tk:
-        info.append(f'({tk}tk)')
-
-    info.append(weapon_by_order(kills))
-
-    return (
-        f'R{round_id}',
-        ' '.join(info),
-        area_by_order(kills, map_area),
-    )
 
 
 class RoundView(disnake.ui.View):
@@ -220,7 +186,7 @@ class RoundView(disnake.ui.View):
         for round_id in round_range:
             kills = self.kills.get(round_id, None)
             if kills is not None:
-                data.append(kills_info(demo, round_id, kills, map_area))
+                data.append(demo.kills_info(round_id, kills, map_area))
 
         if not data:
             return 'This player got zero kills this half.'

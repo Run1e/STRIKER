@@ -6,12 +6,12 @@ from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
+
 from adapters import broker
 from domain import events
 from domain.domain import DemoState, JobState, Recording, RecordingType
 from services import services
 from shared.const import DEMOPARSE_VERSION
-
 from tests.data import demo_data
 from tests.testutils import *
 
@@ -212,6 +212,11 @@ def recorder_send_raises(mocker):
     return mocker.patch(
         'adapters.broker.recorder.send', side_effect=AsyncMock(side_effect=Exception)
     )
+
+
+@pytest.fixture
+def uploader_send(mocker):
+    return mocker.patch('adapters.broker.uploader.send', side_effect=AsyncMock())
 
 
 @pytest.mark.asyncio
@@ -723,47 +728,34 @@ async def test_record_broker_failure():
 
 
 @pytest.mark.asyncio
-async def test_recorder_success(mock_call):
+async def test_recorder_success(uploader_send):
     job = new_job(state=JobState.RECORD)
+    demo = new_demo(
+        state=DemoState.SUCCESS,
+        queued=False,
+        sharecode='sharecode',
+        has_matchinfo=True,
+        data=loads(demo_data[0]),
+    )
 
-    uow = FakeUnitOfWork(jobs=[job])
+    job.demo = demo
+    job.recording = Recording(
+        RecordingType.HIGHLIGHT, player_xuid=76561198044195953, round_id=10
+    )
+
+    uow = FakeUnitOfWork(jobs=[job], demos=[demo])
 
     event = events.RecorderSuccess(job.id)
     await services.recorder_success(uow, event)
 
     assert uow.commit_count == 1
-
-    assert job.state is JobState.SUCCESS
-
-    mock_call.assert_awaited_once()
-
-    call_event = mock_call.call_args[0][0]
-    assert isinstance(call_event, events.JobRecordingComplete)
-    assert call_event.job is job
-
-
-@pytest.mark.asyncio
-async def test_recorder_success_upload_failed(mock_call_raises):
-    job = new_job(state=JobState.RECORD)
-
-    uow = FakeUnitOfWork(jobs=[job])
-
-    event = events.RecorderSuccess(job.id)
-    with pytest.raises(Exception):
-        await services.recorder_success(uow, event)
-
-    assert uow.commit_count == 1
-
-    mock_call_raises.assert_awaited_once()
-
-    call_event = mock_call_raises.call_args[0][0]
-    assert isinstance(call_event, events.JobRecordingComplete)
-    assert call_event.job is job
-
-    assert len(uow.events) == 1
-    dispatch_event = uow.events[0]
-    assert isinstance(dispatch_event, events.JobRecordingUploadFailed)
-    assert dispatch_event.job is job
+    assert job.state is JobState.UPLOAD
+    uploader_send.assert_awaited_once_with(
+        id=job.id,
+        user_id=job.user_id,
+        channel_id=job.channel_id,
+        file_name=ANY,
+    )
 
 
 @pytest.mark.asyncio
@@ -788,13 +780,44 @@ async def test_recorder_failure():
 
 
 @pytest.mark.asyncio
+async def test_uploader_success():
+    job = new_job(state=JobState.UPLOAD)
+
+    uow = FakeUnitOfWork(jobs=[job])
+
+    event = events.UploaderSuccess(id=job.id)
+    await services.uploader_success(uow, event)
+
+    assert uow.commit_count == 1
+    assert len(uow.events) == 1
+    assert isinstance(uow.events[0], events.JobUploadSuccess)
+    assert uow.events[0].job is job
+
+
+@pytest.mark.asyncio
+async def test_uploader_failure():
+    job = new_job(state=JobState.UPLOAD)
+
+    uow = FakeUnitOfWork(jobs=[job])
+
+    reason = 'oof'
+    event = events.UploaderFailure(id=job.id, reason=reason)
+    await services.uploader_failure(uow, event)
+
+    assert uow.commit_count == 1
+    assert len(uow.events) == 1
+    assert isinstance(uow.events[0], events.JobUploadFailed)
+    assert uow.events[0].job is job
+    assert uow.events[0].reason == reason
+
+
+@pytest.mark.asyncio
 async def test_abort_job(demo_job):
     uow = FakeUnitOfWork(jobs=[demo_job])
 
     await services.abort_job(uow, demo_job)
 
     assert uow.commit_count == 1
-
     assert demo_job.state is JobState.ABORTED
 
 

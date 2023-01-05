@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from bot import config
-
 from domain.domain import Job
 
 
@@ -101,6 +100,18 @@ class RecorderProcessing(CancellableEvent):
     id: UUID
 
 
+# uploader
+@dataclass(frozen=True)
+class UploaderSuccess(Event):
+    id: UUID
+
+
+@dataclass(frozen=True)
+class UploaderFailure(Event):
+    id: UUID
+    reason: str
+
+
 # job
 
 
@@ -129,16 +140,16 @@ class JobRecordingFailed(Event):
 
 
 @dataclass(frozen=True)
-class JobRecordingUploadFailed(Event):
-    job: Job
-    reason: str
-
-
-@dataclass(frozen=True)
 class JobReadyForSelect(Event):
     job: Job
 
 
 @dataclass(frozen=True)
-class JobRecordingComplete(Event):
+class JobUploadSuccess(Event):
     job: Job
+
+
+@dataclass(frozen=True)
+class JobUploadFailed(Event):
+    job: Job
+    reason: str

@@ -8,20 +8,12 @@ from uuid import UUID
 from adapters import broker
 from bot import sequencer
 from domain import events
-from domain.domain import (
-    Demo,
-    DemoState,
-    Job,
-    JobState,
-    Player,
-    Recording,
-    RecordingType,
-)
-from shared.const import DEMOPARSE_VERSION
-from shared.utils import utcnow
-
+from domain.domain import (Demo, DemoState, Job, JobState, Player, Recording,
+                           RecordingType)
 from services import bus
 from services.uow import SqlUnitOfWork
+from shared.const import DEMOPARSE_VERSION
+from shared.utils import utcnow
 
 DEMO_LOCK = asyncio.Lock()
 log = logging.getLogger(__name__)
@@ -389,21 +381,32 @@ async def recorder_success(uow: SqlUnitOfWork, event: events.RecorderSuccess):
                 f'Recorder success references job that does not exist: {event.id}'
             )
 
-        # since we're doing a bus.call below, we need to set this before
-        # firing JobRecordingComplete
-        # if we did it afterwards, that listener would have the wrong job state
-        job.state = JobState.SUCCESS
+        job.state = JobState.UPLOAD
+        demo = job.demo
+        recording = job.recording
 
         try:
-            await bus.call(events.JobRecordingComplete(job=job))
-        except:
-            job.state = JobState.FAILED
-            uow.add_event(
-                events.JobRecordingUploadFailed(job=job, reason='Job upload failed.')
-            )
-            raise
-        finally:
-            await uow.commit()
+            demo.parse()
+
+            player = demo.get_player_by_xuid(recording.player_xuid)
+            round_id = recording.round_id
+            kills = demo.get_player_kills_round(player, round_id)
+
+            info = demo.kills_info(recording.round_id, kills)
+            file_name = ' '.join([info[0], player.name, info[1]])
+        except Exception:
+            # the above is not *that* important
+            # if anything in there fails, just revert to the job id
+            file_name = str(job.id)
+
+        await broker.uploader.send(
+            id=job.id,
+            user_id=job.user_id,
+            channel_id=job.channel_id,
+            file_name=file_name,
+        )
+
+        await uow.commit()
 
 
 @bus.listen(events.RecorderFailure)
@@ -418,4 +421,33 @@ async def recorder_failure(uow: SqlUnitOfWork, event: events.RecorderFailure):
         job.state = JobState.FAILED
 
         uow.add_event(events.JobRecordingFailed(job=job, reason=event.reason))
+        await uow.commit()
+
+
+@bus.listen(events.UploaderSuccess)
+async def uploader_success(uow: SqlUnitOfWork, event: events.UploaderSuccess):
+    async with uow:
+        job = await uow.jobs.get(event.id)
+        if job is None:
+            raise ValueError(
+                f'Upload success references job that does not exist: {event.id}'
+            )
+
+        job.state = JobState.SUCCESS
+
+        uow.add_event(events.JobUploadSuccess(job))
+        await uow.commit()
+        
+@bus.listen(events.UploaderFailure)
+async def uploader_failure(uow: SqlUnitOfWork, event: events.UploaderFailure):
+    async with uow:
+        job = await uow.jobs.get(event.id)
+        if job is None:
+            raise ValueError(
+                f'Upload failure references job that does not exist: {event.id}'
+            )
+
+        job.state = JobState.FAILED
+
+        uow.add_event(events.JobUploadFailed(job, reason=event.reason))
         await uow.commit()
