@@ -19,7 +19,6 @@ broker_map = dict()
 class Broker:
     def __init__(
         self,
-        queue_prefix: str,
         send_queue: str,
         recv_queue: str,
         id_type_cast: type,
@@ -30,8 +29,8 @@ class Broker:
         update_interval: float = 8.0,
         max_updates: int = 3,
     ):
-        self.send_queue = queue_prefix + send_queue
-        self.recv_queue = queue_prefix + recv_queue
+        self.send_queue = send_queue
+        self.recv_queue = recv_queue
         self.success_event = success_event
         self.failure_event = failure_event
         self.enqueue_event = enqueue_event
@@ -69,6 +68,7 @@ class Broker:
 
         if self._status_enabled:
             self._handle_send_event(self.id_type_cast(id), dispatcher=dispatcher)
+
         return conf
 
     async def recv(self, message: aiormq.abc.DeliveredMessage):
@@ -183,10 +183,7 @@ class Broker:
         self.enqueued_updates.pop(corr_id, None)
 
 
-_queue_prefix = config.QUEUE_PREFIX or ''
-
 matchinfo = Broker(
-    queue_prefix=_queue_prefix,
     send_queue='matchinfo_send',
     recv_queue='matchinfo_recv',
     success_event=events.MatchInfoSuccess,
@@ -199,7 +196,6 @@ matchinfo = Broker(
 )
 
 demoparse = Broker(
-    queue_prefix=_queue_prefix,
     send_queue='demoparse_send',
     recv_queue='demoparse_recv',
     id_type_cast=int,
@@ -212,7 +208,6 @@ demoparse = Broker(
 )
 
 recorder = Broker(
-    queue_prefix=_queue_prefix,
     send_queue='recorder_send',
     recv_queue='recorder_recv',
     id_type_cast=lambda uuid: UUID(str(uuid)),
@@ -225,7 +220,6 @@ recorder = Broker(
 )
 
 uploader = Broker(
-    queue_prefix=_queue_prefix,
     send_queue='uploader_send',
     recv_queue='uploader_recv',
     id_type_cast=lambda uuid: UUID(str(uuid)),

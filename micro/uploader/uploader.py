@@ -1,18 +1,11 @@
-import disnake
 import asyncio
 import logging
-import os
-import re
-from bz2 import BZ2Decompressor
-from concurrent.futures import ProcessPoolExecutor
-from subprocess import run
 
-import aiohttp
 import aiormq
-from shared.const import DEMOPARSE_VERSION
+import disnake
+
 from shared.log import logging_config
 from shared.message import MessageError, MessageWrapper
-from shared.utils import timer
 
 from . import config
 
@@ -24,6 +17,7 @@ log = logging.getLogger(__name__)
 loop = None
 
 client = disnake.Client()
+
 
 async def on_upload(message: aiormq.channel.DeliveredMessage):
     wrap = MessageWrapper(
@@ -70,7 +64,7 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
             file=disnake.File(
                 fp=f'{config.VIDEO_DIR}/{job_id}.mp4', filename=file_name + '.mp4'
             ),
-            components=disnake.ui.ActionRow(*buttons)
+            components=disnake.ui.ActionRow(*buttons),
         )
 
         await ctx.success()
@@ -91,6 +85,5 @@ async def main():
     await chan.basic_consume(
         queue=config.UPLOAD_QUEUE, consumer_callback=on_upload, no_ack=False
     )
-
 
     log.info('Ready to parse!')
