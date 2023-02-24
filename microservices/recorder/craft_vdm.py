@@ -14,7 +14,7 @@ def craft_vdm(
     # exec movie config and block death messages
     s.delta(64)
     s.PlayCommands(
-        f"spec_lock_to_accountid {xuid}; mirv_deathmsg highLightId x{xuid}; mirv_streams remove normal; mirv_streams settings remove ff; exec stream; exec recorder"
+        f"spec_lock_to_accountid {xuid}; mirv_deathmsg highLightId x{xuid}; exec recorder"
     )
 
     # https://write.corbpie.com/ffmpeg-preset-comparison-x264-2019-encode-speed-and-file-size/
@@ -33,7 +33,7 @@ def craft_vdm(
 
     mirv_config = [
         f'mirv_streams record name "{capture_dir}"',
-        'mirv_streams settings add ffmpeg ff "{opt}"'.format(
+        'mirv_streams settings edit ff options "{opt}"'.format(
             opt=" ".join(ffmpeg_opt).replace('"', "{QUOTE}")
         ),
         "mirv_streams edit normal settings ff",

@@ -44,9 +44,9 @@ class Sandboxie:
             self.terminateall(box=box)
 
         while True:
+            await sleep(1)
             pids_running = [pid for pid in pids if pid_exists(pid)]
             if not pids_running:
                 break
             log.info(f"Waiting for {len(pids_running)} to exit...")
             log.info(f"Remaining pids: {pids_running}")
-            await sleep(1)

@@ -8,6 +8,7 @@ import os
 import subprocess
 from glob import glob
 from shutil import rmtree
+from distutils.dir_util import copy_tree
 
 import aiormq
 import aiormq.types
@@ -85,6 +86,8 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
             unblock_at="RECORDING FINISHED",
             start_at=start - TICK_PADDING,
         )
+
+        os.remove(config.CSGO_FOLDER + '/cfg/_tmp_mirv.cfg')
 
         # mux audio
         wav = glob(take_folder + r"\*.wav")[0]
@@ -190,6 +193,9 @@ async def main():
 
     logging.getLogger("aiormq").setLevel(logging.INFO)
 
+    # copy over csgo config files
+    copy_tree('cfg', config.CSGO_FOLDER + '/cfg')
+
     log.info("Starting up...")
     await sb.cleanup(*config.BOXES)
 
@@ -200,6 +206,9 @@ async def main():
 
     csgos = await asyncio.gather(*setups)
     await asyncio.gather(*[csgo.connect() for csgo in csgos])
+    
+    await asyncio.gather(*[csgo.run('mirv_block_commands add 5 "\*"') for csgo in csgos])
+    await asyncio.gather(*[csgo.run('exec stream') for csgo in csgos])
 
     for csgo in csgos:
         pool.add(csgo)
