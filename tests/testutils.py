@@ -35,7 +35,7 @@ def new_demo(state, queued, sharecode, has_matchinfo, data=None):
     if has_matchinfo:
         demo.matchid = random_matchid()
         demo.matchtime = utcnow()
-        demo.url = 'not a real url'
+        demo.url = "not a real url"
 
     if data:
         demo.data = data
@@ -76,21 +76,21 @@ def success_job():
 
 @pytest.fixture
 def mock_send_raise(mocker):
-    return mocker.patch('adapters.broker.send', side_effect=Exception)
+    return mocker.patch("adapters.broker.send", side_effect=Exception)
 
 
 @pytest.fixture
 def mock_call(mocker):
-    return mocker.patch('services.bus.call', side_effect=AsyncMock())
+    return mocker.patch("services.bus.call", side_effect=AsyncMock())
 
 
 @pytest.fixture
 def mock_call_raises(mocker):
     return mocker.patch(
-        'services.bus.call', side_effect=AsyncMock(side_effect=Exception)
+        "services.bus.call", side_effect=AsyncMock(side_effect=Exception)
     )
 
 
 @pytest.fixture
 def mock_dispatch(mocker):
-    return mocker.patch('services.bus.dispatch', side_effect=Mock())
+    return mocker.patch("services.bus.dispatch", side_effect=Mock())

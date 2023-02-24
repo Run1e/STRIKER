@@ -6,19 +6,19 @@ bot/config.py
 bot/config copy.py
 
 # demoparse microservice
-micro/demoparse_py
-micro/demoparse/config.py
-micro/demoparse/parse/amqp_tests.js
-micro/demoparse/parse/asd
+microservices/demoparse_py
+microservices/demoparse/config.py
+microservices/demoparse/parse/amqp_tests.js
+microservices/demoparse/parse/asd
 
 # matchinfo microservice
-micro/matchinfo/cred
-micro/matchinfo/config.py
+microservices/matchinfo/cred
+microservices/matchinfo/config.py
 
 # recorder microservice
-micro/recorder/hlae
-micro/recorder/mmcfg
-micro/recorder/config.py
+microservices/recorder/hlae
+microservices/recorder/mmcfg
+microservices/recorder/config.py
 
 # docker stuff
 .env

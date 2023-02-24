@@ -34,11 +34,11 @@ class RecordingType(Enum):
 
 class Entity:
     def __repr__(self) -> str:
-        return f'<{self.__class__.__name__} id={self.id}>'
+        return f"<{self.__class__.__name__} id={self.id}>"
 
 
-Player = namedtuple('Player', 'xuid name userid fakeplayer')
-Death = namedtuple('Death', 'tick victim attacker pos weapon')
+Player = namedtuple("Player", "xuid name userid fakeplayer")
+Death = namedtuple("Death", "tick victim attacker pos weapon")
 
 
 class Demo(Entity):
@@ -138,22 +138,22 @@ class Demo(Entity):
 
     @property
     def matchtime_string(self):
-        ordinal = {1: 'st', 2: 'nd', 3: 'rd'}.get(self.matchtime.day % 10, 'th')
+        ordinal = {1: "st", 2: "nd", 3: "rd"}.get(self.matchtime.day % 10, "th")
         return (
-            self.matchtime.strftime('%d').lstrip('0')
+            self.matchtime.strftime("%d").lstrip("0")
             + ordinal
-            + self.matchtime.strftime(' %b %Y at %I:%M')
+            + self.matchtime.strftime(" %b %Y at %I:%M")
         )
 
     @property
     def score_string(self):
-        return '-'.join(str(s) for s in self.score)
+        return "-".join(str(s) for s in self.score)
 
     def format(self):
         date = self.matchtime_string
         score = self.score_string
 
-        return f'{self.map} [{score}] - {date}'
+        return f"{self.map} [{score}] - {date}"
 
     def parse(self):
         if self._parsed:
@@ -168,12 +168,12 @@ class Demo(Entity):
         self._id_mapper = dict()
 
         data = deepcopy(self.data)
-        self._parse_stringtables(data['stringtables'])
-        self._parse_convars(data['convars'])
-        self._parse_demoheader(data['demoheader'])
-        self._parse_events(data['events'])
+        self._parse_stringtables(data["stringtables"])
+        self._parse_convars(data["convars"])
+        self._parse_demoheader(data["demoheader"])
+        self._parse_events(data["events"])
 
-        self.score = data['score']
+        self.score = data["score"]
 
         # list(dict.fromkeys(iter)) forces an in ordered list with unique elements
         # the teams hold all the userids of players that played for a team
@@ -181,38 +181,38 @@ class Demo(Entity):
         # can occur, and they need to be made unique
         self.teams = [
             list(dict.fromkeys([self.get_player_by_id(_id) for _id in lst]))
-            for lst in (data['teams']['2'], data['teams']['3'])
+            for lst in (data["teams"]["2"], data["teams"]["3"])
         ]
 
         self._parsed = True
 
     def _parse_convars(self, convars: dict):
-        self.max_rounds = int(convars['mp_maxrounds'])
+        self.max_rounds = int(convars["mp_maxrounds"])
 
     def _parse_demoheader(self, header: dict):
-        self.map = header['mapname']
-        self.tickrate = header['tickrate']
-        self.protocol = header['protocol']
+        self.map = header["mapname"]
+        self.tickrate = header["tickrate"]
+        self.protocol = header["protocol"]
 
     def _parse_stringtables(self, tables: List[dict]):
         for table in tables:
-            table_name = table.pop('table')
-            if table_name == 'userinfo':
+            table_name = table.pop("table")
+            if table_name == "userinfo":
                 self._add_player(table)
 
     def _parse_events(self, events: List[dict]):
         rnd = 0
 
         for data in events:
-            event = data.pop('event')
+            event = data.pop("event")
 
-            if event == 'round_announce_match_start':
+            if event == "round_announce_match_start":
                 rnd = 1
 
-            if event == 'round_officially_ended':
+            if event == "round_officially_ended":
                 rnd += 1
 
-            elif event == 'player_death':
+            elif event == "player_death":
                 self._add_death(rnd, data)
 
         self.round_count = rnd
@@ -225,8 +225,8 @@ class Demo(Entity):
         return self._id_mapper.get(id, id)
 
     def _add_player(self, data):
-        xuid = data['xuid']
-        data['xuid'] = (xuid[1] << 32) + xuid[0]  # I truly hate javascript
+        xuid = data["xuid"]
+        data["xuid"] = (xuid[1] << 32) + xuid[0]  # I truly hate javascript
 
         player = Player(**data)
         actual_user = self.get_player_by_xuid(player.xuid)
@@ -237,11 +237,11 @@ class Demo(Entity):
             self._id_mapper[player.userid] = actual_user.userid
 
     def _add_death(self, rnd, data):
-        victim_id = data.pop('victim')
-        attacker_id = data.pop('attacker')
+        victim_id = data.pop("victim")
+        attacker_id = data.pop("attacker")
 
-        data['victim'] = self.get_player_by_id(victim_id)
-        data['attacker'] = self.get_player_by_id(attacker_id)
+        data["victim"] = self.get_player_by_id(victim_id)
+        data["attacker"] = self.get_player_by_id(attacker_id)
 
         self._rounds[rnd].append(Death(**data))
 
@@ -250,15 +250,15 @@ class Demo(Entity):
     @staticmethod
     def weapon_by_order(kills, n=2):
         c = Counter([k.weapon for k in kills])
-        return ', '.join(weap for weap, _ in c.most_common(n))
+        return ", ".join(weap for weap, _ in c.most_common(n))
 
     @staticmethod
     def area_by_order(kills, map_area, n=2):
         if map_area is None:
-            return '?'
+            return "?"
 
         areas = Counter([map_area.get_vec_name(kill.pos) for kill in kills])
-        return ', '.join(area for area, _ in areas.most_common(n))
+        return ", ".join(area for area, _ in areas.most_common(n))
 
     def kills_info(self, round_id, kills, map_area=None):
         k = 0
@@ -269,15 +269,15 @@ class Demo(Entity):
             else:
                 k += 1
 
-        info = [f'{k}k']
+        info = [f"{k}k"]
         if tk:
-            info.append(f'({tk}tk)')
+            info.append(f"({tk}tk)")
 
         info.append(self.weapon_by_order(kills))
 
         return (
-            f'R{round_id}',
-            ' '.join(info),
+            f"R{round_id}",
+            " ".join(info),
             self.area_by_order(kills, map_area),
         )
 
@@ -320,7 +320,7 @@ class Job(Entity):
     def get_inter(self, bot: commands.InteractionBot) -> disnake.AppCommandInteraction:
         if self.inter_payload is None:
             raise ValueError(
-                'Attempted to restore job interaction without stored payload'
+                "Attempted to restore job interaction without stored payload"
             )
 
         return disnake.ApplicationCommandInteraction(
@@ -338,16 +338,16 @@ class Job(Entity):
         }.get(self.state, disnake.Color.blurple())
 
         title = {
-            JobState.DEMO: 'Demo queued',
-            JobState.SELECT: 'Select what you want to record',
-            JobState.RECORD: 'Recording queued',
-            JobState.SUCCESS: 'Recording job complete!',
-            JobState.FAILED: 'Oops!',
-            JobState.ABORTED: 'Job aborted',
+            JobState.DEMO: "Demo queued",
+            JobState.SELECT: "Select what you want to record",
+            JobState.RECORD: "Recording queued",
+            JobState.SUCCESS: "Recording job complete!",
+            JobState.FAILED: "Oops!",
+            JobState.ABORTED: "Job aborted",
         }.get(self.state, None)
 
         e = disnake.Embed(color=color)
         e.set_author(name=title, icon_url=bot.user.display_avatar)
-        e.set_footer(text=f'ID: {self.id}')
+        e.set_footer(text=f"ID: {self.id}")
 
         return e

@@ -34,8 +34,8 @@ class Processing:
 @pytest.fixture
 def broker():
     b = Broker(
-        send_queue='send',
-        recv_queue='recv',
+        send_queue="send",
+        recv_queue="recv",
         id_type_cast=int,
         success_event=Success,
         failure_event=Failure,

@@ -54,13 +54,13 @@ class Broker:
     async def send(
         self, id, dispatcher=None, **kwargs
     ) -> aiormq.abc.ConfirmationFrameType:
-        log.info(f'Broker sending on queue {self.send_queue}: {kwargs}')
+        log.info(f"Broker sending on queue {self.send_queue}: {kwargs}")
 
         conf = await self.channel.basic_publish(
-            body=json.dumps(kwargs).encode('utf-8'),
+            body=json.dumps(kwargs).encode("utf-8"),
             routing_key=self.send_queue,
             properties=aiormq.spec.Basic.Properties(
-                content_type='application/json',
+                content_type="application/json",
                 correlation_id=str(id),
                 reply_to=self.recv_queue,
             ),
@@ -73,12 +73,12 @@ class Broker:
 
     async def recv(self, message: aiormq.abc.DeliveredMessage):
         body = json.loads(message.body)
-        success = body.pop('success')
+        success = body.pop("success")
 
         correlation_id = message.header.properties.correlation_id
         correlation_id = self.id_type_cast(correlation_id)
 
-        body['id'] = correlation_id
+        body["id"] = correlation_id
 
         if self._status_enabled:
             self._handle_recv_event(correlation_id)
@@ -184,8 +184,8 @@ class Broker:
 
 
 matchinfo = Broker(
-    send_queue='matchinfo_send',
-    recv_queue='matchinfo_recv',
+    send_queue="matchinfo_send",
+    recv_queue="matchinfo_recv",
     success_event=events.MatchInfoSuccess,
     failure_event=events.MatchInfoFailure,
     enqueue_event=events.MatchInfoEnqueued,
@@ -196,8 +196,8 @@ matchinfo = Broker(
 )
 
 demoparse = Broker(
-    send_queue='demoparse_send',
-    recv_queue='demoparse_recv',
+    send_queue="demoparse_send",
+    recv_queue="demoparse_recv",
     id_type_cast=int,
     success_event=events.DemoParseSuccess,
     failure_event=events.DemoParseFailure,
@@ -208,8 +208,8 @@ demoparse = Broker(
 )
 
 recorder = Broker(
-    send_queue='recorder_send',
-    recv_queue='recorder_recv',
+    send_queue="recorder_send",
+    recv_queue="recorder_recv",
     id_type_cast=lambda uuid: UUID(str(uuid)),
     success_event=events.RecorderSuccess,
     failure_event=events.RecorderFailure,
@@ -220,8 +220,8 @@ recorder = Broker(
 )
 
 uploader = Broker(
-    send_queue='uploader_send',
-    recv_queue='uploader_recv',
+    send_queue="uploader_send",
+    recv_queue="uploader_recv",
     id_type_cast=lambda uuid: UUID(str(uuid)),
     success_event=events.UploaderSuccess,
     failure_event=events.UploaderFailure,
@@ -229,9 +229,9 @@ uploader = Broker(
 
 
 async def start_brokers():
-    log.info('Initializing brokers')
+    log.info("Initializing brokers")
 
-    logging.getLogger('aiormq').setLevel(logging.WARN)
+    logging.getLogger("aiormq").setLevel(logging.WARN)
 
     mq = await aiormq.connect(config.RABBITMQ_HOST)
     channel: aiormq.Channel = await mq.channel()
@@ -239,4 +239,4 @@ async def start_brokers():
     for broker in (matchinfo, demoparse, recorder, uploader):
         await broker.start(channel)
 
-    log.info('Brokers initialized')
+    log.info("Brokers initialized")

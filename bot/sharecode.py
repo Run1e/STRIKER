@@ -6,7 +6,7 @@ _bitmask64 = 2**64 - 1
 
 
 def is_valid_sharecode(code):
-    return bool(re.match(r'^(CSGO)?(-?[%s]{5}){5}$' % dictionary, code))
+    return bool(re.match(r"^(CSGO)?(-?[%s]{5}){5}$" % dictionary, code))
 
 
 def _swap_endianness(number):
@@ -22,7 +22,7 @@ def decode(code):
     if not is_valid_sharecode(code):
         raise ValueError("Invalid share code")
 
-    code = re.sub('CSGO\-|\-', '', code)[::-1]
+    code = re.sub("CSGO\-|\-", "", code)[::-1]
 
     a = 0
     for c in code:
@@ -31,7 +31,7 @@ def decode(code):
     a = _swap_endianness(a)
 
     return {
-        'matchId': a & _bitmask64,
-        'outcomeId': a >> 64 & _bitmask64,
-        'tokenId': a >> 128 & 0xFFFF,
+        "matchId": a & _bitmask64,
+        "outcomeId": a >> 64 & _bitmask64,
+        "tokenId": a >> 128 & 0xFFFF,
     }

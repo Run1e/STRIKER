@@ -47,26 +47,26 @@ class RecorderCog(commands.Cog):
 
         bus.register_instance(self)
 
-    @commands.slash_command(name='help', description='How to use the bot!')
+    @commands.slash_command(name="help", description="How to use the bot!")
     async def _help(self, inter: disnake.AppCmdInter):
         e = disnake.Embed(
             color=disnake.Color.orange(),
         )
 
-        e.set_author(name='How to use the bot!', icon_url=self.bot.user.display_avatar)
+        e.set_author(name="How to use the bot!", icon_url=self.bot.user.display_avatar)
 
         e.description = (
-            'This bot can record and upload CS:GO clips from matchmaking games straight to Discord. '
-            'To do so you will need to give the bot a sharecode from one of your matchmaking matches.\n\n'
-            'The below image shows how you find and copy one of your matchmaking sharecodes.\n\n'
-            'To record a highlight, run the `/record` command and paste a sharecode.'
+            "This bot can record and upload CS:GO clips from matchmaking games straight to Discord. "
+            "To do so you will need to give the bot a sharecode from one of your matchmaking matches.\n\n"
+            "The below image shows how you find and copy one of your matchmaking sharecodes.\n\n"
+            "To record a highlight, run the `/record` command and paste a sharecode."
         )
 
         e.set_image(url=config.SHARECODE_IMG_URL)
 
         await inter.send(embed=e)
 
-    @commands.slash_command(description='Record again from a previous demo')
+    @commands.slash_command(description="Record again from a previous demo")
     async def demos(self, inter: disnake.AppCmdInter, search: str):
         aum = self._autocomplete_user_mapping[inter.author.id]
         fuzzed = process.extract(
@@ -78,7 +78,7 @@ class RecorderCog(commands.Cog):
         )
 
         if fuzzed is None:
-            raise commands.CommandError('Demo not found, please try again.')
+            raise commands.CommandError("Demo not found, please try again.")
 
         demo_id = self._autocomplete_mapping.get(fuzzed[0][0], None)
 
@@ -93,7 +93,7 @@ class RecorderCog(commands.Cog):
             demo_id=demo_id,
         )
 
-    @demos.autocomplete('search')
+    @demos.autocomplete("search")
     async def demos_autocomplete(self, inter: disnake.AppCmdInter, search: str):
         demos = self._demo_cache.get(inter.author.id, None)
 
@@ -127,10 +127,10 @@ class RecorderCog(commands.Cog):
         # this gets all the autocompleted demo names
         return aum
 
-    @commands.slash_command(description='Record a CS:GO highlight')
+    @commands.slash_command(description="Record a CS:GO highlight")
     async def record(self, inter: disnake.AppCmdInter, sharecode: str):
         sharecode = re.sub(
-            r'^steam://rungame/730/\d*/\+csgo_download_match%20', '', sharecode.strip()
+            r"^steam://rungame/730/\d*/\+csgo_download_match%20", "", sharecode.strip()
         )
 
         if not is_valid_sharecode(sharecode):
@@ -170,7 +170,7 @@ class RecorderCog(commands.Cog):
         # job state is *actually* DEMO or RECORD.
         # if they're not, more important stuff is likely happening
         if job.state not in (JobState.DEMO, JobState.RECORD):
-            log.warn('Ignoring event because of state %s: %s', job.state, event)
+            log.warn("Ignoring event because of state %s: %s", job.state, event)
             return
 
         inter = job.get_inter(self.bot)
@@ -197,7 +197,7 @@ class RecorderCog(commands.Cog):
             current_task_done = current_task.done()
 
             if not current_task_done and is_cancellable:
-                log.warn('%s cancelled by %s for job %s', current_event, event, job.id)
+                log.warn("%s cancelled by %s for job %s", current_event, event, job.id)
                 current_task.cancel()
 
         self.job_tasks[job.id] = (
@@ -216,12 +216,12 @@ class RecorderCog(commands.Cog):
         infront = event.infront
 
         description = {
-            events.MatchInfoEnqueued: f'#{infront} in queue for match info',
-            events.DemoParseEnqueued: f'#{infront} in queue for demo parser',
-            events.RecorderEnqueued: f'#{infront} in queue for recording',
+            events.MatchInfoEnqueued: f"#{infront} in queue for match info",
+            events.DemoParseEnqueued: f"#{infront} in queue for demo parser",
+            events.RecorderEnqueued: f"#{infront} in queue for recording",
         }.get(event.__class__)
 
-        embed.description = f'{config.SPINNER} {description}'
+        embed.description = f"{config.SPINNER} {description}"
         await message.edit(content=None, embed=embed, view=None)
 
     async def event_processing(
@@ -231,14 +231,14 @@ class RecorderCog(commands.Cog):
         event: events.CancellableEvent,
     ):
         description = {
-            events.MatchInfoProcessing: 'Asking Steam Coordinator for match info',
-            events.DemoParseProcessing: 'Downloading and parsing demo',
-            events.RecorderProcessing: 'Recording your highlight right now!',
+            events.MatchInfoProcessing: "Asking Steam Coordinator for match info",
+            events.DemoParseProcessing: "Downloading and parsing demo",
+            events.RecorderProcessing: "Recording your highlight right now!",
         }.get(event.__class__)
 
         assert description is not None
 
-        embed.description = f'{config.SPINNER} {description}'
+        embed.description = f"{config.SPINNER} {description}"
         await message.edit(content=None, embed=embed, view=None)
 
     @bus.mark(events.JobMatchInfoFailed)
@@ -279,20 +279,20 @@ class RecorderCog(commands.Cog):
         )
 
         embed = job.embed(self.bot)
-        embed.description = 'Select a player you want to record a highlight from below.'
+        embed.description = "Select a player you want to record a highlight from below."
 
         data = (
-            ('Map', job.demo.map),
-            ('Score', job.demo.score_string),
-            ('Date', job.demo.matchtime_string),
+            ("Map", job.demo.map),
+            ("Score", job.demo.score_string),
+            ("Date", job.demo.matchtime_string),
         )
         data_str = tabulate(
             tabular_data=data,
-            colalign=('left', 'left'),
-            tablefmt='plain',
+            colalign=("left", "left"),
+            tablefmt="plain",
         )
 
-        embed.description += f'\n```\n{data_str}\n```'
+        embed.description += f"\n```\n{data_str}\n```"
 
         edit_kwargs = dict(content=None, embed=embed, view=view)
 
@@ -308,7 +308,7 @@ class RecorderCog(commands.Cog):
         await services.abort_job(uow=SqlUnitOfWork(), job=job)
 
         embed = job.embed(self.bot)
-        embed.description = reason or 'Aborted.'
+        embed.description = reason or "Aborted."
 
         await inter.response.edit_message(content=None, embed=embed, view=None)
 
@@ -316,7 +316,7 @@ class RecorderCog(commands.Cog):
         await services.abort_job(uow=SqlUnitOfWork(), job=job)
 
         embed = job.embed(self.bot)
-        embed.description = 'Command timed out.'
+        embed.description = "Command timed out."
 
         inter = job.get_inter(self.bot)
         message = await inter.original_message()
@@ -362,8 +362,8 @@ class RecorderCog(commands.Cog):
             return
 
         embed = job.embed(self.bot)
-        embed.author.name = 'Upload complete!'
-        embed.description = 'Enjoy!'
+        embed.author.name = "Upload complete!"
+        embed.description = "Enjoy!"
 
         try:
             await message.edit(content=None, embed=embed, view=None)

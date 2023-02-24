@@ -73,9 +73,9 @@ class FakeRepository:
 
 class FakeJobRepository(FakeRepository):
     def add(self, instance):
-        if not hasattr(instance, 'id'):
+        if not hasattr(instance, "id"):
             instance.id = uuid4()
-        if not hasattr(instance, 'demo_id'):
+        if not hasattr(instance, "demo_id"):
             instance.demo_id = None
 
         return super().add(instance)
@@ -115,7 +115,7 @@ class FakeDemoRepository(FakeRepository):
         super().__init__(instances)
 
     def add(self, instance):
-        if not hasattr(instance, 'id'):
+        if not hasattr(instance, "id"):
             instance.id = self._demo_counter
             self._demo_counter += 1
         return super().add(instance)
@@ -180,43 +180,43 @@ def get_first(repo):
 
 @pytest.fixture
 def matchinfo_send(mocker):
-    return mocker.patch('adapters.broker.matchinfo.send', side_effect=AsyncMock())
+    return mocker.patch("adapters.broker.matchinfo.send", side_effect=AsyncMock())
 
 
 @pytest.fixture
 def matchinfo_send_raises(mocker):
     return mocker.patch(
-        'adapters.broker.matchinfo.send', side_effect=AsyncMock(side_effect=Exception)
+        "adapters.broker.matchinfo.send", side_effect=AsyncMock(side_effect=Exception)
     )
 
 
 @pytest.fixture
 def demoparse_send(mocker):
-    return mocker.patch('adapters.broker.demoparse.send', side_effect=AsyncMock())
+    return mocker.patch("adapters.broker.demoparse.send", side_effect=AsyncMock())
 
 
 @pytest.fixture
 def demoparse_send_raises(mocker):
     return mocker.patch(
-        'adapters.broker.demoparse.send', side_effect=AsyncMock(side_effect=Exception)
+        "adapters.broker.demoparse.send", side_effect=AsyncMock(side_effect=Exception)
     )
 
 
 @pytest.fixture
 def recorder_send(mocker):
-    return mocker.patch('adapters.broker.recorder.send', side_effect=AsyncMock())
+    return mocker.patch("adapters.broker.recorder.send", side_effect=AsyncMock())
 
 
 @pytest.fixture
 def recorder_send_raises(mocker):
     return mocker.patch(
-        'adapters.broker.recorder.send', side_effect=AsyncMock(side_effect=Exception)
+        "adapters.broker.recorder.send", side_effect=AsyncMock(side_effect=Exception)
     )
 
 
 @pytest.fixture
 def uploader_send(mocker):
-    return mocker.patch('adapters.broker.uploader.send', side_effect=AsyncMock())
+    return mocker.patch("adapters.broker.uploader.send", side_effect=AsyncMock())
 
 
 @pytest.mark.asyncio
@@ -225,7 +225,7 @@ async def test_new_job_sharecode(matchinfo_send, new_job_junk):
 
     await services.new_job(
         uow=uow,
-        sharecode='sharecode',
+        sharecode="sharecode",
         **new_job_junk,
     )
 
@@ -236,7 +236,7 @@ async def test_new_job_sharecode(matchinfo_send, new_job_junk):
     assert demo.id is not None
     assert demo.state is DemoState.MATCH
     assert demo.queued is True
-    assert demo.sharecode == 'sharecode'
+    assert demo.sharecode == "sharecode"
 
     assert job.state is JobState.DEMO
 
@@ -250,7 +250,7 @@ async def test_new_job_demo_id_can_record(mock_dispatch, new_job_junk):
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
         data=demo_data[0],
     )
@@ -276,7 +276,7 @@ async def test_new_job_demo_id_no_data(demoparse_send, new_job_junk):
     demo = new_demo(
         state=DemoState,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
     )
 
@@ -304,7 +304,7 @@ async def test_new_job_demo_id_not_up_to_date(demoparse_send, new_job_junk):
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
         data=demo_data[0],
     )
@@ -333,7 +333,7 @@ async def test_new_job_demo_id_no_matchinfo(matchinfo_send, new_job_junk):
     # what I'm really doing here is testing handle_demo step, so the new_job
     # stuff is really unnecessary
 
-    sharecode = 'sharecode'
+    sharecode = "sharecode"
     demo = new_demo(
         state=DemoState.PARSE,  # should be changed to .MATCH
         queued=False,
@@ -364,7 +364,7 @@ async def test_demo_step_matchinfo_failure(matchinfo_send_raises):
     # test case: new job was started with demo which has queued=False
     # and state=MATCH
 
-    sharecode = 'sharecode'
+    sharecode = "sharecode"
     demo = new_demo(
         state=DemoState.MATCH,
         queued=False,
@@ -400,7 +400,7 @@ async def test_demo_step_demoparse_failure(demoparse_send_raises):
     # when matchinfo_success called it
     # meaning that the demo was rolled back to state=PARSE and queued=False
 
-    sharecode = 'sharecode'
+    sharecode = "sharecode"
     demo = new_demo(
         state=DemoState.PARSE,
         queued=False,
@@ -434,7 +434,7 @@ async def test_demo_step_can_record():
     # test case: demo is can_record=True but has wrong state
     # this should fix it
 
-    sharecode = 'sharecode'
+    sharecode = "sharecode"
     demo = new_demo(
         state=DemoState.PARSE,
         queued=False,
@@ -463,7 +463,7 @@ async def test_matchinfo_success(demoparse_send):
     demo = new_demo(
         state=DemoState.MATCH,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=False,
     )
 
@@ -471,7 +471,7 @@ async def test_matchinfo_success(demoparse_send):
 
     matchid = random_matchid()
     matchtime = 1657154816
-    url = 'not a real url'
+    url = "not a real url"
     event = events.MatchInfoSuccess(
         id=demo.id, matchid=matchid, matchtime=matchtime, url=url
     )
@@ -494,7 +494,7 @@ async def test_matchinfo_success_broker_failure(demoparse_send_raises):
     demo = new_demo(
         state=DemoState.MATCH,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=False,
     )
 
@@ -506,7 +506,7 @@ async def test_matchinfo_success_broker_failure(demoparse_send_raises):
 
     matchid = random_matchid()
     matchtime = 1657154816
-    url = 'not a real url'
+    url = "not a real url"
     event = events.MatchInfoSuccess(
         id=demo.id, matchid=matchid, matchtime=matchtime, url=url
     )
@@ -535,7 +535,7 @@ async def test_matchinfo_failure():
     demo = new_demo(
         state=DemoState.MATCH,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=False,
     )
 
@@ -545,7 +545,7 @@ async def test_matchinfo_failure():
 
     job.demo_id = demo.id
 
-    reason = 'some reason'
+    reason = "some reason"
     event = events.MatchInfoFailure(id=demo.id, reason=reason)
 
     await services.matchinfo_failure(uow, event)
@@ -568,7 +568,7 @@ async def test_demoparse_success():
     demo = new_demo(
         state=DemoState.PARSE,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
     )
 
@@ -604,7 +604,7 @@ async def test_demoparse_success_outdated(demoparse_send):
     demo = new_demo(
         state=DemoState.PARSE,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
     )
 
@@ -633,7 +633,7 @@ async def test_demoparse_failure():
     demo = new_demo(
         state=DemoState.PARSE,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
     )
 
@@ -643,7 +643,7 @@ async def test_demoparse_failure():
 
     job.demo_id = demo.id
 
-    reason = 'some reason'
+    reason = "some reason"
     event = events.DemoParseFailure(id=demo.id, reason=reason)
     await services.demoparse_failure(uow, event)
 
@@ -666,7 +666,7 @@ async def test_record(recorder_send):
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -699,7 +699,7 @@ async def test_record_broker_failure():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -733,7 +733,7 @@ async def test_recorder_success(uploader_send):
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -764,7 +764,7 @@ async def test_recorder_failure():
 
     uow = FakeUnitOfWork(jobs=[job])
 
-    reason = 'some reason'
+    reason = "some reason"
     event = events.RecorderFailure(id=job.id, reason=reason)
     await services.recorder_failure(uow, event)
 
@@ -800,7 +800,7 @@ async def test_uploader_failure():
 
     uow = FakeUnitOfWork(jobs=[job])
 
-    reason = 'oof'
+    reason = "oof"
     event = events.UploaderFailure(id=job.id, reason=reason)
     await services.uploader_failure(uow, event)
 
@@ -826,7 +826,7 @@ async def test_restore_restart_jobs():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -850,7 +850,7 @@ async def test_restore_unqueued_demos_matchinfo(matchinfo_send):
     demo = new_demo(
         state=DemoState.MATCH,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=False,
     )
 
@@ -866,7 +866,7 @@ async def test_restore_unqueued_demos_demoparse(demoparse_send):
     demo = new_demo(
         state=DemoState.PARSE,
         queued=False,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
     )
 
@@ -880,20 +880,20 @@ async def test_restore_unqueued_demos_demoparse(demoparse_send):
 @pytest.mark.asyncio
 async def test_restore_queued_demos(matchinfo_send, demoparse_send):
     demo_one = new_demo(
-        state=DemoState.MATCH, queued=True, sharecode='sharecode', has_matchinfo=False
+        state=DemoState.MATCH, queued=True, sharecode="sharecode", has_matchinfo=False
     )
 
     demo_two = new_demo(
         state=DemoState.PARSE,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
     )
 
     demo_three = new_demo(
         state=DemoState.PARSE,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
     )
 
@@ -911,7 +911,7 @@ async def test_restore_get_recording():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=True,
-        sharecode='sharecode',
+        sharecode="sharecode",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )

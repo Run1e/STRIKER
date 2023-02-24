@@ -13,7 +13,7 @@ from .config import CT_COIN, T_COIN
 
 class AbortButton(disnake.ui.Button):
     def __init__(
-        self, *, callback, style=disnake.ButtonStyle.danger, label='Abort', row=0
+        self, *, callback, style=disnake.ButtonStyle.danger, label="Abort", row=0
     ):
         super().__init__(style=style, label=label, row=row)
         self._callback = callback
@@ -53,7 +53,7 @@ class PlayerView(disnake.ui.View):
         team_one, team_two = job.demo.teams
 
         for row, players in enumerate([team_two, team_one]):
-            label = f'Team {row + 1}'
+            label = f"Team {row + 1}"
             self.add_item(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.secondary,
@@ -127,7 +127,7 @@ class RoundView(disnake.ui.View):
             button = RoundButton(
                 callback=round_callback,
                 style=disnake.ButtonStyle.primary,
-                label='placeholder',
+                label="placeholder",
                 row=((round_id - 1) // 5) + 1,
             )
 
@@ -160,12 +160,12 @@ class RoundView(disnake.ui.View):
         )
 
     @disnake.ui.button(
-        style=disnake.ButtonStyle.secondary, label='Select another player', row=0
+        style=disnake.ButtonStyle.secondary, label="Select another player", row=0
     )
     async def reselect(self, button: disnake.Button, inter: disnake.MessageInteraction):
         asyncio.create_task(self.reselect_callback(inter))
 
-    @disnake.ui.button(style=disnake.ButtonStyle.danger, label='Abort', row=0)
+    @disnake.ui.button(style=disnake.ButtonStyle.danger, label="Abort", row=0)
     async def abort(self, button: disnake.Button, inter: disnake.MessageInteraction):
         self.stop()
         asyncio.create_task(self.abort_callback(inter))
@@ -189,12 +189,12 @@ class RoundView(disnake.ui.View):
                 data.append(demo.kills_info(round_id, kills, map_area))
 
         if not data:
-            return 'This player got zero kills this half.'
+            return "This player got zero kills this half."
         else:
             return tabulate(
                 tabular_data=data,
-                colalign=('left', 'left', 'left'),
-                tablefmt='plain',
+                colalign=("left", "left", "left"),
+                tablefmt="plain",
             )
 
     async def set_half(self, first_half):
@@ -222,17 +222,17 @@ class RoundView(disnake.ui.View):
         embed = self.embed_factory()
 
         table = self.highlights[first_half]
-        half_one = 'T' if self.player_team == 0 else 'CT'
-        half_two = 'CT' if self.player_team == 0 else 'T'
+        half_one = "T" if self.player_team == 0 else "CT"
+        half_two = "CT" if self.player_team == 0 else "T"
         team = half_one if first_half else half_two
 
         # embed.title = 'Select a round to render'
 
         embed.description = (
-            f'Table of {self.player.name}\'s frags on the {team} side.\n'
-            f'```{table}```\n'
-            'Click a round number below to record a highlight.\n'
-            'Click the \'CT\' or \'T\' coins to show frags from the other half.'
+            f"Table of {self.player.name}'s frags on the {team} side.\n"
+            f"```{table}```\n"
+            "Click a round number below to record a highlight.\n"
+            "Click the 'CT' or 'T' coins to show frags from the other half."
         )
 
         return embed

@@ -8,9 +8,9 @@ from ipc import CSGO
 log = logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-r = r'^.*\(fs\) ((ar|cs|de).*)\.bsp$'
-INGAME = r'ChangeGameUIState: CSGO_GAME_UI_STATE_INGAME -> CSGO_GAME_UI_STATE_INGAME'
-NEEDS_ANALYZE = 'The nav mesh needs a full'
+r = r"^.*\(fs\) ((ar|cs|de).*)\.bsp$"
+INGAME = r"ChangeGameUIState: CSGO_GAME_UI_STATE_INGAME -> CSGO_GAME_UI_STATE_INGAME"
+NEEDS_ANALYZE = "The nav mesh needs a full"
 
 
 async def main():
@@ -23,8 +23,8 @@ async def main():
     )
 
     await csgo.connect()
-    maps_result = await csgo.run('maps *')
-    await csgo.run('sv_cheats 1')
+    maps_result = await csgo.run("maps *")
+    await csgo.run("sv_cheats 1")
 
     maps = []
 
@@ -34,13 +34,13 @@ async def main():
             maps.append(mat.group(1))
 
     for map in maps:
-        await csgo.run(f'map {map}')
+        await csgo.run(f"map {map}")
         await csgo.readuntil(INGAME)
-        place_names = await csgo.run('nav_place_list')
-        if place_names.startswith('Map uses 0 place names'):
-            log.info('%s uses 0 place names, skipping', map)
+        place_names = await csgo.run("nav_place_list")
+        if place_names.startswith("Map uses 0 place names"):
+            log.info("%s uses 0 place names, skipping", map)
             continue
-        result = await csgo.run('nav_save')
+        result = await csgo.run("nav_save")
         # if NEEDS_ANALYZE in result:
         #     log.info(f'{map} needs analyze first...')
         #     await csgo.run('nav_generate')
@@ -56,7 +56,7 @@ async def main():
     csgo.kill()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
     loop.run_forever()

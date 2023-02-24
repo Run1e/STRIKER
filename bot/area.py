@@ -3,9 +3,9 @@ import os
 from math import sqrt
 from string import ascii_uppercase
 
-CAPITALIZERS = ascii_uppercase + ''.join(str(i) for i in range(10))
+CAPITALIZERS = ascii_uppercase + "".join(str(i) for i in range(10))
 
-REPLACEMENTS = (('Topof', 'Top of'), ('Backof', 'Back of'))
+REPLACEMENTS = (("Topof", "Top of"), ("Backof", "Back of"))
 
 
 def dist(a, b):
@@ -29,20 +29,20 @@ class MapAreas:
 
     def prettify_name(self, name):
         p = name[0]
-        s = ''
+        s = ""
 
         for c in name[1:]:
             c_is_upper = c in CAPITALIZERS
             p_is_upper = p in CAPITALIZERS
 
             if p_is_upper and not c_is_upper:
-                s += ' '
+                s += " "
 
             s += p
             p = c
 
         if c in CAPITALIZERS:
-            s += ' '
+            s += " "
         s += c
 
         for old, new in REPLACEMENTS:
@@ -54,7 +54,7 @@ class MapAreas:
         try:
             place_name = self._places[place_id]
         except ValueError:
-            return 'Unknown'
+            return "Unknown"
 
         return self.prettify_name(place_name)
 
@@ -77,9 +77,9 @@ class MapAreas:
 
 places = {}
 
-for file in os.listdir('bot/navparse/nav'):
-    map_name = file.split('.')[0]
-    with open(f'bot/navparse/nav/{file}', 'r') as f:
+for file in os.listdir("bot/navparse/nav"):
+    map_name = file.split(".")[0]
+    with open(f"bot/navparse/nav/{file}", "r") as f:
         data = json.loads(f.read())
         if not data:
             continue

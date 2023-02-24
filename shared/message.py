@@ -18,7 +18,7 @@ class MessageWrapper:
     def __init__(
         self,
         message: aiormq.types.DeliveredMessage,
-        default_error='An error occurred.',
+        default_error="An error occurred.",
         ack_on_failure=True,
         raise_on_message_error=False,
         requeue_on_nack=False,
@@ -28,18 +28,18 @@ class MessageWrapper:
         self.ack_on_failure = ack_on_failure
         self.raise_on_message_error = raise_on_message_error
         self.requeue_on_nack = requeue_on_nack
-        self.data = loads(message.body.decode('utf-8'))
+        self.data = loads(message.body.decode("utf-8"))
         self.correlation_id = message.header.properties.correlation_id
-        self.end_timer = timer(f'PERF {self.correlation_id}')
+        self.end_timer = timer(f"PERF {self.correlation_id}")
 
-        log.info('INIT %s', self.correlation_id)
+        log.info("INIT %s", self.correlation_id)
 
     async def ack(self):
-        log.info('ACK %s', self.correlation_id)
+        log.info("ACK %s", self.correlation_id)
         await self.message.channel.basic_ack(self.message.delivery.delivery_tag)
 
     async def nack(self, requeue):
-        log.info('NACK %s', self.correlation_id)
+        log.info("NACK %s", self.correlation_id)
         await self.message.channel.basic_nack(
             self.message.delivery.delivery_tag,
             requeue=requeue,
@@ -47,10 +47,10 @@ class MessageWrapper:
 
     async def send(self, **kwargs):
         res = await self.message.channel.basic_publish(
-            body=dumps(kwargs).encode('utf-8'),
+            body=dumps(kwargs).encode("utf-8"),
             routing_key=self.message.header.properties.reply_to,
             properties=aiormq.spec.Basic.Properties(
-                content_type='application/json',
+                content_type="application/json",
                 correlation_id=self.correlation_id,
             ),
         )
@@ -59,11 +59,11 @@ class MessageWrapper:
         return res
 
     async def success(self, **kwargs):
-        log.info('SUCCESS %s', self.correlation_id)
+        log.info("SUCCESS %s", self.correlation_id)
         await self.send(success=1, **kwargs)
 
     async def failure(self, **kwargs):
-        log.info('FAILURE %s', self.correlation_id)
+        log.info("FAILURE %s", self.correlation_id)
         await self.send(success=0, **kwargs)
 
     def should_requeue(self):

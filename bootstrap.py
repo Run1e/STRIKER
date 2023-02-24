@@ -28,7 +28,7 @@ async def bootstrap(
     if start_broker:
         await broker.start_brokers()
 
-    log.info('Ready to bot!')
+    log.info("Ready to bot!")
 
     # this restarts any jobs that were in selectland
     # within the last 12 (at the time of writing, anyway)
@@ -51,5 +51,5 @@ def main():
     loop.run_forever()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

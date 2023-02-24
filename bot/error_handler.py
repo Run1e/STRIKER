@@ -8,14 +8,14 @@ class ErrorHandler(commands.Cog):
 
     @commands.Cog.listener()
     async def on_slash_command_error(self, inter: disnake.AppCmdInter, exc):
-        '''Handle command errors.'''
+        """Handle command errors."""
 
         if not inter.response.is_done():
             await inter.response.defer(ephemeral=True)
 
         embed = disnake.Embed(color=disnake.Color.red())
 
-        embed.set_author(name='Oops!', icon_url=self.bot.user.display_avatar)
+        embed.set_author(name="Oops!", icon_url=self.bot.user.display_avatar)
 
         kwargs = dict(content=None, embed=embed)
 
@@ -26,7 +26,7 @@ class ErrorHandler(commands.Cog):
             embed.description = str(exc)
         else:
             is_ok = False
-            embed.description = 'Some undefined error occurred, sorry about that!'
+            embed.description = "Some undefined error occurred, sorry about that!"
 
         try:
             message = await inter.original_message()

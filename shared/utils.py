@@ -8,7 +8,7 @@ def utcnow():
 
 def timer(name):
     start = monotonic()
-    return lambda: f'{name} took {monotonic() - start:0.2f} seconds'
+    return lambda: f"{name} took {monotonic() - start:0.2f} seconds"
 
 
 ordinal = lambda n: "%d%s" % (

@@ -1,13 +1,18 @@
+# top-level module include hack for shared :|
+import sys
+
+sys.path.append("../..")
+
+
 import asyncio
 import logging
 
 import aiormq
+import config
 import disnake
 
 from shared.log import logging_config
 from shared.message import MessageError, MessageWrapper
-
-from . import config
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -22,22 +27,22 @@ client = disnake.Client()
 async def on_upload(message: aiormq.channel.DeliveredMessage):
     wrap = MessageWrapper(
         message=message,
-        default_error='An error occurred while uploading.',
+        default_error="An error occurred while uploading.",
         ack_on_failure=True,
     )
 
     async with wrap as ctx:
         data = ctx.data
         job_id = ctx.correlation_id
-        user_id = data['user_id']
-        channel_id = data['channel_id']
-        file_name = data['file_name']
+        user_id = data["user_id"]
+        channel_id = data["channel_id"]
+        file_name = data["file_name"]
 
-        log.info('Uploading job %s', job_id)
+        log.info("Uploading job %s", job_id)
 
         channel = await client.fetch_channel(channel_id)
         if channel is None:
-            raise MessageError('Uploader failed finding channel.')
+            raise MessageError("Uploader failed finding channel.")
 
         buttons = list()
 
@@ -45,7 +50,7 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
-                    label='Join the Discord',
+                    label="Join the Discord",
                     url=config.DISCORD_INVITE_URL,
                 )
             )
@@ -54,15 +59,15 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
-                    label='Star the project on GitHub',
+                    label="Star the project on GitHub",
                     url=config.GITHUB_URL,
                 )
             )
 
         await channel.send(
-            content=f'<@{user_id}>',
+            content=f"<@{user_id}>",
             file=disnake.File(
-                fp=f'{config.VIDEO_DIR}/{job_id}.mp4', filename=file_name + '.mp4'
+                fp=f"{config.VIDEO_DIR}/{job_id}.mp4", filename=file_name + ".mp4"
             ),
             components=disnake.ui.ActionRow(*buttons),
         )
@@ -71,7 +76,7 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
 
 
 async def main():
-    logging.getLogger('aiormq').setLevel(logging.INFO)
+    logging.getLogger("aiormq").setLevel(logging.INFO)
 
     asyncio.create_task(client.start(config.BOT_TOKEN))
     await client.wait_until_ready()
@@ -86,4 +91,10 @@ async def main():
         queue=config.UPLOAD_QUEUE, consumer_callback=on_upload, no_ack=False
     )
 
-    log.info('Ready to parse!')
+    log.info("Ready to upload!")
+
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.run_forever()

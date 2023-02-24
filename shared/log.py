@@ -6,8 +6,8 @@ import coloredlogs
 def logging_config(debug: bool = False):
     coloredlogs.install(
         level=logging.DEBUG if debug else logging.INFO,
-        fmt='{asctime} [{levelname}] {name}: {message}',
-        style='{',
+        fmt="{asctime} [{levelname}] {name}: {message}",
+        style="{",
         level_styles=dict(
             spam=dict(color=8, faint=True),
             debug=dict(color=8, faint=True),

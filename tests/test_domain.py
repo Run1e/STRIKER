@@ -8,7 +8,7 @@ from tests.testutils import *
 
 
 def test_demo_has_nothing():
-    demo = new_demo(DemoState.MATCH, queued=False, sharecode='asd', has_matchinfo=False)
+    demo = new_demo(DemoState.MATCH, queued=False, sharecode="asd", has_matchinfo=False)
 
     assert not demo.has_matchinfo()
     assert not demo.has_data()
@@ -17,7 +17,7 @@ def test_demo_has_nothing():
 
 
 def test_demo_has_matchinfo():
-    demo = new_demo(DemoState.MATCH, queued=False, sharecode='asd', has_matchinfo=True)
+    demo = new_demo(DemoState.MATCH, queued=False, sharecode="asd", has_matchinfo=True)
 
     assert demo.has_matchinfo()
     assert not demo.has_data()
@@ -29,7 +29,7 @@ def test_demo_has_data():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='asd',
+        sharecode="asd",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -44,7 +44,7 @@ def test_demo_is_out_of_date():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='asd',
+        sharecode="asd",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -61,7 +61,7 @@ def test_demo_misc():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='asd',
+        sharecode="asd",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -69,10 +69,10 @@ def test_demo_misc():
     demo.parse()
 
     assert demo.score == [9, 4]
-    assert demo.score_string == '9-4'
+    assert demo.score_string == "9-4"
 
     assert demo.protocol == 4
-    assert demo.map == 'de_dust2'
+    assert demo.map == "de_dust2"
     assert demo.halftime == demo.max_rounds // 2
     assert demo.max_rounds == 16
 
@@ -81,7 +81,7 @@ def test_demo_players():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='asd',
+        sharecode="asd",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )
@@ -104,7 +104,7 @@ def test_demo_kills():
     demo = new_demo(
         state=DemoState.SUCCESS,
         queued=False,
-        sharecode='asd',
+        sharecode="asd",
         has_matchinfo=True,
         data=loads(demo_data[0]),
     )

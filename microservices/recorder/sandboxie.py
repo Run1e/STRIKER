@@ -13,22 +13,22 @@ class Sandboxie:
 
     def run(self, *args, box=None) -> str:
         if box:
-            args = [f'/box:{box}', *args]
+            args = [f"/box:{box}", *args]
         log.info(args)
         r = run([self._start, *args], capture_output=True)
-        return r.stdout.decode('utf-8').strip()
+        return r.stdout.decode("utf-8").strip()
 
     def start(self, *args, box=None):
         return self.run(*args, box=box)
 
     def listpids(self, box=None):
-        return self.run('/listpids', box=box).split('\r\n')
+        return self.run("/listpids", box=box).split("\r\n")
 
     def terminateall(self, box=None):
-        self.run('/terminateall', box=box)
+        self.run("/terminateall", box=box)
 
     async def cleanup(self, *boxes):
-        log.info(f'Cleaning up boxes: {boxes}')
+        log.info(f"Cleaning up boxes: {boxes}")
 
         pids = set()
         for box in boxes:
@@ -38,7 +38,7 @@ class Sandboxie:
         if not pids:
             return
 
-        log.info(f'Running pids: {pids}')
+        log.info(f"Running pids: {pids}")
 
         for box in boxes:
             self.terminateall(box=box)
@@ -47,6 +47,6 @@ class Sandboxie:
             pids_running = [pid for pid in pids if pid_exists(pid)]
             if not pids_running:
                 break
-            log.info(f'Waiting for {len(pids_running)} to exit...')
-            log.info(f'Remaining pids: {pids_running}')
+            log.info(f"Waiting for {len(pids_running)} to exit...")
+            log.info(f"Remaining pids: {pids_running}")
             await sleep(1)
