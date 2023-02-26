@@ -5,7 +5,15 @@ TICK_PADDING = 384
 
 
 def craft_vdm(
-    start_tick, end_tick, skips, xuid, fps, bitrate, capture_dir, video_filters
+    start_tick,
+    end_tick,
+    skips,
+    xuid,
+    fps,
+    bitrate,
+    capture_dir,
+    video_filters,
+    unblock_string,
 ):
     s = Script()
 
@@ -16,6 +24,11 @@ def craft_vdm(
     s.PlayCommands(
         f"spec_lock_to_accountid {xuid}; mirv_deathmsg highLightId x{xuid}; exec recorder"
     )
+
+    s.delta(32)
+
+    # set the capture dir
+    s.PlayCommands(f'mirv_streams record name "{capture_dir}"')
 
     # https://write.corbpie.com/ffmpeg-preset-comparison-x264-2019-encode-speed-and-file-size/
     ffmpeg_opt = [
@@ -31,17 +44,12 @@ def craft_vdm(
     ffmpeg_opt.append("-y")
     ffmpeg_opt.append(r'"{AFX_STREAM_PATH}\video.mp4"')
 
-    mirv_config = [
-        f'mirv_streams record name "{capture_dir}"',
+    # set the ffmpeg options
+    s.PlayCommands(
         'mirv_streams settings edit ff options "{opt}"'.format(
             opt=" ".join(ffmpeg_opt).replace('"', "{QUOTE}")
-        ),
-        "mirv_streams edit normal settings ff",
-    ]
-
-    s.delta(32)
-    open(config.CSGO_FOLDER + r"\cfg\_tmp_mirv.cfg", "w").write("\n".join(mirv_config))
-    s.PlayCommands("exec _tmp_mirv")
+        )
+    )
 
     # spec the correct player, clear death message blocks and highlight the correct players' death messages
     s.delta(32)
@@ -64,7 +72,7 @@ def craft_vdm(
 
     # stop recording!
     s.tick(end_tick)
-    s.PlayCommands("mirv_streams record end; host_framerate 0; echo RECORDING FINISHED")
+    s.PlayCommands(f"mirv_streams record end; host_framerate 0; echo {unblock_string}")
 
     # quit
     s.delta(16)
