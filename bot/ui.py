@@ -163,6 +163,7 @@ class RoundView(disnake.ui.View):
         style=disnake.ButtonStyle.secondary, label="Select another player", row=0
     )
     async def reselect(self, button: disnake.Button, inter: disnake.MessageInteraction):
+        self.stop()
         asyncio.create_task(self.reselect_callback(inter))
 
     @disnake.ui.button(style=disnake.ButtonStyle.danger, label="Abort", row=0)
