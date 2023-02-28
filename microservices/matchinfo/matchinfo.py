@@ -5,12 +5,13 @@ sys.path.append("../..")
 
 import asyncio
 import logging
+from base64 import b64decode, b64encode
 from multiprocessing import Event, Pipe, Process
 
 import aiormq
 from csgo.sharecode import decode
 from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper
+from shared.message import MessageError, MessageWrapper, RPCClient
 
 import config
 from cs_process import cs_process
@@ -52,7 +53,6 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
         data = matches.pop(matchid)
 
         log.info("Returning %s", matchid)
-        print(data)
         await ctx.success(**data)
 
 
@@ -63,19 +63,31 @@ async def main():
 
     logging.getLogger("aiormq").setLevel(logging.INFO)
 
+    mq = await aiormq.connect(config.RABBITMQ_HOST)
+    channel = await mq.channel()
+
+    rpc = RPCClient(channel, config.LOGIN_PROVISIONER_QUEUE)
+
+    username, password = await rpc("get_login")
+    sentry = await rpc("load_sentry", username=username)
+
+    if sentry is None:
+        raise ValueError(f"load_sentry returned None for user {username}")
+
+    sentry = b64decode(sentry)
+
+    await channel.basic_qos(prefetch_count=3)
+
+    await channel.queue_declare(config.MATCHINFO_QUEUE)
+
     parent_conn, child_conn = Pipe()
     event = Event()
 
-    p = Process(target=cs_process, args=(child_conn, event))
+    p = Process(target=cs_process, args=(child_conn, event, username, password, sentry))
     p.start()
 
     event.wait()
 
-    mq = await aiormq.connect(config.RABBITMQ_HOST)
-    channel = await mq.channel()
-    await channel.basic_qos(prefetch_count=3)
-
-    await channel.queue_declare(config.MATCHINFO_QUEUE)
     await channel.basic_consume(
         queue=config.MATCHINFO_QUEUE, consumer_callback=on_message, no_ack=False
     )
@@ -86,12 +98,21 @@ async def main():
         while parent_conn.poll():
             data = parent_conn.recv()
 
-            matchid = data["matchid"]
-            event = listeners.pop(matchid, None)
+            event = data.pop("event")
 
-            if event is not None:
-                matches[matchid] = data
-                event.set()
+            if event == "matchinfo":
+                matchid = data["matchid"]
+                event = listeners.pop(matchid, None)
+
+                if event is not None:
+                    matches[matchid] = data
+                    event.set()
+
+            elif event == "store_sentry":
+                log.info("Storing sentry for user %s", username)
+
+                data = b64encode(data["sentry"]).decode("ascii")
+                await rpc("store_sentry", username=username, sentry=data)
 
         await asyncio.sleep(0.05)
 

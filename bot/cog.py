@@ -233,7 +233,7 @@ class RecorderCog(commands.Cog):
         description = {
             events.MatchInfoProcessing: "Asking Steam Coordinator for match info",
             events.DemoParseProcessing: "Downloading and parsing demo",
-            events.RecorderProcessing: "Recording your highlight right now!",
+            events.RecorderProcessing: "Recording your clip right now!",
         }.get(event.__class__)
 
         assert description is not None

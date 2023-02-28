@@ -1,16 +1,28 @@
 import logging
+import json
+import asyncio
+from string import ascii_letters
+from random import choice
 from json import dumps, loads
 
 import aiormq
 import aiormq.types
 
-from .utils import timer
+from shared.utils import timer
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 
+def random_string(l):
+    return "".join(choice(ascii_letters) for _ in range(l))
+
+
 class MessageError(Exception):
+    pass
+
+
+class RPCError(Exception):
     pass
 
 
@@ -90,3 +102,107 @@ class MessageWrapper:
                 return True
         else:
             await self.ack()
+
+
+class RPCServer:
+    def __init__(self, channel: aiormq.abc.AbstractChannel, queue: str):
+        self.channel = channel
+        self.queue = queue
+        self.commands = {}
+
+    def register(self, f):
+        self.commands[f.__name__] = f
+
+    async def start(self):
+        await self.channel.queue_declare(self.queue)
+        await self.channel.basic_consume(
+            self.queue,
+            consumer_callback=self.recv,
+            no_ack=False,
+        )
+
+    async def recv(self, message: aiormq.abc.DeliveredMessage):
+        wraps = MessageWrapper(
+            message=message,
+            default_error="Server excepted while handling the RPC call.",
+            ack_on_failure=True,
+        )
+
+        async with wraps as ctx:
+            func = ctx.data.pop("func")
+            command = self.commands.get(func, None)
+
+            if command is None:
+                raise MessageError(f"Command '{func}' not registered.")
+
+            # no need for try/catch since exception
+            # is handled by the context manager
+            result = await command(**ctx.data)
+
+            await ctx.success(result=result)
+
+
+class RPCClient:
+    def __init__(self, channel: aiormq.abc.AbstractChannel, queue: str):
+        self.channel = channel
+        self.queue = queue
+        self.reply_queue = None
+        self._events = {}
+        self._results = {}
+
+    async def setup(self):
+        self.reply_queue = self.queue + "-" + random_string(16)
+        await self.channel.queue_declare(
+            queue=self.reply_queue,
+            exclusive=True,
+        )
+
+        await self.channel.basic_consume(
+            self.reply_queue,
+            self.recv,
+        )
+
+    async def recv(self, message: aiormq.abc.DeliveredMessage):
+        corr_id = message.header.properties.correlation_id
+
+        event = self._events.get(corr_id, None)
+        if event is None:
+            return  # caller has stopped listening
+
+        self._results[corr_id] = json.loads(message.body)
+
+        await self.channel.basic_ack(message.delivery.delivery_tag)
+        event.set()
+
+    async def __call__(self, func, timeout=8.0, **kwargs):
+        if self.reply_queue is None:
+            await self.setup()
+
+        corr_id = random_string(32)
+        event = asyncio.Event()
+        self._events[corr_id] = event
+        kwargs["func"] = func
+
+        await self.channel.basic_publish(
+            body=dumps(kwargs).encode("utf-8"),
+            routing_key=self.queue,
+            properties=aiormq.spec.Basic.Properties(
+                content_type="application/json",
+                correlation_id=corr_id,
+                reply_to=self.reply_queue,
+            ),
+        )
+
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            raise RPCError("RPC call timed out.")
+        finally:
+            self._events.pop(corr_id)
+
+        result = self._results.pop(corr_id)
+
+        if result["success"]:
+            return result["result"]
+        else:
+            raise RPCError(result["reason"])

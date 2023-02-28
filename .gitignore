@@ -27,6 +27,8 @@ docker-compose.yml
 
 # misc
 notes.md
+cred
+sentries
 test.py
 venv
 .vscode

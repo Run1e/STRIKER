@@ -1,18 +1,26 @@
 import logging
+import gevent
+from csgo.client import CSGOClient
+from steam.client import EResult, SteamClient
 
-import config
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
 
-def cs_process(p, e):
-    import gevent
-    from csgo.client import CSGOClient
-    from steam.client import EResult, SteamClient
+class SentrySteamClient(SteamClient):
+    def get_sentry(self, username):
+        return self.sentry
 
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
+    def store_sentry(self, username, sentry):
+        self.sentry = sentry
+        self.pipe.send(dict(event="store_sentry", username=username, sentry=sentry))
 
-    client = SteamClient()
-    client.set_credential_location("cred")
+
+def cs_process(pipe, event, username, password, sentry):
+    client = SentrySteamClient()
+
+    client.sentry = sentry
+    client.pipe = pipe
 
     client.verbose_debug = False
     clog = client._LOG
@@ -21,7 +29,7 @@ def cs_process(p, e):
     cs = CSGOClient(client)
 
     def connect():
-        resp = client.login(username=config.STEAM_USER, password=config.STEAM_PASS)
+        resp = client.login(username=username, password=password)
 
         if resp != EResult.OK:
             raise ValueError(f"Failed logging in: {repr(resp)}")
@@ -34,7 +42,7 @@ def cs_process(p, e):
     client.on("disconnected", connect)
 
     # tell parent process it can start listening to queue
-    e.set()
+    event.set()
 
     def recv_match_info(message):
         # no match
@@ -48,15 +56,17 @@ def cs_process(p, e):
         demo_url = match.roundstatsall[-1].map
 
         log.info("Received %s", matchid)
-        p.send(dict(matchid=matchid, matchtime=matchtime, url=demo_url))
+        pipe.send(
+            dict(event="matchinfo", matchid=matchid, matchtime=matchtime, url=demo_url)
+        )
 
     cs.on("full_match_info", recv_match_info)
 
     while True:
-        if not p.poll():
+        if not pipe.poll():
             gevent.idle()
         else:
-            decoded = p.recv()
+            decoded = pipe.recv()
 
             log.info("Requesting %s", decoded["matchid"])
             cs.request_full_match_info(**decoded)

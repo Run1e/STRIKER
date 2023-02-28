@@ -191,7 +191,7 @@ async def record(
     demo = job.demo
     all_kills = demo.get_player_kills(player)
     kills = all_kills[round_id]
-    BITRATE_SCALAR = 0.8
+    BITRATE_SCALAR = 0.65
     MAX_VIDEO_BITRATE = 5 * 1024 * 1024
 
     # 8MB

@@ -83,9 +83,7 @@ class CSGO:
             self.checks.pop(check)
             raise exc
 
-        results = self.results[check]
-        self.results.pop(check)
-        return results
+        return self.results.pop(check)
 
     async def wait_for_many(self, timeout=60.0, **checks):
         matched = None
