@@ -193,10 +193,9 @@ class RecorderCog(commands.Cog):
         current_task_tuple = self.job_tasks.get(job.id, None)
         if current_task_tuple is not None:
             current_task, current_event = self.job_tasks[job.id]
-            is_cancellable = isinstance(current_event, events.CancellableEvent)
             current_task_done = current_task.done()
 
-            if not current_task_done and is_cancellable:
+            if not current_task_done:
                 log.warn("%s cancelled by %s for job %s", current_event, event, job.id)
                 current_task.cancel()
 
@@ -209,7 +208,7 @@ class RecorderCog(commands.Cog):
         self,
         message: disnake.InteractionMessage,
         embed: disnake.Embed,
-        event: events.CancellableEvent,
+        event: events.Event,
     ):
         # await asyncio.sleep(2.0)
 
@@ -228,7 +227,7 @@ class RecorderCog(commands.Cog):
         self,
         message: disnake.InteractionMessage,
         embed: disnake.Embed,
-        event: events.CancellableEvent,
+        event: events.Event,
     ):
         description = {
             events.MatchInfoProcessing: "Asking Steam Coordinator for match info",

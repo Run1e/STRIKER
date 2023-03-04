@@ -9,9 +9,6 @@ class Event:
     pass
 
 
-class CancellableEvent(Event):
-    pass
-
 
 @dataclass(frozen=True)
 class TestEvent(Event):
@@ -36,13 +33,13 @@ class MatchInfoFailure(Event):
 
 
 @dataclass(frozen=True)
-class MatchInfoEnqueued(CancellableEvent):
+class MatchInfoEnqueued(Event):
     id: int
     infront: int
 
 
 @dataclass(frozen=True)
-class MatchInfoProcessing(CancellableEvent):
+class MatchInfoProcessing(Event):
     id: int
 
 
@@ -65,13 +62,13 @@ class DemoParseFailure(Event):
 
 
 @dataclass(frozen=True)
-class DemoParseEnqueued(CancellableEvent):
+class DemoParseEnqueued(Event):
     id: int
     infront: int
 
 
 @dataclass(frozen=True)
-class DemoParseProcessing(CancellableEvent):
+class DemoParseProcessing(Event):
     id: int
 
 
@@ -90,13 +87,13 @@ class RecorderFailure(Event):
 
 
 @dataclass(frozen=True)
-class RecorderEnqueued(CancellableEvent):
+class RecorderEnqueued(Event):
     id: UUID
     infront: int
 
 
 @dataclass(frozen=True)
-class RecorderProcessing(CancellableEvent):
+class RecorderProcessing(Event):
     id: UUID
 
 
