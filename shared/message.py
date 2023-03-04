@@ -42,16 +42,16 @@ class MessageWrapper:
         self.requeue_on_nack = requeue_on_nack
         self.data = loads(message.body.decode("utf-8"))
         self.correlation_id = message.header.properties.correlation_id
-        self.end_timer = timer(f"PERF {self.correlation_id}")
+        self.end_timer = timer(f"perf {self.correlation_id}")
 
-        log.info("INIT %s", self.correlation_id)
+        log.info("start %s", self.correlation_id)
 
     async def ack(self):
-        log.info("ACK %s", self.correlation_id)
+        log.info("ack %s", self.correlation_id)
         await self.message.channel.basic_ack(self.message.delivery.delivery_tag)
 
     async def nack(self, requeue):
-        log.info("NACK %s", self.correlation_id)
+        log.info("nack %s", self.correlation_id)
         await self.message.channel.basic_nack(
             self.message.delivery.delivery_tag,
             requeue=requeue,
@@ -71,11 +71,11 @@ class MessageWrapper:
         return res
 
     async def success(self, **kwargs):
-        log.info("SUCCESS %s", self.correlation_id)
+        log.info("success %s", self.correlation_id)
         await self.send(success=1, **kwargs)
 
     async def failure(self, **kwargs):
-        log.info("FAILURE %s", self.correlation_id)
+        log.error("failure %s", self.correlation_id)
         await self.send(success=0, **kwargs)
 
     def should_requeue(self):
