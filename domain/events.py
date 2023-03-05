@@ -9,7 +9,6 @@ class Event:
     pass
 
 
-
 @dataclass(frozen=True)
 class TestEvent(Event):
     field: int

@@ -18,6 +18,7 @@ from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
 from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
 
+from sandboxie_config import make_config
 from shared.log import logging_config
 from shared.message import MessageError, MessageWrapper
 
@@ -122,6 +123,7 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
 
 async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
     await sb.cleanup(box)
+    await asyncio.sleep(3.0)
 
     if sleep is not None:
         await asyncio.sleep(sleep)
@@ -216,7 +218,7 @@ async def on_csgo_error(pool: ResourcePool, csgo: CSGO, exc: Exception):
     pool.add(new_csgo)
 
 
-sb = Sandboxie(config.START_BIN)
+sb = Sandboxie(config.SANDBOXIE_START)
 current_port = config.PORT_START
 pool = ResourcePool(on_removal=on_csgo_error)
 
@@ -239,6 +241,15 @@ async def main():
     copy_tree("cfg", config.CSGO_FOLDER + "/cfg")
 
     if config.SANDBOXED:
+        sb.terminate_all()
+
+        cfg = make_config(config.DATA_DIR, config.BOXES)
+
+        with open(config.SANDBOXIE_INI, "w", encoding="utf-16") as f:
+            f.write(cfg)
+
+        sb.reload()
+
         setups = []
         for idx, box_name in enumerate(config.BOXES):
             setups.append(make_sandboxed_csgo(sb, box=box_name, sleep=idx * 5))
@@ -250,10 +261,7 @@ async def main():
 
     await asyncio.gather(*[csgo.connect() for csgo in csgos])
 
-    csgo = csgos[0]
-
     startup_commands = ('mirv_block_commands add 5 "\*"', "exec stream")
-
     for command in startup_commands:
         await asyncio.gather(*[csgo.run(command) for csgo in csgos])
 

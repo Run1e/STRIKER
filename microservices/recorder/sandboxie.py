@@ -22,18 +22,22 @@ class Sandboxie:
         return self.run(*args, box=box)
 
     def listpids(self, box=None):
-        return self.run("/listpids", box=box).split("\r\n")
+        box_pids = self.run("/listpids", box=box).split("\r\n")
+        return [int(pid) for pid in box_pids[1:]]
 
     def terminateall(self, box=None):
-        self.run("/terminateall", box=box)
+        return self.run("/silent", "/terminateall", box=box)
+
+    def terminate_all(self):
+        return self.run("/silent", "/terminate_all")
+
+    def reload(self):
+        return self.run("/reload")
 
     async def cleanup(self, *boxes):
         log.info(f"Cleaning up boxes: {boxes}")
 
-        pids = set()
-        for box in boxes:
-            box_pids = self.listpids(box=box)[1:]
-            pids.update(int(pid) for pid in box_pids)
+        pids = self._listpids_multiple(*boxes)
 
         if not pids:
             return
@@ -43,6 +47,15 @@ class Sandboxie:
         for box in boxes:
             self.terminateall(box=box)
 
+        await self._wait_pids_gone(pids)
+
+    def _listpids_multiple(self, *boxes):
+        pids = set()
+        for box in boxes:
+            pids.update(self.listpids(box=box))
+        return pids
+
+    async def _wait_pids_gone(self, pids):
         while True:
             await sleep(1)
             pids_running = [pid for pid in pids if pid_exists(pid)]
