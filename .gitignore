@@ -40,3 +40,4 @@ package-lock.json
 # glob
 *.exe
 *.sum
+push_images.sh
