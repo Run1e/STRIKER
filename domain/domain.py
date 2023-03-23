@@ -26,6 +26,7 @@ class DemoState(Enum):
     PARSE = auto()  # demo is or should be on parse queue
     FAILED = auto()  # demo failed, not recordable
     SUCCESS = auto()  # demo successful, can be used by jobs
+    DELETED = auto()  # demo unavailable, archived/delete probably
 
 
 class RecordingType(Enum):
