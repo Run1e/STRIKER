@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timezone
+from time import monotonic
 from typing import List
 from uuid import UUID
 
@@ -131,22 +132,13 @@ async def restore(uow: SqlUnitOfWork):
         for job in jobs:
             uow.add_event(events.JobReadyForSelect(job))
 
-        # handle queued demos
-        demos = await uow.demos.queued()
-        for demo in demos:
-            if demo.state is DemoState.MATCH:
-                broker_instance = broker.matchinfo
-            elif demo.state is DemoState.PARSE:
-                broker_instance = broker.demoparse
-            else:
-                continue
-
-            broker_instance._handle_send_event(broker_instance.id_type_cast(demo.id))
-
         # handle queued recording jobs
+        now = monotonic()
         jobs = await uow.jobs.get_recording()
         for job in jobs:
-            broker.recorder._handle_send_event(broker.recorder.id_type_cast(job.id))
+            _id = broker.recorder.id_type_cast(job.id)
+            broker.recorder._queue.append(_id)
+            broker.recorder._progression_updates[_id] = now
 
         demos = await uow.demos.unqueued()
         for demo in demos:
@@ -279,11 +271,7 @@ async def matchinfo_success(uow: SqlUnitOfWork, event: events.MatchInfoSuccess):
 @bus.listen(events.MatchInfoFailure)
 async def matchinfo_failure(uow: SqlUnitOfWork, event: events.MatchInfoFailure):
     async with uow:
-        await uow.demos.update(
-            event.id,
-            state=DemoState.FAILED,
-            queued=False,
-        )
+        await uow.demos.set_failed(event.id)
 
         # get jobs related to demo and set them to failed
         jobs = await uow.jobs.waiting_for_demo(event.id)
@@ -365,11 +353,7 @@ async def demoparse_success_up_to_date(
 @bus.listen(events.DemoParseFailure)
 async def demoparse_failure(uow: SqlUnitOfWork, event: events.DemoParseFailure):
     async with uow:
-        await uow.demos.update(
-            event.id,
-            state=DemoState.FAILED,
-            queued=False,
-        )
+        await uow.demos.set_failed(event.id)
 
         jobs = await uow.jobs.waiting_for_demo(demo_id=event.id)
 

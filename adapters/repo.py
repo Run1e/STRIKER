@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from domain.domain import Demo, DemoState, Job, JobState
 from sqlalchemy import func, inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from domain.domain import Demo, DemoState, Job, JobState
 
 INTERACTION_MINUTES = 13
 
@@ -24,10 +25,6 @@ class SqlRepository:
         stmt = select(self._type).filter_by(**kwargs)
         result = await self.session.execute(stmt)
         return result.scalars().all()
-
-    async def update(self, _id, **kwargs):
-        stmt = update(self._type).where(self._primary_key == _id).values(**kwargs)
-        await self.session.execute(stmt)
 
 
 class JobRepository(SqlRepository):
@@ -117,3 +114,11 @@ class DemoRepository(SqlRepository):
 
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def set_failed(self, _id):
+        stmt = (
+            update(Demo)
+            .where(Demo.id == _id)
+            .values(state=DemoState.FAILED, queued=False)
+        )
+        await self.session.execute(stmt)

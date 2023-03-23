@@ -32,14 +32,9 @@ class MatchInfoFailure(Event):
 
 
 @dataclass(frozen=True)
-class MatchInfoEnqueued(Event):
+class MatchInfoProgression(Event):
     id: int
     infront: int
-
-
-@dataclass(frozen=True)
-class MatchInfoProcessing(Event):
-    id: int
 
 
 # demoparse
@@ -61,14 +56,9 @@ class DemoParseFailure(Event):
 
 
 @dataclass(frozen=True)
-class DemoParseEnqueued(Event):
+class DemoParseProgression(Event):
     id: int
     infront: int
-
-
-@dataclass(frozen=True)
-class DemoParseProcessing(Event):
-    id: int
 
 
 # recorder
@@ -86,14 +76,9 @@ class RecorderFailure(Event):
 
 
 @dataclass(frozen=True)
-class RecorderEnqueued(Event):
+class RecorderProgression(Event):
     id: UUID
     infront: int
-
-
-@dataclass(frozen=True)
-class RecorderProcessing(Event):
-    id: UUID
 
 
 # uploader
@@ -109,12 +94,6 @@ class UploaderFailure(Event):
 
 
 # job
-
-
-@dataclass(frozen=True)
-class JobEvent(Event):
-    job: Job
-    event: Event
 
 
 @dataclass(frozen=True)

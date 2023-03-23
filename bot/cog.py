@@ -147,27 +147,23 @@ class RecorderCog(commands.Cog):
             sharecode=sharecode,
         )
 
-    @bus.mark(events.MatchInfoEnqueued)
-    @bus.mark(events.MatchInfoProcessing)
-    @bus.mark(events.DemoParseEnqueued)
-    @bus.mark(events.DemoParseProcessing)
-    async def demo_queue_event(self, event: events.Event):
+    @bus.mark(events.MatchInfoProgression)
+    @bus.mark(events.DemoParseProgression)
+    async def demo_progression(self, event: events.Event):
         jobs = await services.get_jobs_waiting_for_demo(
             uow=SqlUnitOfWork(), demo_id=event.id
         )
-
         for job in jobs:
             await self.job_event(job, event)
 
-    @bus.mark(events.RecorderEnqueued)
-    @bus.mark(events.RecorderProcessing)
-    async def job_queue_event(self, event: events.Event):
+    @bus.mark(events.RecorderProgression)
+    async def job_progression(self, event: events.Event):
         job = await services.get_job(uow=SqlUnitOfWork(), job_id=event.id)
         await self.job_event(job, event)
 
-    async def job_event(self, job: Job, event: events.JobEvent):
+    async def job_event(self, job: Job, event: events.Event):
         # we only care about these enqueued/processing events if the
-        # job state is *actually* DEMO or RECORD.
+        # job state is *actually* RECORD.
         # if they're not, more important stuff is likely happening
         if job.state not in (JobState.DEMO, JobState.RECORD):
             log.warn("Ignoring event because of state %s: %s", job.state, event)
@@ -177,15 +173,6 @@ class RecorderCog(commands.Cog):
         message = await inter.original_message()
 
         embed = job.embed(self.bot)
-
-        coro = {
-            events.MatchInfoEnqueued: self.event_enqueued,
-            events.MatchInfoProcessing: self.event_processing,
-            events.DemoParseEnqueued: self.event_enqueued,
-            events.DemoParseProcessing: self.event_processing,
-            events.RecorderEnqueued: self.event_enqueued,
-            events.RecorderProcessing: self.event_processing,
-        }.get(event.__class__, None)
 
         # get current enqueued/processing task
         # if it's cancellable, cancel it before running this task
@@ -200,44 +187,28 @@ class RecorderCog(commands.Cog):
                 current_task.cancel()
 
         self.job_tasks[job.id] = (
-            asyncio.create_task(coro(message, embed, event)),
+            asyncio.create_task(self.event_progression(message, embed, event)),
             event,
         )
 
-    async def event_enqueued(
+    async def event_progression(
         self,
         message: disnake.InteractionMessage,
         embed: disnake.Embed,
         event: events.Event,
     ):
-        # await asyncio.sleep(2.0)
-
         infront = event.infront
 
-        description = {
-            events.MatchInfoEnqueued: f"#{infront} in queue for match info",
-            events.DemoParseEnqueued: f"#{infront} in queue for demo parser",
-            events.RecorderEnqueued: f"#{infront} in queue for recording",
+        desc = {
+            events.MatchInfoProgression: "Fetching match information...",
+            events.DemoParseProgression: "Downloading and parsing demo...",
+            events.RecorderProgression: (
+                "Recording now!",
+                f"#{event.infront + 1} in the recording queue",
+            )[int(infront > 0)],
         }.get(event.__class__)
 
-        embed.description = f"{config.SPINNER} {description}"
-        await message.edit(content=None, embed=embed, view=None)
-
-    async def event_processing(
-        self,
-        message: disnake.InteractionMessage,
-        embed: disnake.Embed,
-        event: events.Event,
-    ):
-        description = {
-            events.MatchInfoProcessing: "Asking Steam Coordinator for match info",
-            events.DemoParseProcessing: "Downloading and parsing demo",
-            events.RecorderProcessing: "Recording your clip right now!",
-        }.get(event.__class__)
-
-        assert description is not None
-
-        embed.description = f"{config.SPINNER} {description}"
+        embed.description = f"{config.SPINNER} {desc}"
         await message.edit(content=None, embed=embed, view=None)
 
     @bus.mark(events.JobMatchInfoFailed)

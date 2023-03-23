@@ -78,7 +78,7 @@ async def main():
 
     await channel.basic_qos(prefetch_count=3)
 
-    await channel.queue_declare(config.MATCHINFO_QUEUE)
+    # await channel.queue_declare(config.MATCHINFO_QUEUE)
 
     parent_conn, child_conn = Pipe()
     event = Event()

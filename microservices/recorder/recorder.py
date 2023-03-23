@@ -273,7 +273,7 @@ async def main():
 
     await chan.basic_qos(prefetch_count=len(config.BOXES) if config.SANDBOXED else 1)
 
-    await chan.queue_declare(config.RECORDER_QUEUE)
+    # await chan.queue_declare(config.RECORDER_QUEUE)
     await chan.basic_consume(
         queue=config.RECORDER_QUEUE, consumer_callback=on_message, no_ack=False
     )

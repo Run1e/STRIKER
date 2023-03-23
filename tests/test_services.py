@@ -63,13 +63,6 @@ class FakeRepository:
                 instances.append(instance)
         return instances
 
-    async def update(self, _id, **kwargs):
-        if (instance := await self.get(_id)) is None:
-            return
-
-        for k, v in kwargs.items():
-            setattr(instance, k, v)
-
 
 class FakeJobRepository(FakeRepository):
     def add(self, instance):
@@ -141,6 +134,11 @@ class FakeDemoRepository(FakeRepository):
                 demos.append(demo)
 
         return demos
+
+    async def set_failed(self, _id):
+        demo: Demo = await self.get(_id)
+        demo.state = DemoState.FAILED
+        demo.queued = False
 
 
 class FakeUnitOfWork:
@@ -880,12 +878,12 @@ async def test_restore_unqueued_demos_demoparse(demoparse_send):
 @pytest.mark.asyncio
 async def test_restore_queued_demos(matchinfo_send, demoparse_send):
     demo_one = new_demo(
-        state=DemoState.MATCH, queued=True, sharecode="sharecode", has_matchinfo=False
+        state=DemoState.MATCH, queued=False, sharecode="sharecode", has_matchinfo=False
     )
 
     demo_two = new_demo(
         state=DemoState.PARSE,
-        queued=True,
+        queued=False,
         sharecode="sharecode",
         has_matchinfo=True,
     )
@@ -901,9 +899,8 @@ async def test_restore_queued_demos(matchinfo_send, demoparse_send):
 
     await services.restore(uow)
 
-    assert broker.matchinfo.queue[0] == demo_one.id
-    assert broker.demoparse.queue[0] == demo_two.id
-    assert broker.demoparse.queue[1] == demo_three.id
+    matchinfo_send.assert_awaited_once()
+    demoparse_send.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -923,4 +920,4 @@ async def test_restore_get_recording():
 
     await services.restore(uow)
 
-    assert broker.recorder.queue[0] == job.id
+    assert broker.recorder._queue[0] == job.id

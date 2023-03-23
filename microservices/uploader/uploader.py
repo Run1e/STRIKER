@@ -86,7 +86,7 @@ async def main():
 
     await chan.basic_qos(prefetch_count=1)
 
-    await chan.queue_declare(config.UPLOAD_QUEUE)
+    # await chan.queue_declare(config.UPLOAD_QUEUE)
     await chan.basic_consume(
         queue=config.UPLOAD_QUEUE, consumer_callback=on_upload, no_ack=False
     )
