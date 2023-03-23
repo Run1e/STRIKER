@@ -74,17 +74,16 @@ class Broker:
     async def recv(self, message: aiormq.abc.DeliveredMessage):
         body = json.loads(message.body)
         success = body.pop("success")
+        data = body.pop("data")
 
         correlation_id = message.header.properties.correlation_id
         correlation_id = self.id_type_cast(correlation_id)
-
-        body["id"] = correlation_id
 
         if self._status_enabled:
             self._handle_recv_event(correlation_id)
 
         event = self.success_event if success else self.failure_event
-        await bus.call(event(**body))
+        await bus.call(event(id=correlation_id, **data))
 
         # move above dispatch for testing to quickly "clear" recv queues
         await self.channel.basic_ack(message.delivery.delivery_tag)

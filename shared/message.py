@@ -72,11 +72,11 @@ class MessageWrapper:
 
     async def success(self, **kwargs):
         log.info("success %s", self.correlation_id)
-        await self.send(success=1, **kwargs)
+        await self.send(success=1, data=kwargs)
 
     async def failure(self, **kwargs):
         log.error("failure %s", self.correlation_id)
-        await self.send(success=0, **kwargs)
+        await self.send(success=0, data=kwargs)
 
     def should_requeue(self):
         return self.requeue_on_nack and not self.message.redelivered
@@ -203,6 +203,6 @@ class RPCClient:
         result = self._results.pop(corr_id)
 
         if result["success"]:
-            return result["result"]
+            return result["data"]["result"]
         else:
             raise RPCError(result["reason"])
