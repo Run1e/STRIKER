@@ -1,2 +1,3 @@
 aiormq==6.3.3
 coloredlogs==15.0.1
+csgo==1.0.0

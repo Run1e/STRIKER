@@ -59,7 +59,7 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
-                    label="Star the project on GitHub",
+                    label="Star on GitHub",
                     url=config.GITHUB_URL,
                 )
             )
