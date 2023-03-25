@@ -7,11 +7,15 @@
 
 STRIKER is a Discord bot that can record your CS:GO highlights simply by giving it a matchmaking sharecode.
 
-It is currently a work in process and is not being run in production.
+# Bot invite and server
+
+You can add the bot to your server using the [bot invite link here](https://discord.com/api/oauth2/authorize?client_id=817774029465190461&permissions=274878286912&scope=applications.commands%20bot).
+
+You can also join the [Discord server here](https://discord.gg/G7cMssWnR2).
 
 ## Acknowledgements
 
-The structure of the application was heavily inspired by the book [Architecture Patterns with Python](https://www.cosmicpython.com/).
+The structure of the bot application was heavily inspired by the book [Architecture Patterns with Python](https://www.cosmicpython.com/).
 
 For recording demos, [HLAE/advancedfx](https://github.com/advancedfx/advancedfx) is used.
 
