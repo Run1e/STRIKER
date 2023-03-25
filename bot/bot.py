@@ -44,12 +44,17 @@ def start_bot():
     logging.getLogger("disnake").setLevel(logging.INFO)
 
     intents = disnake.Intents.default()
+    intents.typing = False
     intents.messages = False
+    intents.voice_states = False
+    intents.dm_messages = False
+    intents.reactions = False
 
     bot = Bot(
         max_messages=None,
         intents=intents,
         test_guilds=config.TEST_GUILDS,
+        command_sync_flags=commands.CommandSyncFlags.all(),
     )
 
     asyncio.create_task(bot.start(config.BOT_TOKEN))
