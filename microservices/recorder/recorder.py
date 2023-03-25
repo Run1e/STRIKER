@@ -145,7 +145,7 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
     port = new_port()
 
     sb.run(
-        config.HLAE_EXE,
+        config.HLAE_BIN,
         "-csgoLauncher",
         "-noGui",
         "-autoStart",
@@ -174,7 +174,7 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
 def make_csgo(port=config.PORT_START):
     subprocess.run(
         [
-            config.HLAE_EXE,
+            config.HLAE_BIN,
             "-csgoLauncher",
             "-noGui",
             "-autoStart",

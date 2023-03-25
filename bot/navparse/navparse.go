@@ -80,7 +80,6 @@ func main() {
 			ParseNav(save_at, csgo_dir+"/"+file.Name())
 
 		}
-		fmt.Println(file.Name(), file.IsDir())
 	}
 
 }

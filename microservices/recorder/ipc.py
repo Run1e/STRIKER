@@ -193,9 +193,6 @@ class CSGO:
 
         return take
 
-    def kill(self):
-        self.process.kill()
-
 
 class SandboxedCSGO(CSGO):
     def __init__(self, host, port, box):
