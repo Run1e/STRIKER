@@ -18,7 +18,7 @@ class Bot(commands.InteractionBot):
 
     async def on_ready(self):
         await self.change_presence()
-        await self.change_presence(activity=disnake.Game(name="try /help"))
+        await self.change_presence(activity=disnake.Game(name="/help"))
 
 
 def start_bot():
