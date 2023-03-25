@@ -38,13 +38,13 @@ async def main():
 
         else:
             result = await csgo.run("nav_save")
-            if NEEDS_ANALYZE in ' '.join(result):
-                log.info(f'{_map} needs analyze first...')
+            if NEEDS_ANALYZE in " ".join(result):
+                log.info(f"{_map} needs analyze first...")
                 log.info(result)
-                await csgo.run('nav_generate')
+                await csgo.run("nav_generate")
                 await csgo.wait_for(check=lambda line: line == INGAME)
-                await csgo.run('nav_analyze')
-                result = await csgo.run('nav_save')
+                await csgo.run("nav_analyze")
+                result = await csgo.run("nav_save")
             log.info(result)
 
         await asyncio.sleep(2.0)

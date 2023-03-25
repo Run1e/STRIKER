@@ -49,6 +49,8 @@ class RecorderCog(commands.Cog):
 
     @commands.slash_command(name="help", description="How to use the bot!")
     async def _help(self, inter: disnake.AppCmdInter):
+        await self.bot.wait_until_ready()
+
         e = disnake.Embed(
             color=disnake.Color.orange(),
         )
@@ -68,6 +70,8 @@ class RecorderCog(commands.Cog):
 
     @commands.slash_command(description="Record again from a previous demo")
     async def demos(self, inter: disnake.AppCmdInter, search: str):
+        await self.bot.wait_until_ready()
+
         aum = self._autocomplete_user_mapping[inter.author.id]
         fuzzed = process.extract(
             query=search,
@@ -127,8 +131,14 @@ class RecorderCog(commands.Cog):
         # this gets all the autocompleted demo names
         return aum
 
+    # @commands.slash_command()
+    # async def jank(self, inter):
+    #     await inter.response.defer()
+
     @commands.slash_command(description="Record a CS:GO highlight")
     async def record(self, inter: disnake.AppCmdInter, sharecode: str):
+        await self.bot.wait_until_ready()
+
         sharecode = re.sub(
             r"^steam://rungame/730/\d*/\+csgo_download_match%20", "", sharecode.strip()
         )

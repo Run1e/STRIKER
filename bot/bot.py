@@ -15,27 +15,10 @@ class Bot(commands.InteractionBot):
         super().__init__(*args, **kwargs)
 
         self.log = log
-        self._started = False
 
     async def on_ready(self):
-        if self._started is False:
-            for name in EXTENSIONS:
-                log.info("Loading extension %s", name)
-                self.load_extension(f"bot.{name}")
-
-            self._started = True
-            self.log.info("Bot initialized")
-
         await self.change_presence()
         await self.change_presence(activity=disnake.Game(name="try /help"))
-
-    @property
-    def invite_link(self):
-        return disnake.utils.oauth_url(
-            self.user.id,
-            permissions=disnake.Permissions(387136),
-            scopes=["bot", "applications.commands"],
-        )
 
 
 def start_bot():
@@ -50,12 +33,30 @@ def start_bot():
     intents.dm_messages = False
     intents.reactions = False
 
-    bot = Bot(
+    command_sync_flags = commands.CommandSyncFlags(
+        allow_command_deletion=False,
+        sync_commands=True,
+        sync_commands_debug=True,
+        sync_global_commands=True,
+        sync_guild_commands=True,
+        sync_on_cog_actions=False,
+    )
+
+    bot_kwargs = dict(
         max_messages=None,
         intents=intents,
-        test_guilds=config.TEST_GUILDS,
-        command_sync_flags=commands.CommandSyncFlags.all(),
+        allowed_mentions=disnake.AllowedMentions(everyone=False),
+        command_sync_flags=command_sync_flags,
     )
+
+    if config.TEST_GUILDS:
+        bot_kwargs["test_guilds"] = config.TEST_GUILDS
+
+    bot = Bot(**bot_kwargs)
+
+    for name in EXTENSIONS:
+        log.info("Loading extension %s", name)
+        bot.load_extension(f"bot.{name}")
 
     asyncio.create_task(bot.start(config.BOT_TOKEN))
 
