@@ -51,7 +51,7 @@ class MessageWrapper:
         await self.message.channel.basic_ack(self.message.delivery.delivery_tag)
 
     async def nack(self, requeue):
-        log.info("nack %s", self.correlation_id)
+        log.info("nack %s requeue=%s", self.correlation_id, requeue)
         await self.message.channel.basic_nack(
             self.message.delivery.delivery_tag,
             requeue=requeue,

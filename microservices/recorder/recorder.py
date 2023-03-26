@@ -17,8 +17,8 @@ from craft_vdm import TICK_PADDING, craft_vdm
 from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
 from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
-
 from sandboxie_config import make_config
+
 from shared.log import logging_config
 from shared.message import MessageError, MessageWrapper
 
@@ -59,7 +59,7 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
             raise ValueError(f"Demo {demo} does not exist.")
 
         if end < start:
-            raise ValueError("FY FAEN RUNAR DU E IDIOT")
+            raise ValueError("End tick must be after start tick")
 
         log.info(
             f"Recording player {xuid} from tick {start} to {end} with skips {skips}"
@@ -213,9 +213,18 @@ async def on_csgo_error(pool: ResourcePool, csgo: CSGO, exc: Exception):
     await sb.cleanup(box_name)
 
     new_csgo = await make_sandboxed_csgo(sb, box=box_name, sleep=None)
-    await new_csgo.connect()
+    await prepare_csgo(new_csgo)
 
     pool.add(new_csgo)
+
+
+async def prepare_csgo(csgo: CSGO):
+    await csgo.connect()
+
+    startup_commands = ('mirv_block_commands add 5 "\*"', "exec stream")
+    for command in startup_commands:
+        await csgo.run(command)
+        await asyncio.sleep(0.5)
 
 
 sb = Sandboxie(config.SANDBOXIE_START)
@@ -231,7 +240,6 @@ def new_port():
 
 
 async def main():
-    global csgo
     global current_port
     global sb
 
@@ -259,11 +267,7 @@ async def main():
     else:
         csgos = [make_csgo()]
 
-    await asyncio.gather(*[csgo.connect() for csgo in csgos])
-
-    startup_commands = ('mirv_block_commands add 5 "\*"', "exec stream")
-    for command in startup_commands:
-        await asyncio.gather(*[csgo.run(command) for csgo in csgos])
+    await asyncio.gather(*[prepare_csgo(csgo) for csgo in csgos])
 
     for csgo in csgos:
         pool.add(csgo)
