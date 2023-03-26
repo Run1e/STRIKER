@@ -33,7 +33,6 @@ def make_box(**kwargs):
 Enabled=y
 ConfigLevel=9
 AutoRecover=y
-BlockNetworkFiles=y
 Template=OpenSmartCard
 Template=OpenBluetooth
 Template=SkipHook
