@@ -46,6 +46,14 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
 
         buttons = list()
 
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.secondary,
+                label="How do I use this bot?",
+                custom_id="howtouse",
+            )
+        )
+
         if config.DISCORD_INVITE_URL is not None:
             buttons.append(
                 disnake.ui.Button(

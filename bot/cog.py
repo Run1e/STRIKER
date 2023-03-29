@@ -51,6 +51,9 @@ class RecorderCog(commands.Cog):
     async def _help(self, inter: disnake.AppCmdInter):
         await self.bot.wait_until_ready()
 
+        await self._send_help_embed(inter)
+
+    async def _send_help_embed(self, inter: disnake.Interaction):
         e = disnake.Embed(
             color=disnake.Color.orange(),
         )
@@ -60,13 +63,16 @@ class RecorderCog(commands.Cog):
         e.description = (
             "This bot can record and upload CS:GO clips from matchmaking games straight to Discord. "
             "To do so you will need to give the bot a sharecode from one of your matchmaking matches.\n\n"
-            "The below image shows how you find and copy one of your matchmaking sharecodes.\n\n"
-            "To record a highlight, run the `/record` command and paste a sharecode."
+            "The below image shows how to find and copy a matchmaking sharecode from inside CS:GO.\n\n"
+            "To record a highlight, run the `/record` command and paste the sharecode you copied.\n\n"
+            "To record another highlight from the same match, use `/demos`.\n\n"
+            "Have fun!"
         )
 
         e.set_image(url=config.SHARECODE_IMG_URL)
 
-        await inter.send(embed=e)
+        await inter.send(embed=e, ephemeral=True)
+
 
     @commands.slash_command(description="Record again from a previous demo")
     async def demos(self, inter: disnake.AppCmdInter, search: str):
@@ -131,9 +137,10 @@ class RecorderCog(commands.Cog):
         # this gets all the autocompleted demo names
         return aum
 
-    # @commands.slash_command()
-    # async def jank(self, inter):
-    #     await inter.response.defer()
+    @commands.Cog.listener()
+    async def on_button_click(self, inter: disnake.MessageInteraction):
+        if inter.component.custom_id == "howtouse":
+            await self._send_help_embed(inter)
 
     @commands.slash_command(description="Record a CS:GO highlight")
     async def record(self, inter: disnake.AppCmdInter, sharecode: str):
