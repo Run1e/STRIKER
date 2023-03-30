@@ -4,7 +4,7 @@ import os
 import random
 import re
 import string
-from asyncio import shield, wait_for
+from asyncio import wait_for
 
 log = logging.getLogger(__name__)
 
@@ -26,9 +26,11 @@ class CSGO:
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self.on_connection_lost = None
 
         self.checks = {}
         self.results = {}
+        self._exception = None
 
         self.log(f"Starting CSGO on port {port}")
 
@@ -36,8 +38,14 @@ class CSGO:
         for msg in msgs:
             log.info(msg)
 
+    def set_connection_lost_callback(self, callback):
+        self.on_connection_lost = callback
+
     async def connect(self):
         self.log("Waiting for CSGO to launch...")
+
+        asyncio.StreamReaderProtocol
+        asyncio.BaseEventLoop.create_connection
 
         while True:
             try:
@@ -54,24 +62,34 @@ class CSGO:
         self.log("Connected to CSGO!")
 
     async def read_loop(self):
-        while True:
-            line = await self.reader.readline()
-            line = line[:-2].decode()
-            to_remove = set()
+        try:
+            async for line in self.reader:
+                line = line[:-2].decode()
+                to_remove = set()
 
-            for check, event in self.checks.items():
-                try:
-                    val = check(line)
-                except:
-                    to_remove.add(check)
+                for check, event in self.checks.items():
+                    try:
+                        val = check(line)
+                    except:
+                        to_remove.add(check)
 
-                if val:
-                    self.results[check] = line
-                    to_remove.add(check)
-                    event.set()
+                    if val:
+                        self.results[check] = line
+                        to_remove.add(check)
+                        event.set()
 
-            for remove in to_remove:
-                self.checks.pop(remove)
+                for remove in to_remove:
+                    self.checks.pop(remove)
+        except ConnectionResetError:
+            pass
+
+        # connection lost on read loop stop iteration
+        self._exception = ConnectionError("Connection lost")
+        for event in self.checks.values():
+            event.set()
+
+        if self.on_connection_lost is not None:
+            asyncio.create_task(self.on_connection_lost(self, self._exception))
 
     async def wait_for(self, check, timeout=60.0):
         event = asyncio.Event()
@@ -82,6 +100,9 @@ class CSGO:
         except asyncio.TimeoutError as exc:
             self.checks.pop(check)
             raise exc
+
+        if self._exception:
+            raise self._exception
 
         return self.results.pop(check)
 
@@ -133,7 +154,8 @@ class CSGO:
         for command in commands:
             to_send += command + sep
         self.writer.write(to_send.encode())
-        await shield(wait_for(self.writer.drain(), timeout))
+        # below used to be wrapped in shield() not sure why so I removed it
+        await wait_for(self.writer.drain(), timeout)
 
     async def set_resolution(self, w, h):
         await self.run(f"mat_setvideomode {w} {h} 1")
@@ -180,6 +202,7 @@ class CSGO:
             self.log(f"Recording to {take}")
 
         elif result == "missingmap":
+            # TODO: this should be RecoverableRecordingError or something
             raise RecordingError("Demos that require old maps are not supported.")
 
         await self.wait_for(lambda line: line == unblock_string + " ", timeout=120.0)
@@ -198,6 +221,9 @@ class SandboxedCSGO(CSGO):
     def __init__(self, host, port, box):
         self.box = box
         super().__init__(host, port)
+
+    def __repr__(self) -> str:
+        return f"<SandboxedCSGO box={self.box}>"
 
     def log(self, *msgs):
         for msg in msgs:

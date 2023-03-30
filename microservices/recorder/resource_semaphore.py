@@ -1,6 +1,10 @@
 import asyncio
 from collections import deque
 
+from logging import getLogger
+
+log = getLogger(__name__)
+
 
 class ResourcePool:
     def __init__(self, on_removal=None) -> None:
@@ -10,12 +14,34 @@ class ResourcePool:
         self.event = asyncio.Event()
         self.event.clear()
 
+        self._removed = set()
+
     def add(self, resource):
         should_set = not self.queue
         self.queue.append(resource)
 
+        log.info("Adding %s, total: %s", resource, len(self.queue))
+
         if should_set and not self.event.is_set():
             self.event.set()
+
+    def remove(self, resource):
+        h = hash(resource)
+
+        if h in self._removed:
+            log.info("%s already removed", resource)
+            return False
+
+        try:
+            self.queue.remove(resource)
+        except ValueError:
+            # we need to check for this, as the resource
+            # might be in a ResourceRequest at this stage
+            pass
+
+        log.info("Removing resource: %s, total: %s", resource, len(self.queue))
+        self._removed.add(h)
+        return True
 
     async def get(self):
         # while queue is empty, wait for event
@@ -31,12 +57,19 @@ class ResourcePool:
         return resource
 
     def release(self, resource):
+        if hash(resource) in self._removed:
+            log.info(
+                "Previously removed resource attempted released back to pool %s",
+                resource,
+            )
+            return
+
         self.queue.append(resource)
         if not self.event.is_set():
             self.event.set()
 
     async def on_removal(self, resource, exc_val):
-        if self._on_removal is not None:
+        if self.remove(resource) and self._on_removal is not None:
             await self._on_removal(self, resource, exc_val)
 
 

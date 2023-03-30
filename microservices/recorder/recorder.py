@@ -271,6 +271,7 @@ async def main():
 
     for csgo in csgos:
         pool.add(csgo)
+        csgo.set_connection_lost_callback(pool.on_removal)
 
     mq = await aiormq.connect(config.RABBITMQ_HOST)
     chan = await mq.channel()

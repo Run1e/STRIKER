@@ -73,7 +73,6 @@ class RecorderCog(commands.Cog):
 
         await inter.send(embed=e, ephemeral=True)
 
-
     @commands.slash_command(description="Record again from a previous demo")
     async def demos(self, inter: disnake.AppCmdInter, search: str):
         await self.bot.wait_until_ready()

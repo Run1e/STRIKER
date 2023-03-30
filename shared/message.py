@@ -95,8 +95,14 @@ class MessageWrapper:
             else:
                 requeue = self.should_requeue()
                 if not requeue:
+                    # if we failed with a reason, and should not requeue,
+                    # send back the failure event with reason and NOT
+                    # the nack with a requeue of False, which will put the message
+                    # on the dlx and cause a generic service error for the user
                     await self.failure(reason=reason)
-                await self.nack(requeue)
+                    await self.ack()
+                else:
+                    await self.nack(requeue)
 
             if is_ok and not self.raise_on_message_error:
                 return True
