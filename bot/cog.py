@@ -48,9 +48,9 @@ class RecorderCog(commands.Cog):
         bus.register_instance(self)
 
     @commands.slash_command(name="help", description="How to use the bot!")
+    @commands.bot_has_permissions(embed_links=True)
     async def _help(self, inter: disnake.AppCmdInter):
         await self.bot.wait_until_ready()
-
         await self._send_help_embed(inter)
 
     async def _send_help_embed(self, inter: disnake.Interaction):
@@ -74,6 +74,7 @@ class RecorderCog(commands.Cog):
         await inter.send(embed=e, ephemeral=True)
 
     @commands.slash_command(description="Record again from a previous demo")
+    @commands.bot_has_permissions(embed_links=True, attach_files=True)
     async def demos(self, inter: disnake.AppCmdInter, search: str):
         await self.bot.wait_until_ready()
 
@@ -142,6 +143,7 @@ class RecorderCog(commands.Cog):
             await self._send_help_embed(inter)
 
     @commands.slash_command(description="Record a CS:GO highlight")
+    @commands.bot_has_permissions(embed_links=True, attach_files=True)
     async def record(self, inter: disnake.AppCmdInter, sharecode: str):
         await self.bot.wait_until_ready()
 

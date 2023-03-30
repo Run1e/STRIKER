@@ -13,20 +13,25 @@ class ErrorHandler(commands.Cog):
         if not inter.response.is_done():
             await inter.response.defer(ephemeral=True)
 
-        embed = disnake.Embed(color=disnake.Color.red())
 
-        embed.set_author(name="Oops!", icon_url=self.bot.user.display_avatar)
-
-        kwargs = dict(content=None, embed=embed)
+        title = "Oops!"
+        desc = "Some undefined error occurred, sorry about that!"
 
         is_ok = True
         if isinstance(exc, commands.UserInputError):
-            embed.description = str(exc)
+            desc = str(exc)
+        elif isinstance(exc, commands.BotMissingPermissions):
+            title = "The bot is missing some permissions!"
+            desc = str(exc)
         elif type(exc) is commands.CommandError:
-            embed.description = str(exc)
+            desc = str(exc)
         else:
             is_ok = False
-            embed.description = "Some undefined error occurred, sorry about that!"
+
+        embed = disnake.Embed(color=disnake.Color.red())
+        embed.set_author(name=title, icon_url=self.bot.user.display_avatar)
+        embed.description = desc
+        kwargs = dict(content=None, embed=embed)
 
         try:
             message = await inter.original_message()
