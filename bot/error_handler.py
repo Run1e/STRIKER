@@ -13,7 +13,6 @@ class ErrorHandler(commands.Cog):
         if not inter.response.is_done():
             await inter.response.defer(ephemeral=True)
 
-
         title = "Oops!"
         desc = "Some undefined error occurred, sorry about that!"
 

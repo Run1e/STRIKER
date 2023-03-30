@@ -353,7 +353,7 @@ class RecorderCog(commands.Cog):
         embed.author.name = "Upload complete!"
         embed.description = (
             "Enjoy!\n\n"
-            "If you want to record another highlight from a previously used demo, " 
+            "If you want to record another highlight from a previously used demo, "
             "use the `/demos` command and select the the demo from the list."
         )
 
