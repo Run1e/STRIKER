@@ -351,7 +351,11 @@ class RecorderCog(commands.Cog):
 
         embed = job.embed(self.bot)
         embed.author.name = "Upload complete!"
-        embed.description = "Enjoy!"
+        embed.description = (
+            "Enjoy!\n\n"
+            "If you want to record another highlight from a previously used demo, " 
+            "use the `/demos` command and select the the demo from the list."
+        )
 
         try:
             await message.edit(content=None, embed=embed, view=None)
