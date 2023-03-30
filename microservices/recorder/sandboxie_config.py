@@ -21,9 +21,7 @@ Enabled=y
     ]
 
     for box, color in zip(boxes, colors):
-        sections.append(
-            make_box(box=box, data_dir=data_dir, temp_dir=temp_dir, color=color)
-        )
+        sections.append(make_box(box=box, data_dir=data_dir, temp_dir=temp_dir, color=color))
 
     return "\n".join(sections)
 

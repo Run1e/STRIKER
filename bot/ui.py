@@ -12,9 +12,7 @@ from .config import CT_COIN, T_COIN
 
 
 class AbortButton(disnake.ui.Button):
-    def __init__(
-        self, *, callback, style=disnake.ButtonStyle.danger, label="Abort", row=0
-    ):
+    def __init__(self, *, callback, style=disnake.ButtonStyle.danger, label="Abort", row=0):
         super().__init__(style=style, label=label, row=row)
         self._callback = callback
 
@@ -134,11 +132,8 @@ class RoundView(disnake.ui.View):
             self.round_buttons.append(button)
             self.add_item(button)
 
-    # TODO: add emoji for these buttons
     @disnake.ui.button(row=0)
-    async def first_half(
-        self, button: disnake.Button, inter: disnake.MessageInteraction
-    ):
+    async def first_half(self, button: disnake.Button, inter: disnake.MessageInteraction):
         embed = await self.set_half(True)
 
         await inter.response.edit_message(
@@ -148,9 +143,7 @@ class RoundView(disnake.ui.View):
         )
 
     @disnake.ui.button(row=0)
-    async def second_half(
-        self, button: disnake.Button, inter: disnake.MessageInteraction
-    ):
+    async def second_half(self, button: disnake.Button, inter: disnake.MessageInteraction):
         embed = await self.set_half(False)
 
         await inter.response.edit_message(
@@ -159,9 +152,7 @@ class RoundView(disnake.ui.View):
             view=self,
         )
 
-    @disnake.ui.button(
-        style=disnake.ButtonStyle.secondary, label="Select another player", row=0
-    )
+    @disnake.ui.button(style=disnake.ButtonStyle.secondary, label="Select another player", row=0)
     async def reselect(self, button: disnake.Button, inter: disnake.MessageInteraction):
         self.stop()
         asyncio.create_task(self.reselect_callback(inter))

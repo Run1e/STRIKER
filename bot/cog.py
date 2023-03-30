@@ -110,9 +110,7 @@ class RecorderCog(commands.Cog):
         if demos is None:
             aum = []
             self._autocomplete_user_mapping[inter.author.id] = aum
-            demos = await services.get_user_demos(
-                uow=SqlUnitOfWork(), user_id=inter.author.id
-            )
+            demos = await services.get_user_demos(uow=SqlUnitOfWork(), user_id=inter.author.id)
             self._demo_cache[inter.author.id] = demos
             for demo in demos:
                 fmt = demo.format()
@@ -168,9 +166,7 @@ class RecorderCog(commands.Cog):
     @bus.mark(events.MatchInfoProgression)
     @bus.mark(events.DemoParseProgression)
     async def demo_progression(self, event: events.Event):
-        jobs = await services.get_jobs_waiting_for_demo(
-            uow=SqlUnitOfWork(), demo_id=event.id
-        )
+        jobs = await services.get_jobs_waiting_for_demo(uow=SqlUnitOfWork(), demo_id=event.id)
         for job in jobs:
             await self.job_event(job, event)
 
@@ -187,7 +183,7 @@ class RecorderCog(commands.Cog):
             log.warn("Ignoring event because of state %s: %s", job.state, event)
             return
 
-        inter = job.get_inter(self.bot)
+        inter = job.make_inter(self.bot)
         message = await inter.original_message()
 
         embed = job.embed(self.bot)
@@ -246,7 +242,7 @@ class RecorderCog(commands.Cog):
     @bus.mark(events.JobReadyForSelect)
     async def start_select(self, event: events.JobReadyForSelect):
         job = event.job
-        inter = job.get_inter(self.bot)
+        inter = job.make_inter(self.bot)
 
         # ensure demo has been parsed
         job.demo.parse()
@@ -306,7 +302,7 @@ class RecorderCog(commands.Cog):
         embed = job.embed(self.bot)
         embed.description = "Command timed out."
 
-        inter = job.get_inter(self.bot)
+        inter = job.make_inter(self.bot)
         message = await inter.original_message()
         await message.edit(content=None, embed=embed, view=None)
 
@@ -335,14 +331,12 @@ class RecorderCog(commands.Cog):
     ):
         await inter.response.defer()
 
-        await services.record(
-            uow=SqlUnitOfWork(), job=job, player=player, round_id=round_id
-        )
+        await services.record(uow=SqlUnitOfWork(), job=job, player=player, round_id=round_id)
 
     @bus.mark(events.JobUploadSuccess)
     async def job_upload_success(self, event: events.JobUploadSuccess):
         job: Job = event.job
-        inter = job.get_inter(self.bot)
+        inter = job.make_inter(self.bot)
 
         try:
             message = await inter.original_message()

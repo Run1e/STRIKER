@@ -76,9 +76,7 @@ async def call(event: Event):
     listeners = build_listeners(event)
 
     if len(listeners) != 1:
-        raise ValueError(
-            f"Call dispatch can only call one listener, found {len(listeners)}"
-        )
+        raise ValueError(f"Call dispatch can only call one listener, found {len(listeners)}")
 
     log.info("Call dispatch for %s", event)
 

@@ -182,9 +182,7 @@ class CSGO:
         task = asyncio.create_task(
             self.wait_for_many(
                 rec=lambda line: line.startswith('Recording to "'),
-                missingmap=lambda line: re.match(
-                    r"^Missing map .*, disconnecting$", line
-                ),
+                missingmap=lambda line: re.match(r"^Missing map .*, disconnecting$", line),
                 timeout=60.0,
             )
         )

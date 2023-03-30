@@ -40,8 +40,7 @@ class JobRepository(SqlRepository):
     async def waiting_for_demo(self, demo_id):
         stmt = select(Job).where(
             Job.state == JobState.DEMO,
-            Job.started_at
-            > datetime.now(timezone.utc) - timedelta(minutes=INTERACTION_MINUTES),
+            Job.started_at > datetime.now(timezone.utc) - timedelta(minutes=INTERACTION_MINUTES),
             Job.demo_id == demo_id,
         )
         result = await self.session.execute(stmt)
@@ -116,9 +115,5 @@ class DemoRepository(SqlRepository):
         return result.scalars().all()
 
     async def set_failed(self, _id):
-        stmt = (
-            update(Demo)
-            .where(Demo.id == _id)
-            .values(state=DemoState.FAILED, queued=False)
-        )
+        stmt = update(Demo).where(Demo.id == _id).values(state=DemoState.FAILED, queued=False)
         await self.session.execute(stmt)

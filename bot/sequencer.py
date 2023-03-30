@@ -1,8 +1,5 @@
 from more_itertools import windowed
 
-# how much time (at minimum) before and after each kill
-DEAD_TIME = 2
-
 ADD_INTRO = 4
 ADD_OUTRO = 3
 
@@ -25,9 +22,7 @@ def single_highlight(tick_rate, kills):
             end = k1.tick + int(tick_rate * ADD_AFTER_KILL)
             start = k2.tick - int(tick_rate * ADD_BEFORE_KILL)
 
-            if start - end > tick_rate * (
-                ADD_BEFORE_KILL + ADD_AFTER_KILL + MAX_INTERLEAVE
-            ):
+            if start - end > tick_rate * (ADD_BEFORE_KILL + ADD_AFTER_KILL + MAX_INTERLEAVE):
                 skips.append((end, start))
                 ticks -= start - end
 

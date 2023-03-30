@@ -284,9 +284,7 @@ class Demo(Entity):
 
 
 class Recording(Entity):
-    def __init__(
-        self, recording_type: RecordingType, player_xuid: int, round_id: int = None
-    ):
+    def __init__(self, recording_type: RecordingType, player_xuid: int, round_id: int = None):
         self.recording_type = recording_type
         self.player_xuid = player_xuid
         self.round_id = round_id
@@ -318,11 +316,9 @@ class Job(Entity):
         self.inter_payload = inter_payload
         self.completed_at = completed_at
 
-    def get_inter(self, bot: commands.InteractionBot) -> disnake.AppCommandInteraction:
+    def make_inter(self, bot: commands.InteractionBot) -> disnake.AppCommandInteraction:
         if self.inter_payload is None:
-            raise ValueError(
-                "Attempted to restore job interaction without stored payload"
-            )
+            raise ValueError("Attempted to restore job interaction without stored payload")
 
         return disnake.ApplicationCommandInteraction(
             data=pickle.loads(self.inter_payload), state=bot._connection

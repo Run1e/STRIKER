@@ -74,9 +74,7 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
 
         await channel.send(
             content=f"<@{user_id}>",
-            file=disnake.File(
-                fp=f"{config.VIDEO_DIR}/{job_id}.mp4", filename=file_name + ".mp4"
-            ),
+            file=disnake.File(fp=f"{config.VIDEO_DIR}/{job_id}.mp4", filename=file_name + ".mp4"),
             components=disnake.ui.ActionRow(*buttons),
         )
 
@@ -95,9 +93,7 @@ async def main():
     await chan.basic_qos(prefetch_count=1)
 
     # await chan.queue_declare(config.UPLOAD_QUEUE)
-    await chan.basic_consume(
-        queue=config.UPLOAD_QUEUE, consumer_callback=on_upload, no_ack=False
-    )
+    await chan.basic_consume(queue=config.UPLOAD_QUEUE, consumer_callback=on_upload, no_ack=False)
 
     log.info("Ready to upload!")
 

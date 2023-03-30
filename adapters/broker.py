@@ -60,9 +60,7 @@ class Broker:
         await self.channel.basic_consume(self._recv_queue, self.recv)
         await self.channel.basic_consume(self._dlx_queue, self.recv_dlx)
 
-    async def send(
-        self, id, dispatcher=None, **kwargs
-    ) -> aiormq.abc.ConfirmationFrameType:
+    async def send(self, id, dispatcher=None, **kwargs) -> aiormq.abc.ConfirmationFrameType:
         log.info(f"Broker sending on queue {self._send_queue}: {kwargs}")
 
         conf = await self.channel.basic_publish(
@@ -133,9 +131,7 @@ class Broker:
         except KeyError:
             pass
 
-        updates = list(
-            sorted(enumerate(self._progression_updates.items()), key=lambda t: t[1][1])
-        )
+        updates = list(sorted(enumerate(self._progression_updates.items()), key=lambda t: t[1][1]))
 
         now = monotonic()
         updated = 0
@@ -143,10 +139,7 @@ class Broker:
             if updated >= self.update_count:
                 break
 
-            if (
-                now - last_update >= self.update_spacing
-                and corr_id not in self._dont_update
-            ):
+            if now - last_update >= self.update_spacing and corr_id not in self._dont_update:
                 self.dispatch_progression(corr_id, infront)
                 updated += 1
 

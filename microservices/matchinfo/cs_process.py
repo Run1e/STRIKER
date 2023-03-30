@@ -56,9 +56,7 @@ def cs_process(pipe, event, username, password, sentry):
         demo_url = match.roundstatsall[-1].map
 
         log.info("Received %s", matchid)
-        pipe.send(
-            dict(event="matchinfo", matchid=matchid, matchtime=matchtime, url=demo_url)
-        )
+        pipe.send(dict(event="matchinfo", matchid=matchid, matchtime=matchtime, url=demo_url))
 
     cs.on("full_match_info", recv_match_info)
 

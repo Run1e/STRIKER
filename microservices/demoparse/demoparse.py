@@ -90,9 +90,7 @@ async def on_demoparse(message: aiormq.channel.DeliveredMessage):
 
                     # misc error
                     elif resp.status != 200:
-                        raise MessageError(
-                            "Failed to download demo from Valve servers."
-                        )
+                        raise MessageError("Failed to download demo from Valve servers.")
 
                     # write to file
                     with open(archive_path_temp, "wb") as f:
@@ -108,9 +106,7 @@ async def on_demoparse(message: aiormq.channel.DeliveredMessage):
             log.info("%s extracting demo", matchid)
             end = timer("extraction")
 
-            await loop.run_in_executor(
-                executor, decompress, archive_path, demo_path_temp
-            )
+            await loop.run_in_executor(executor, decompress, archive_path, demo_path_temp)
             os.rename(demo_path_temp, demo_path)
             log.info(end())
         else:

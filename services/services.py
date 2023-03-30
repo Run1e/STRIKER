@@ -43,18 +43,14 @@ async def new_job(
                 demo = await uow.demos.from_sharecode(sharecode)
 
                 if demo is None:
-                    demo = Demo(
-                        state=DemoState.MATCH, queued=False, sharecode=sharecode
-                    )
+                    demo = Demo(state=DemoState.MATCH, queued=False, sharecode=sharecode)
                     uow.demos.add(demo)
 
                     # gives the new demo an autoincremented id
                     # which is needed in handle_demo_step
                     await uow.flush()
 
-                    log.info(
-                        "Demo with sharecode %s created with id %s", sharecode, demo.id
-                    )
+                    log.info("Demo with sharecode %s created with id %s", sharecode, demo.id)
 
             elif demo_id is not None:
                 demo = await uow.demos.get(demo_id)
@@ -96,9 +92,7 @@ async def handle_demo_step(demo: Demo, dispatcher=None):
 
     if not demo.has_matchinfo():
         log.info("Demo %s has no matchinfo, dispatching to matchinfo", demo.id)
-        await broker.matchinfo.send(
-            id=demo.id, dispatcher=dispatcher, sharecode=demo.sharecode
-        )
+        await broker.matchinfo.send(id=demo.id, dispatcher=dispatcher, sharecode=demo.sharecode)
         demo.state = DemoState.MATCH
         demo.queued = True
 
@@ -189,14 +183,10 @@ async def record(
     # 8MB
     MAX_FILE_SIZE = 8 * 8 * 1024 * 1024
 
-    start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(
-        demo.tickrate, kills
-    )
+    start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(demo.tickrate, kills)
 
     # video_bitrate = 20 * 1024 * 1024
-    video_bitrate = min(
-        MAX_VIDEO_BITRATE, int((MAX_FILE_SIZE / total_seconds) * BITRATE_SCALAR)
-    )
+    video_bitrate = min(MAX_VIDEO_BITRATE, int((MAX_FILE_SIZE / total_seconds) * BITRATE_SCALAR))
 
     data = dict(
         job_id=str(job.id),
@@ -243,9 +233,7 @@ async def matchinfo_success(uow: SqlUnitOfWork, event: events.MatchInfoSuccess):
         demo = await uow.demos.get(event.id)
 
         if demo is None:
-            raise ValueError(
-                f"Received MatchInfoSuccess for nonexistent demo with id {event.id}"
-            )
+            raise ValueError(f"Received MatchInfoSuccess for nonexistent demo with id {event.id}")
 
         demo.state = DemoState.PARSE
         demo.queued = False
@@ -290,9 +278,7 @@ async def demoparse_success(uow: SqlUnitOfWork, event: events.DemoParseSuccess):
         await demoparse_success_up_to_date(uow, event)
 
 
-async def demoparse_success_out_of_date(
-    uow: SqlUnitOfWork, event: events.DemoParseSuccess
-):
+async def demoparse_success_out_of_date(uow: SqlUnitOfWork, event: events.DemoParseSuccess):
     async with uow:
         demo = await uow.demos.get(event.id)
 
@@ -319,9 +305,7 @@ async def demoparse_success_out_of_date(
             await uow.commit()
 
 
-async def demoparse_success_up_to_date(
-    uow: SqlUnitOfWork, event: events.DemoParseSuccess
-):
+async def demoparse_success_up_to_date(uow: SqlUnitOfWork, event: events.DemoParseSuccess):
     async with uow:
         demo = await uow.demos.get(event.id)
 
@@ -370,9 +354,7 @@ async def recorder_success(uow: SqlUnitOfWork, event: events.RecorderSuccess):
         job = await uow.jobs.get(event.id)
 
         if job is None:
-            raise ValueError(
-                f"Recorder success references job that does not exist: {event.id}"
-            )
+            raise ValueError(f"Recorder success references job that does not exist: {event.id}")
 
         job.state = JobState.UPLOAD
         demo = job.demo
@@ -407,9 +389,7 @@ async def recorder_failure(uow: SqlUnitOfWork, event: events.RecorderFailure):
     async with uow:
         job = await uow.jobs.get(event.id)
         if job is None:
-            raise ValueError(
-                f"Recorder failure references job that does not exist: {event.id}"
-            )
+            raise ValueError(f"Recorder failure references job that does not exist: {event.id}")
 
         job.state = JobState.FAILED
 
@@ -422,9 +402,7 @@ async def uploader_success(uow: SqlUnitOfWork, event: events.UploaderSuccess):
     async with uow:
         job = await uow.jobs.get(event.id)
         if job is None:
-            raise ValueError(
-                f"Upload success references job that does not exist: {event.id}"
-            )
+            raise ValueError(f"Upload success references job that does not exist: {event.id}")
 
         job.state = JobState.SUCCESS
 
@@ -437,9 +415,7 @@ async def uploader_failure(uow: SqlUnitOfWork, event: events.UploaderFailure):
     async with uow:
         job = await uow.jobs.get(event.id)
         if job is None:
-            raise ValueError(
-                f"Upload failure references job that does not exist: {event.id}"
-            )
+            raise ValueError(f"Upload failure references job that does not exist: {event.id}")
 
         job.state = JobState.FAILED
 

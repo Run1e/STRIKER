@@ -61,9 +61,7 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
         if end < start:
             raise ValueError("End tick must be after start tick")
 
-        log.info(
-            f"Recording player {xuid} from tick {start} to {end} with skips {skips}"
-        )
+        log.info(f"Recording player {xuid} from tick {start} to {end} with skips {skips}")
 
         unblock_string = random_string()
 
@@ -202,9 +200,7 @@ def make_csgo(port=config.PORT_START):
 
 async def on_csgo_error(pool: ResourcePool, csgo: CSGO, exc: Exception):
     if not isinstance(csgo, SandboxedCSGO):
-        log.error(
-            "Recovering CSGO instances is only supported for sandboxed CSGO instances."
-        )
+        log.error("Recovering CSGO instances is only supported for sandboxed CSGO instances.")
         return
 
     box_name = csgo.box

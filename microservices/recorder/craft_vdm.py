@@ -54,9 +54,7 @@ def craft_vdm(
     # spec the correct player, clear death message blocks and highlight the correct players' death messages
     s.delta(32)
     # ; demo_timescale 0.5')
-    s.PlayCommands(
-        f"spec_lock_to_accountid {xuid}; spec_mode 4; mirv_deathmsg lifetime 999"
-    )
+    s.PlayCommands(f"spec_lock_to_accountid {xuid}; spec_mode 4; mirv_deathmsg lifetime 999")
 
     # record!
     s.tick(start_tick)

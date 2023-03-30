@@ -86,9 +86,7 @@ def mock_call(mocker):
 
 @pytest.fixture
 def mock_call_raises(mocker):
-    return mocker.patch(
-        "services.bus.call", side_effect=AsyncMock(side_effect=Exception)
-    )
+    return mocker.patch("services.bus.call", side_effect=AsyncMock(side_effect=Exception))
 
 
 @pytest.fixture

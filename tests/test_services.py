@@ -238,9 +238,7 @@ async def test_new_job_sharecode(matchinfo_send, new_job_junk):
 
     assert job.state is JobState.DEMO
 
-    matchinfo_send.assert_awaited_once_with(
-        id=demo.id, sharecode=demo.sharecode, dispatcher=ANY
-    )
+    matchinfo_send.assert_awaited_once_with(id=demo.id, sharecode=demo.sharecode, dispatcher=ANY)
 
 
 @pytest.mark.asyncio
@@ -352,9 +350,7 @@ async def test_new_job_demo_id_no_matchinfo(matchinfo_send, new_job_junk):
     assert demo.queued
     assert job.state is JobState.DEMO
 
-    matchinfo_send.assert_awaited_once_with(
-        id=demo.id, dispatcher=ANY, sharecode=sharecode
-    )
+    matchinfo_send.assert_awaited_once_with(id=demo.id, dispatcher=ANY, sharecode=sharecode)
 
 
 @pytest.mark.asyncio
@@ -387,9 +383,7 @@ async def test_demo_step_matchinfo_failure(matchinfo_send_raises):
     assert demo.state is DemoState.MATCH
     assert not demo.queued
 
-    matchinfo_send_raises.assert_awaited_once_with(
-        id=demo.id, dispatcher=ANY, sharecode=sharecode
-    )
+    matchinfo_send_raises.assert_awaited_once_with(id=demo.id, dispatcher=ANY, sharecode=sharecode)
 
 
 @pytest.mark.asyncio
@@ -470,9 +464,7 @@ async def test_matchinfo_success(demoparse_send):
     matchid = random_matchid()
     matchtime = 1657154816
     url = "not a real url"
-    event = events.MatchInfoSuccess(
-        id=demo.id, matchid=matchid, matchtime=matchtime, url=url
-    )
+    event = events.MatchInfoSuccess(id=demo.id, matchid=matchid, matchtime=matchtime, url=url)
 
     await services.matchinfo_success(uow, event)
 
@@ -482,9 +474,7 @@ async def test_matchinfo_success(demoparse_send):
     assert isinstance(demo.matchtime, datetime)
     assert demo.url == url
 
-    demoparse_send.assert_awaited_once_with(
-        id=demo.id, dispatcher=ANY, matchid=matchid, url=url
-    )
+    demoparse_send.assert_awaited_once_with(id=demo.id, dispatcher=ANY, matchid=matchid, url=url)
 
 
 @pytest.mark.asyncio
@@ -505,9 +495,7 @@ async def test_matchinfo_success_broker_failure(demoparse_send_raises):
     matchid = random_matchid()
     matchtime = 1657154816
     url = "not a real url"
-    event = events.MatchInfoSuccess(
-        id=demo.id, matchid=matchid, matchtime=matchtime, url=url
-    )
+    event = events.MatchInfoSuccess(id=demo.id, matchid=matchid, matchtime=matchtime, url=url)
 
     with pytest.raises(Exception):
         await services.matchinfo_success(uow, event)
@@ -737,9 +725,7 @@ async def test_recorder_success(uploader_send):
     )
 
     job.demo = demo
-    job.recording = Recording(
-        RecordingType.HIGHLIGHT, player_xuid=76561198044195953, round_id=10
-    )
+    job.recording = Recording(RecordingType.HIGHLIGHT, player_xuid=76561198044195953, round_id=10)
 
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
 
