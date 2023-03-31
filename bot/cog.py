@@ -230,8 +230,8 @@ class RecorderCog(commands.Cog):
     @bus.mark(events.JobRecordingFailed)
     @bus.mark(events.JobUploadFailed)
     async def job_failed(self, event: events.Event):
-        job = event.job
-        inter: disnake.AppCmdInter = job.get_inter(self.bot)
+        job: Job = event.job
+        inter: disnake.AppCmdInter = job.make_inter(self.bot)
         embed = job.embed(self.bot)
 
         message = await inter.original_message()

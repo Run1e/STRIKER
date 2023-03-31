@@ -27,13 +27,13 @@ class Script:
         self._key += 1
 
     def tick(self, tick):
-        self._tick = tick
+        self._tick = int(tick)
 
     def delta(self, delta):
-        self._tick += delta
+        self._tick += int(delta)
 
     def SkipAhead(self, skiptotick):
-        self.add("SkipAhead", skiptotick=skiptotick)
+        self.add("SkipAhead", skiptotick=int(skiptotick))
         self._tick = skiptotick
 
     def PlayCommands(self, command):

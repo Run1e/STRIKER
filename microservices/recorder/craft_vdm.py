@@ -1,31 +1,31 @@
 from vdm import Script
-import config
-
-TICK_PADDING = 384
 
 
 def craft_vdm(
-    start_tick,
-    end_tick,
-    skips,
-    xuid,
-    fps,
-    bitrate,
-    capture_dir,
-    video_filters,
-    unblock_string,
+    tickrate: int,
+    start_tick: int,
+    end_tick: int,
+    skips: list,
+    xuid: int,
+    fps: int,
+    bitrate: int,
+    capture_dir: str,
+    video_filters: str,
+    unblock_string: str,
 ):
     s = Script()
 
-    s.tick(start_tick - TICK_PADDING)
+    padding = 4 * tickrate
+
+    s.tick(start_tick - padding)
 
     # exec movie config and block death messages
-    s.delta(64)
+    s.delta(tickrate)
     s.PlayCommands(
         f"spec_lock_to_accountid {xuid}; mirv_deathmsg highLightId x{xuid}; exec recorder"
     )
 
-    s.delta(32)
+    s.delta(tickrate * 0.5)
 
     # set the capture dir
     s.PlayCommands(f'mirv_streams record name "{capture_dir}"')
@@ -52,7 +52,7 @@ def craft_vdm(
     )
 
     # spec the correct player, clear death message blocks and highlight the correct players' death messages
-    s.delta(32)
+    s.delta(tickrate * 0.5)
     # ; demo_timescale 0.5')
     s.PlayCommands(f"spec_lock_to_accountid {xuid}; spec_mode 4; mirv_deathmsg lifetime 999")
 
@@ -63,8 +63,6 @@ def craft_vdm(
     )
 
     for (start, end) in skips:
-        # s.tick(start - 64)
-        # s.ScreenFadeStart(duration="1.000", holdtime="1.000")
         s.tick(start)
         s.SkipAhead(end)
 
@@ -73,7 +71,7 @@ def craft_vdm(
     s.PlayCommands(f"mirv_streams record end; host_framerate 0; echo {unblock_string}")
 
     # quit
-    s.delta(16)
+    s.delta(tickrate * 0.5)
     s.PlayCommands("disconnect")
 
     return s

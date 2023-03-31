@@ -15,7 +15,7 @@ class RecordingError(Exception):
     pass
 
 
-def random_string(length=32):
+def random_string(length=64):
     return "".join(random.choices(string.ascii_letters, k=length))
 
 
@@ -43,9 +43,6 @@ class CSGO:
 
     async def connect(self):
         self.log("Waiting for CSGO to launch...")
-
-        asyncio.StreamReaderProtocol
-        asyncio.BaseEventLoop.create_connection
 
         while True:
             try:
@@ -134,10 +131,10 @@ class CSGO:
         def aggregator(line):
             nonlocal output, listen
             if not listen:
-                if line.startswith(start_token):
+                if start_token in line:
                     listen = True
             else:
-                if line.startswith(end_token):
+                if end_token in line:
                     return True
                 output.append(line)
             return False

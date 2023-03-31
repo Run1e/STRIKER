@@ -192,6 +192,7 @@ async def record(
         job_id=str(job.id),
         matchid=demo.matchid,
         xuid=player.xuid,
+        tickrate=demo.tickrate,
         start_tick=start_tick,
         end_tick=end_tick,
         skips=skips,

@@ -13,7 +13,7 @@ from shutil import rmtree
 import aiormq
 import aiormq.types
 import config
-from craft_vdm import TICK_PADDING, craft_vdm
+from craft_vdm import craft_vdm
 from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
 from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
@@ -27,7 +27,15 @@ log = logging.getLogger(__name__)
 
 if config.SANDBOXED:
     sb = Sandboxie(config.SANDBOXIE_START)
+
     current_port = config.PORT_START
+
+    def new_port():
+        global current_port
+
+        return_port = current_port
+        current_port += 1
+        return return_port
 
 
 async def on_message(message: aiormq.channel.DeliveredMessage):
@@ -40,39 +48,45 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
     )
 
     async with ResourceRequest(pool) as csgo, wrap as ctx:
-        await record(csgo, ctx.data)
+        await record(csgo, **ctx.data)
         await ctx.success()
 
 
-async def record(csgo: CSGO, data: dict):
-    job_id = data["job_id"]
-    matchid = data["matchid"]
+async def record(
+    csgo: CSGO,
+    job_id: str,
+    matchid: int,
+    tickrate: int,
+    start_tick: int,
+    end_tick: int,
+    xuid: int,
+    fps: int,
+    resolution: tuple,
+    video_bitrate: int,
+    audio_bitrate,
+    skips: list,
+    color_correction: bool,
+    **kwargs,
+):
     demo = rf"{config.DEMO_FOLDER}\{matchid}.dem"
-    start = data["start_tick"]
-    end = data["end_tick"]
-    xuid = data["xuid"]
     output = rf"{config.VIDEO_DIR}\{job_id}.mp4"
     capture_dir = config.TEMP_FOLDER
-    fps = data["fps"]
-    resolution = data["resolution"]
-    video_bitrate = data["video_bitrate"]
-    audio_bitrate = data["audio_bitrate"]
-    skips = data["skips"]
-    video_filters = config.VIDEO_FILTERS if data["color_correction"] else None
+    video_filters = config.VIDEO_FILTERS if color_correction else None
 
     if not os.path.isfile(demo):
         raise ValueError(f"Demo {demo} does not exist.")
 
-    if end < start:
+    if end_tick < start_tick:
         raise ValueError("End tick must be after start tick")
 
-    log.info(f"Recording player {xuid} from tick {start} to {end} with skips {skips}")
+    log.info(f"Recording player {xuid} from tick {start_tick} to {end_tick} with skips {skips}")
 
     unblock_string = random_string()
 
     vdm_script = craft_vdm(
-        start_tick=start,
-        end_tick=end,
+        tickrate=tickrate,
+        start_tick=start_tick,
+        end_tick=end_tick,
         skips=skips,
         xuid=xuid,
         fps=fps,
@@ -93,7 +107,7 @@ async def record(csgo: CSGO, data: dict):
             demo=demo,
             vdm=vdm_script,
             unblock_string=unblock_string,
-            start_at=start - TICK_PADDING,
+            start_at=start_tick - (6 * tickrate),
         )
     except RecordingError as exc:
         raise MessageError(exc.args[0])
@@ -122,6 +136,31 @@ async def record(csgo: CSGO, data: dict):
     rmtree(take_folder)
 
 
+def craft_hlae_args(port):
+    return (
+        config.HLAE_BIN,
+        "-csgoLauncher",
+        "-noGui",
+        "-autoStart",
+        "-csgoExe",
+        config.CSGO_BIN,
+        "-gfxEnabled",
+        "true",
+        "-gfxWidth",
+        str(1280),
+        "-gfxHeight",
+        str(854),
+        "-gfxFull",
+        "false",
+        "-mmcfgEnabled",
+        "true",
+        "-mmcfg",
+        config.MMCFG_FOLDER,
+        "-customLaunchOptions",
+        f"-netconport {port} -console -novid",
+    )
+
+
 async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
     await sb.cleanup(box)
     await asyncio.sleep(3.0)
@@ -146,26 +185,7 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
     port = new_port()
 
     sb.run(
-        config.HLAE_BIN,
-        "-csgoLauncher",
-        "-noGui",
-        "-autoStart",
-        "-csgoExe",
-        config.CSGO_BIN,
-        "-gfxEnabled",
-        "true",
-        "-gfxWidth",
-        str(1280),
-        "-gfxHeight",
-        str(854),
-        "-gfxFull",
-        "false",
-        "-mmcfgEnabled",
-        "true",
-        "-mmcfg",
-        config.MMCFG_FOLDER,
-        "-customLaunchOptions",
-        f"-netconport {port} -console -novid",
+        *craft_hlae_args(port),
         box=box,
     )
 
@@ -173,30 +193,7 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
 
 
 def make_csgo(port):
-    subprocess.run(
-        [
-            config.HLAE_BIN,
-            "-csgoLauncher",
-            "-noGui",
-            "-autoStart",
-            "-csgoExe",
-            config.CSGO_BIN,
-            "-gfxEnabled",
-            "true",
-            "-gfxWidth",
-            str(1280),
-            "-gfxHeight",
-            str(854),
-            "-gfxFull",
-            "false",
-            "-mmcfgEnabled",
-            "true",
-            "-mmcfg",
-            config.MMCFG_FOLDER,
-            "-customLaunchOptions",
-            f"-netconport {port} -console -novid",
-        ]
-    )
+    subprocess.run(craft_hlae_args(config.PORT_START))
 
     return CSGO("localhost", port=port)
 
@@ -226,18 +223,10 @@ async def prepare_csgo(csgo: CSGO):
         await asyncio.sleep(0.5)
 
 
-def new_port():
-    global current_port
-
-    current_port += 1
-    return current_port
-
-
 pool = ResourcePool(on_removal=on_csgo_error)
 
 
 async def main():
-    global current_port
     global sb
 
     logging.getLogger("aiormq").setLevel(logging.INFO)
@@ -255,10 +244,10 @@ async def main():
 
         sb.reload()
 
-        setups = []
-        for idx, box_name in enumerate(config.BOXES):
-            setups.append(make_sandboxed_csgo(sb, box=box_name, sleep=idx * 5))
-            current_port += 1
+        setups = [
+            make_sandboxed_csgo(sb, box=box_name, sleep=idx * 5)
+            for idx, box_name in enumerate(config.BOXES)
+        ]
 
         csgos = await asyncio.gather(*setups)
     else:
