@@ -19,6 +19,7 @@ microservices/matchinfo/config.py
 microservices/recorder/hlae
 microservices/recorder/mmcfg
 microservices/recorder/config.py
+microservices/recorder/standalone.py
 
 # docker stuff
 .env

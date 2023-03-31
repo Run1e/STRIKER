@@ -25,6 +25,10 @@ from shared.message import MessageError, MessageWrapper
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
 
+if config.SANDBOXED:
+    sb = Sandboxie(config.SANDBOXIE_START)
+    current_port = config.PORT_START
+
 
 async def on_message(message: aiormq.channel.DeliveredMessage):
     wrap = MessageWrapper(
@@ -36,87 +40,86 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
     )
 
     async with ResourceRequest(pool) as csgo, wrap as ctx:
-        csgo: CSGO
-
-        data = ctx.data
-
-        job_id = data["job_id"]
-        matchid = data["matchid"]
-        demo = rf"{config.DEMO_FOLDER}\{matchid}.dem"
-        start = data["start_tick"]
-        end = data["end_tick"]
-        xuid = data["xuid"]
-        output = rf"{config.VIDEO_DIR}\{job_id}.mp4"
-        capture_dir = config.TEMP_FOLDER
-        fps = data["fps"]
-        resolution = data["resolution"]
-        video_bitrate = data["video_bitrate"]
-        audio_bitrate = data["audio_bitrate"]
-        skips = data["skips"]
-        video_filters = config.VIDEO_FILTERS if data["color_correction"] else None
-
-        if not os.path.isfile(demo):
-            raise ValueError(f"Demo {demo} does not exist.")
-
-        if end < start:
-            raise ValueError("End tick must be after start tick")
-
-        log.info(f"Recording player {xuid} from tick {start} to {end} with skips {skips}")
-
-        unblock_string = random_string()
-
-        vdm_script = craft_vdm(
-            start_tick=start,
-            end_tick=end,
-            skips=skips,
-            xuid=xuid,
-            fps=fps,
-            bitrate=video_bitrate,
-            capture_dir=capture_dir,
-            video_filters=video_filters,
-            unblock_string=unblock_string,
-        )
-
-        # change res
-        await csgo.set_resolution(*resolution)
-
-        # make sure deathmsg doesn't fill up and clear lock spec
-        await csgo.run(f"mirv_deathmsg lifetime 0")
-
-        try:
-            take_folder = await csgo.playdemo(
-                demo=demo,
-                vdm=vdm_script,
-                unblock_string=unblock_string,
-                start_at=start - TICK_PADDING,
-            )
-        except RecordingError as exc:
-            raise MessageError(exc.args[0])
-
-        # mux audio
-        wav = glob(take_folder + r"\*.wav")[0]
-        subprocess.run(
-            [
-                config.FFMPEG_BIN,
-                "-i",
-                take_folder + r"\normal\video.mp4",
-                "-i",
-                wav,
-                "-c:v",
-                "copy",
-                "-c:a",
-                "aac",
-                "-b:a",
-                f"{audio_bitrate}k",
-                "-y",
-                output,
-            ],
-            capture_output=True,
-        )
-
-        rmtree(take_folder)
-
+        await record(csgo, ctx.data)
         await ctx.success()
+
+
+async def record(csgo: CSGO, data: dict):
+    job_id = data["job_id"]
+    matchid = data["matchid"]
+    demo = rf"{config.DEMO_FOLDER}\{matchid}.dem"
+    start = data["start_tick"]
+    end = data["end_tick"]
+    xuid = data["xuid"]
+    output = rf"{config.VIDEO_DIR}\{job_id}.mp4"
+    capture_dir = config.TEMP_FOLDER
+    fps = data["fps"]
+    resolution = data["resolution"]
+    video_bitrate = data["video_bitrate"]
+    audio_bitrate = data["audio_bitrate"]
+    skips = data["skips"]
+    video_filters = config.VIDEO_FILTERS if data["color_correction"] else None
+
+    if not os.path.isfile(demo):
+        raise ValueError(f"Demo {demo} does not exist.")
+
+    if end < start:
+        raise ValueError("End tick must be after start tick")
+
+    log.info(f"Recording player {xuid} from tick {start} to {end} with skips {skips}")
+
+    unblock_string = random_string()
+
+    vdm_script = craft_vdm(
+        start_tick=start,
+        end_tick=end,
+        skips=skips,
+        xuid=xuid,
+        fps=fps,
+        bitrate=video_bitrate,
+        capture_dir=capture_dir,
+        video_filters=video_filters,
+        unblock_string=unblock_string,
+    )
+
+    # change res
+    await csgo.set_resolution(*resolution)
+
+    # make sure deathmsg doesn't fill up and clear lock spec
+    await csgo.run(f"mirv_deathmsg lifetime 0")
+
+    try:
+        take_folder = await csgo.playdemo(
+            demo=demo,
+            vdm=vdm_script,
+            unblock_string=unblock_string,
+            start_at=start - TICK_PADDING,
+        )
+    except RecordingError as exc:
+        raise MessageError(exc.args[0])
+
+    # mux audio
+    wav = glob(take_folder + r"\*.wav")[0]
+    subprocess.run(
+        [
+            config.FFMPEG_BIN,
+            "-i",
+            take_folder + r"\normal\video.mp4",
+            "-i",
+            wav,
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-b:a",
+            f"{audio_bitrate}k",
+            "-y",
+            output,
+        ],
+        capture_output=True,
+    )
+
+    rmtree(take_folder)
 
 
 async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
@@ -169,7 +172,7 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
     return SandboxedCSGO(host="localhost", port=port, box=box)
 
 
-def make_csgo(port=config.PORT_START):
+def make_csgo(port):
     subprocess.run(
         [
             config.HLAE_BIN,
@@ -223,16 +226,14 @@ async def prepare_csgo(csgo: CSGO):
         await asyncio.sleep(0.5)
 
 
-sb = Sandboxie(config.SANDBOXIE_START)
-current_port = config.PORT_START
-pool = ResourcePool(on_removal=on_csgo_error)
-
-
 def new_port():
     global current_port
 
     current_port += 1
     return current_port
+
+
+pool = ResourcePool(on_removal=on_csgo_error)
 
 
 async def main():
@@ -261,7 +262,7 @@ async def main():
 
         csgos = await asyncio.gather(*setups)
     else:
-        csgos = [make_csgo()]
+        csgos = [make_csgo(config.PORT_START)]
 
     await asyncio.gather(*[prepare_csgo(csgo) for csgo in csgos])
 
