@@ -14,10 +14,14 @@ class Bot(commands.InteractionBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self._maintenance = False
         self.log = log
 
     async def on_ready(self):
         await self.change_presence()
+        await self.normal_presence()
+
+    async def normal_presence(self):
         await self.change_presence(activity=disnake.Game(name="/help"))
 
 

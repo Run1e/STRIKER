@@ -35,6 +35,16 @@ disnake.ApplicationCommandInteraction.__init__ = patched_init(
 )
 
 
+def not_maintenance():
+    async def checker(inter: disnake.AppCmdInter):
+        if not inter.bot._maintenance:
+            return True
+
+        raise commands.CheckFailure("Bot is under maintenance! Check back in a bit!")
+
+    return commands.check(checker)
+
+
 class RecorderCog(commands.Cog):
     def __init__(self, bot):
         self.bot: commands.InteractionBot = bot
@@ -47,11 +57,26 @@ class RecorderCog(commands.Cog):
 
         bus.register_instance(self)
 
-    @commands.slash_command(name="help", description="How to use the bot!")
+    @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True)
     async def _help(self, inter: disnake.AppCmdInter):
         await self.bot.wait_until_ready()
         await self._send_help_embed(inter)
+
+    @commands.slash_command(
+        name="maintenance", dm_permission=False, guild_ids=[config.STRIKER_GUILD_ID]
+    )
+    @commands.is_owner()
+    async def maintenance(self, inter: disnake.AppCmdInter, enable: bool):
+        await self.bot.wait_until_ready()
+
+        self.bot._maintenance = enable
+        await inter.send("Maintenance mode!" if enable else "Bot accepting new commands!")
+
+        if enable:
+            await self.bot.change_presence(activity=disnake.Game(name="🛠 maintenance"))
+        else:
+            await self.bot.normal_presence()
 
     async def _send_help_embed(self, inter: disnake.Interaction):
         e = disnake.Embed(
@@ -73,8 +98,9 @@ class RecorderCog(commands.Cog):
 
         await inter.send(embed=e, ephemeral=True)
 
-    @commands.slash_command(description="Record again from a previous demo")
+    @commands.slash_command(description="Record again from a previous demo", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True, attach_files=True)
+    @not_maintenance()
     async def demos(self, inter: disnake.AppCmdInter, search: str):
         await self.bot.wait_until_ready()
 
@@ -140,8 +166,9 @@ class RecorderCog(commands.Cog):
         if inter.component.custom_id == "howtouse":
             await self._send_help_embed(inter)
 
-    @commands.slash_command(description="Record a CS:GO highlight")
+    @commands.slash_command(description="Record a CS:GO highlight", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True, attach_files=True)
+    @not_maintenance()
     async def record(self, inter: disnake.AppCmdInter, sharecode: str):
         await self.bot.wait_until_ready()
 

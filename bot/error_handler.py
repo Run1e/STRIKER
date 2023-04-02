@@ -22,6 +22,8 @@ class ErrorHandler(commands.Cog):
         elif isinstance(exc, commands.BotMissingPermissions):
             title = "The bot is missing some permissions!"
             desc = str(exc)
+        elif isinstance(exc, commands.CheckFailure):
+            desc = str(exc)
         elif type(exc) is commands.CommandError:
             desc = str(exc)
         else:
