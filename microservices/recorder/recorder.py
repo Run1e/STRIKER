@@ -13,7 +13,7 @@ from shutil import rmtree
 import aiormq
 import aiormq.types
 import config
-from craft_vdm import craft_vdm
+from script_builder import make_script
 from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
 from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
@@ -68,9 +68,9 @@ async def record(
     color_correction: bool,
     **kwargs,
 ):
-    demo = rf"{config.DEMO_FOLDER}\{matchid}.dem"
+    demo = rf"{config.DEMO_DIR}\{matchid}.dem"
     output = rf"{config.VIDEO_DIR}\{job_id}.mp4"
-    capture_dir = config.TEMP_FOLDER
+    capture_dir = config.TEMP_DIR
     video_filters = config.VIDEO_FILTERS if color_correction else None
 
     if not os.path.isfile(demo):
@@ -83,7 +83,7 @@ async def record(
 
     unblock_string = random_string()
 
-    vdm_script = craft_vdm(
+    commands = make_script(
         tickrate=tickrate,
         start_tick=start_tick,
         end_tick=end_tick,
@@ -96,6 +96,11 @@ async def record(
         unblock_string=unblock_string,
     )
 
+    script_file = f"{config.SCRIPTS_DIR}/{job_id}.xml"
+    commands.save(script_file)
+
+    await csgo.run(f'mirv_cmd clear; mirv_cmd load "{script_file}"')
+
     # change res
     await csgo.set_resolution(*resolution)
 
@@ -105,7 +110,6 @@ async def record(
     try:
         take_folder = await csgo.playdemo(
             demo=demo,
-            vdm=vdm_script,
             unblock_string=unblock_string,
             start_at=start_tick - (6 * tickrate),
         )
@@ -155,7 +159,7 @@ def craft_hlae_args(port):
         "-mmcfgEnabled",
         "true",
         "-mmcfg",
-        config.MMCFG_FOLDER,
+        config.MMCFG_DIR,
         "-customLaunchOptions",
         f"-netconport {port} -console -novid",
     )
@@ -232,12 +236,12 @@ async def main():
     logging.getLogger("aiormq").setLevel(logging.INFO)
 
     # copy over csgo config files
-    copy_tree("cfg", config.CSGO_FOLDER + "/cfg")
+    copy_tree("cfg", config.CSGO_DIR + "/cfg")
 
     if config.SANDBOXED:
         sb.terminate_all()
 
-        cfg = make_config(config.DATA_DIR, config.TEMP_FOLDER, config.BOXES)
+        cfg = make_config(config.DATA_DIR, config.TEMP_DIR, config.BOXES)
 
         with open(config.SANDBOXIE_INI, "w", encoding="utf-16") as f:
             f.write(cfg)

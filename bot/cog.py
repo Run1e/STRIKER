@@ -63,20 +63,10 @@ class RecorderCog(commands.Cog):
         await self.bot.wait_until_ready()
         await self._send_help_embed(inter)
 
-    @commands.slash_command(
-        name="maintenance", dm_permission=False, guild_ids=[config.STRIKER_GUILD_ID]
-    )
-    @commands.is_owner()
-    async def maintenance(self, inter: disnake.AppCmdInter, enable: bool):
-        await self.bot.wait_until_ready()
-
-        self.bot._maintenance = enable
-        await inter.send("Maintenance mode!" if enable else "Bot accepting new commands!")
-
-        if enable:
-            await self.bot.change_presence(activity=disnake.Game(name="🛠 maintenance"))
-        else:
-            await self.bot.normal_presence()
+    @commands.Cog.listener()
+    async def on_button_click(self, inter: disnake.MessageInteraction):
+        if inter.component.custom_id == "howtouse":
+            await self._send_help_embed(inter)
 
     async def _send_help_embed(self, inter: disnake.Interaction):
         e = disnake.Embed(
@@ -97,6 +87,26 @@ class RecorderCog(commands.Cog):
         e.set_image(url=config.SHARECODE_IMG_URL)
 
         await inter.send(embed=e, ephemeral=True)
+
+    @commands.slash_command(
+        name="maintenance",
+        description="Set bot in maintenance mode",
+        dm_permission=False,
+        guild_ids=[config.STRIKER_GUILD_ID],
+    )
+    @commands.is_owner()
+    async def maintenance(self, inter: disnake.AppCmdInter, enable: bool):
+        await self.bot.wait_until_ready()
+
+        self.bot._maintenance = enable
+        await inter.send(
+            "Bot now in maintenance mode!" if enable else "Bot now  accepting new commands!"
+        )
+
+        if enable:
+            await self.bot.change_presence(activity=disnake.Game(name="🛠 maintenance"))
+        else:
+            await self.bot.normal_presence()
 
     @commands.slash_command(description="Record again from a previous demo", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True, attach_files=True)
@@ -160,11 +170,6 @@ class RecorderCog(commands.Cog):
         # TODO: fix this it ain't right
         # this gets all the autocompleted demo names
         return aum
-
-    @commands.Cog.listener()
-    async def on_button_click(self, inter: disnake.MessageInteraction):
-        if inter.component.custom_id == "howtouse":
-            await self._send_help_embed(inter)
 
     @commands.slash_command(description="Record a CS:GO highlight", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True, attach_files=True)

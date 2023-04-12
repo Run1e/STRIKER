@@ -157,7 +157,7 @@ class CSGO:
     async def set_resolution(self, w, h):
         await self.run(f"mat_setvideomode {w} {h} 1")
 
-    async def playdemo(self, demo, vdm, unblock_string, start_at=None):
+    async def playdemo(self, demo, unblock_string, start_at=None):
         # disconnect in case we're stuck in another demo playback
         await self.run("disconnect")
 
@@ -165,9 +165,6 @@ class CSGO:
 
         if os.path.isfile(vdm_path):
             os.remove(vdm_path)
-
-        with open(vdm_path, "w") as f:
-            f.write(vdm.dumps())
 
         command = f'playdemo "{demo}'
 
