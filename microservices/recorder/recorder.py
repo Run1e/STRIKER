@@ -96,7 +96,7 @@ async def record(
         unblock_string=unblock_string,
     )
 
-    script_file = f"{config.SCRIPTS_DIR}/{job_id}.xml"
+    script_file = f"{config.SCRIPT_DIR}/{job_id}.xml"
     commands.save(script_file)
 
     await csgo.run(f'mirv_cmd clear; mirv_cmd load "{script_file}"')
