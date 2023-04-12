@@ -161,11 +161,6 @@ class CSGO:
         # disconnect in case we're stuck in another demo playback
         await self.run("disconnect")
 
-        vdm_path = demo[:-3] + "vdm"
-
-        if os.path.isfile(vdm_path):
-            os.remove(vdm_path)
-
         command = f'playdemo "{demo}'
 
         if start_at is not None:
@@ -200,11 +195,6 @@ class CSGO:
         await self.wait_for(lambda line: line == unblock_string + " ", timeout=120.0)
 
         self.log("Recording completed")
-
-        try:
-            os.remove(vdm_path)
-        except OSError:
-            pass
 
         return take
 
