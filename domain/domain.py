@@ -338,7 +338,7 @@ class Job(Entity):
             JobState.DEMO: "Demo queued",
             JobState.SELECT: "Select what you want to record",
             JobState.RECORD: "Recording queued",
-            JobState.SUCCESS: "Recording job complete!",
+            JobState.SUCCESS: "Job completed, enjoy!",
             JobState.FAILED: "Oops!",
             JobState.ABORTED: "Job aborted",
         }.get(self.state, None)

@@ -241,7 +241,7 @@ async def main():
     if config.SANDBOXED:
         sb.terminate_all()
 
-        cfg = make_config(config.DATA_DIR, config.TEMP_DIR, config.BOXES)
+        cfg = make_config(config.SANDBOXIE_USER, config.DATA_DIR, config.TEMP_DIR, config.BOXES)
 
         with open(config.SANDBOXIE_INI, "w", encoding="utf-16") as f:
             f.write(cfg)

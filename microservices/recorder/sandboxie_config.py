@@ -6,10 +6,10 @@ colors = [
 ]
 
 
-def make_config(data_dir, temp_dir, boxes):
+def make_config(user, data_dir, temp_dir, boxes):
     sections = [
-        """
-[UserSettings_0D280224]
+        f"""
+[UserSettings_{user}]
 SbieCtrl_AutoRunSoftCompat=n
 SbieCtrl_HideWindowNotify=n
 SbieCtrl_ReloadConfNotify=n
