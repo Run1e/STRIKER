@@ -172,7 +172,7 @@ class CSGO:
             self.wait_for_many(
                 rec=lambda line: line.startswith('Recording to "'),
                 missingmap=lambda line: re.match(r"^Missing map .*, disconnecting$", line),
-                timeout=60.0,
+                timeout=120.0,
             )
         )
 
@@ -192,7 +192,7 @@ class CSGO:
             # TODO: this should be RecoverableRecordingError or something
             raise RecordingError("Demos that require old maps are not supported.")
 
-        await self.wait_for(lambda line: line == unblock_string + " ", timeout=120.0)
+        await self.wait_for(lambda line: line == unblock_string + " ", timeout=200.0)
 
         self.log("Recording completed")
 
