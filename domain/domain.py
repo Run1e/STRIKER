@@ -16,7 +16,7 @@ class JobState(Enum):
     SELECT = auto()  # job is or can have user selecting
     RECORD = auto()  # job is on record queue
     UPLOAD = auto()  # job is on upload queue
-    ABORTED = auto()  # job was aborted by the user or a view timeout
+    ABORTED = auto()  # job was aborted by the user, view timeout, or job limit
     FAILED = auto()  # job failed for some reason
     SUCCESS = auto()  # job completed successfully
 

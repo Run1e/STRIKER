@@ -168,6 +168,11 @@ async def abort_job(uow: SqlUnitOfWork, job: Job):
         await uow.commit()
 
 
+async def user_recording_count(uow: SqlUnitOfWork, user_id: int):
+    async with uow:
+        return await uow.jobs.recording_count(user_id)
+
+
 async def record(
     uow: SqlUnitOfWork,
     job: Job,

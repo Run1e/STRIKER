@@ -45,6 +45,21 @@ def not_maintenance():
     return commands.check(checker)
 
 
+async def job_limit_checker(inter: disnake.AppCmdInter, limit: int):
+    job_count = await services.user_recording_count(uow=SqlUnitOfWork(), user_id=inter.author.id)
+
+    if job_count < limit:
+        return True
+
+    raise commands.CheckFailure(
+        f"You can only have {limit} jobs queued. "
+        "Please wait for one of your previous jobs to complete before starting a new one."
+    )
+
+
+job_limit = lambda limit: commands.check(partial(job_limit_checker, limit=limit))
+
+
 class RecorderCog(commands.Cog):
     def __init__(self, bot):
         self.bot: commands.InteractionBot = bot
@@ -111,6 +126,7 @@ class RecorderCog(commands.Cog):
     @commands.slash_command(description="Record again from a previous demo", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True, attach_files=True)
     @not_maintenance()
+    @job_limit(config.JOB_LIMIT)
     async def demos(self, inter: disnake.AppCmdInter, search: str):
         await self.bot.wait_until_ready()
 
@@ -174,6 +190,7 @@ class RecorderCog(commands.Cog):
     @commands.slash_command(description="Record a CS:GO highlight", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True, attach_files=True)
     @not_maintenance()
+    @job_limit(config.JOB_LIMIT)
     async def record(self, inter: disnake.AppCmdInter, sharecode: str):
         await self.bot.wait_until_ready()
 
@@ -362,6 +379,13 @@ class RecorderCog(commands.Cog):
         round_id: int,
     ):
         await inter.response.defer()
+
+        try:
+            await job_limit_checker(inter=inter, limit=config.JOB_LIMIT)
+        except commands.CheckFailure as exc:
+            self.bot.dispatch("slash_command_error", inter, exc)
+            await services.abort_job(uow=SqlUnitOfWork(), job=job)
+            return
 
         await services.record(uow=SqlUnitOfWork(), job=job, player=player, round_id=round_id)
 

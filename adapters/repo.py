@@ -68,6 +68,20 @@ class JobRepository(SqlRepository):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def recording_count(self, user_id: int, minutes: int = INTERACTION_MINUTES):
+        stmt = (
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.user_id == user_id,
+                Job.state == JobState.RECORD,
+                Job.started_at > datetime.now(timezone.utc) - timedelta(minutes=minutes),
+            )
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalar()
+
 
 class DemoRepository(SqlRepository):
     def __init__(self, session: AsyncSession):
