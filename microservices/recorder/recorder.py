@@ -241,6 +241,11 @@ async def main():
     # copy over csgo config files
     copy_tree("cfg", config.CSGO_DIR + "/cfg")
 
+    # empty temp dir
+    for entry in os.listdir(config.TEMP_DIR):
+        log.info("Removing %s", entry)
+        rmtree(f"{config.TEMP_DIR}/{entry}")
+
     if config.SANDBOXED:
         sb.terminate_all()
 
