@@ -221,6 +221,9 @@ async def on_csgo_error(pool: ResourcePool, csgo: CSGO, exc: Exception):
 async def prepare_csgo(csgo: CSGO):
     await csgo.connect()
 
+    if isinstance(csgo, SandboxedCSGO):
+        csgo.minimize()
+
     startup_commands = ('mirv_block_commands add 5 "\*"', "exec stream")
     for command in startup_commands:
         await csgo.run(command)

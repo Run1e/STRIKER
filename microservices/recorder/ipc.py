@@ -1,6 +1,6 @@
 import asyncio
+import ctypes
 import logging
-import os
 import random
 import re
 import string
@@ -211,3 +211,9 @@ class SandboxedCSGO(CSGO):
         for msg in msgs:
             msg = f"[{self.box}] " + msg
             log.info(msg)
+
+    def minimize(self):
+        self.log("Minimizing window")
+
+        hwnd = ctypes.windll.user32.FindWindowW(f"Sandbox:{self.box}:Valve001", None)
+        ctypes.windll.user32.ShowWindow(hwnd, 6)
