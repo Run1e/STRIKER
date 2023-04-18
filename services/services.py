@@ -182,11 +182,10 @@ async def record(
     demo = job.demo
     all_kills = demo.get_player_kills(player)
     kills = all_kills[round_id]
-    BITRATE_SCALAR = 0.65
-    MAX_VIDEO_BITRATE = 5 * 1024 * 1024
 
-    # 8MB
-    MAX_FILE_SIZE = 8 * 8 * 1024 * 1024
+    BITRATE_SCALAR = 0.7
+    MAX_VIDEO_BITRATE = 10 * 1024 * 1024
+    MAX_FILE_SIZE = 25 * 8 * 1024 * 1024
 
     start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(demo.tickrate, kills)
 
