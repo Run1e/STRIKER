@@ -228,13 +228,15 @@ async def prepare_csgo(csgo: CSGO):
         await asyncio.sleep(0.5)
 
     log_name = csgo.box if isinstance(csgo, SandboxedCSGO) else "csgo"
-    with open(rf"{config.CSGO_LOG_DIR}\{log_name}.log", "w") as f:
 
-        def check(line):
-            f.write(line)
+    def return_checker():
+        f = open(rf"{config.CSGO_LOG_DIR}\{log_name}.log", "w")
+        def checker(line):
+            f.write(line + "\n")
             f.flush()
+        return checker
 
-    csgo.checks[check] = asyncio.Event()
+    csgo.checks[return_checker()] = asyncio.Event()
 
 
 pool = ResourcePool(on_removal=on_csgo_error)
