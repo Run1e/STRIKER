@@ -220,14 +220,20 @@ async def on_csgo_error(pool: ResourcePool, csgo: CSGO, exc: Exception):
 
 async def prepare_csgo(csgo: CSGO):
     await csgo.connect()
-
-    if isinstance(csgo, SandboxedCSGO):
-        csgo.minimize()
+    csgo.minimize()
 
     startup_commands = ('mirv_block_commands add 5 "\*"', "exec stream")
     for command in startup_commands:
         await csgo.run(command)
         await asyncio.sleep(0.5)
+
+    log_name = csgo.box if isinstance(csgo, SandboxedCSGO) else "csgo"
+    with open(rf"{config.CSGO_LOG_DIR}\{log_name}.log", "w") as f:
+        def check(line):
+            f.write(line)
+            f.flush()
+
+    csgo.checks[check] = asyncio.Event()
 
 
 pool = ResourcePool(on_removal=on_csgo_error)

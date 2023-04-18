@@ -38,6 +38,14 @@ class CSGO:
         for msg in msgs:
             log.info(msg)
 
+    def _minimize(self, _class):
+        self.log(f"Minimizing class {_class}")
+        hwnd = ctypes.windll.user32.FindWindowW(_class, None)
+        ctypes.windll.user32.ShowWindow(hwnd, 6)
+
+    def minimize(self):
+        self._minimize("Valve001")
+
     def set_connection_lost_callback(self, callback):
         self.on_connection_lost = callback
 
@@ -212,8 +220,7 @@ class SandboxedCSGO(CSGO):
             msg = f"[{self.box}] " + msg
             log.info(msg)
 
-    def minimize(self):
-        self.log("Minimizing window")
 
-        hwnd = ctypes.windll.user32.FindWindowW(f"Sandbox:{self.box}:Valve001", None)
-        ctypes.windll.user32.ShowWindow(hwnd, 6)
+    def minimize(self):
+        self._minimize(f"Sandbox:{self.box}:Valve001")
+
