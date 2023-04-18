@@ -13,11 +13,11 @@ from shutil import rmtree
 import aiormq
 import aiormq.types
 import config
-from script_builder import make_script
 from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
 from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
 from sandboxie_config import make_config
+from script_builder import make_script
 
 from shared.log import logging_config
 from shared.message import MessageError, MessageWrapper
@@ -229,6 +229,7 @@ async def prepare_csgo(csgo: CSGO):
 
     log_name = csgo.box if isinstance(csgo, SandboxedCSGO) else "csgo"
     with open(rf"{config.CSGO_LOG_DIR}\{log_name}.log", "w") as f:
+
         def check(line):
             f.write(line)
             f.flush()
@@ -255,7 +256,13 @@ async def main():
     if config.SANDBOXED:
         sb.terminate_all()
 
-        cfg = make_config(config.SANDBOXIE_USER, config.DATA_DIR, config.TEMP_DIR, config.BOXES)
+        cfg = make_config(
+            user=config.SANDBOXIE_USER,
+            data_dir=config.DATA_DIR,
+            temp_dir=config.TEMP_DIR,
+            log_dir=config.CSGO_LOG_DIR,
+            boxes=config.BOXES,
+        )
 
         with open(config.SANDBOXIE_INI, "w", encoding="utf-16") as f:
             f.write(cfg)
