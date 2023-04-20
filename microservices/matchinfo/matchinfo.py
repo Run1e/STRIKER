@@ -27,7 +27,11 @@ listeners = dict()
 async def on_message(message: aiormq.channel.DeliveredMessage):
     wraps = MessageWrapper(
         message=message,
-        default_error="An error occurred while fetching match info from Steam.",
+        default_error=(
+            "An error occurred while fetching match info from Steam. "
+            "Maybe Steam/CS:GO network is down?\n\n"
+            "Try again later."
+        ),
         ack_on_failure=True,
     )
 
