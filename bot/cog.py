@@ -80,8 +80,11 @@ class RecorderCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_button_click(self, inter: disnake.MessageInteraction):
-        if inter.component.custom_id == "howtouse":
+        custom_id = inter.component.custom_id
+        if custom_id == "howtouse":
             await self._send_help_embed(inter)
+        elif custom_id == "donatebutton":
+            await self._send_donate(inter)
 
     async def _send_help_embed(self, inter: disnake.Interaction):
         e = disnake.Embed(
@@ -102,6 +105,40 @@ class RecorderCog(commands.Cog):
         e.set_image(url=config.SHARECODE_IMG_URL)
 
         await inter.send(embed=e, ephemeral=True)
+
+    async def _send_donate(self, inter: disnake.Interaction):
+        e = disnake.Embed(
+            color=disnake.Color.orange(),
+        )
+
+        e.set_author(name="Donate to support the project!", icon_url=self.bot.user.display_avatar)
+
+        e.description = (
+            "Thanks for your interest in supporting the project!\n\n"
+            "Below are all the options for donating."
+        )
+
+        buttons = []
+
+        if config.DONATE_URL is not None:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Support through Ko-fi",
+                    url=config.DONATE_URL,
+                )
+            )
+            
+        if config.TRADELINK_URL is not None:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Send me some skins",
+                    url=config.TRADELINK_URL
+                )
+            )
+
+        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
 
     @commands.slash_command(
         name="maintenance",

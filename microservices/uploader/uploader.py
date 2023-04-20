@@ -72,14 +72,13 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
                 )
             )
 
-        if config.DONATE_URL is not None:
-            buttons.append(
-                disnake.ui.Button(
-                    style=disnake.ButtonStyle.url,
-                    label="Donate!",
-                    url=config.DONATE_URL,
-                )
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.secondary,
+                label="Donate!",
+                custom_id="donatebutton",
             )
+        )
 
 
         await channel.send(
