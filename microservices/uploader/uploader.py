@@ -72,6 +72,16 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
                 )
             )
 
+        if config.DONATE_URL is not None:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Donate!",
+                    url=config.DONATE_URL,
+                )
+            )
+
+
         await channel.send(
             content=f"<@{user_id}>",
             file=disnake.File(fp=f"{config.VIDEO_DIR}/{job_id}.mp4", filename=file_name + ".mp4"),
