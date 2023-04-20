@@ -177,7 +177,7 @@ recorder = Broker(
     ttl=600.0,
     progression_event=events.RecorderProgression,
     update_count=3,
-    update_spacing=16.0,
+    update_spacing=100.0
 )
 
 uploader = Broker(
