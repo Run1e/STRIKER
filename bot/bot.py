@@ -59,7 +59,7 @@ def start_bot():
     bot = Bot(**bot_kwargs)
 
     for name in EXTENSIONS:
-        log.info("Loading extension %s", name)
+        log.info(f"Loading extension {name}")
         bot.load_extension(f"bot.{name}")
 
     asyncio.create_task(bot.start(config.BOT_TOKEN))

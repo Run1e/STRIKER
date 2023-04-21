@@ -1,18 +1,15 @@
 # top-level module include hack for shared :|
+from shared.message import MessageError, MessageWrapper
+from shared.log import logging_config
+import disnake
+import config
+import aiormq
+import logging
+import asyncio
 import sys
 
 sys.path.append("../..")
 
-
-import asyncio
-import logging
-
-import aiormq
-import config
-import disnake
-
-from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -38,7 +35,7 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
         channel_id = data["channel_id"]
         file_name = data["file_name"]
 
-        log.info("Uploading job %s", job_id)
+        log.info(f"Uploading job {job_id}")
 
         channel = await client.fetch_channel(channel_id)
         if channel is None:
@@ -79,7 +76,6 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
                 custom_id="donatebutton",
             )
         )
-
 
         await channel.send(
             content=f"<@{user_id}>",

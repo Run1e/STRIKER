@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 
-def random_string(l):
+def random_string(l,/):
     return "".join(choice(ascii_letters) for _ in range(l))
 
 
@@ -44,14 +44,14 @@ class MessageWrapper:
         self.correlation_id = message.header.properties.correlation_id
         self.end_timer = timer(f"perf {self.correlation_id}")
 
-        log.info("start %s", self.correlation_id)
+        log.info(f"start {self.correlation_id}")
 
     async def ack(self):
-        log.info("ack %s", self.correlation_id)
+        log.info(f"ack {self.correlation_id}")
         await self.message.channel.basic_ack(self.message.delivery.delivery_tag)
 
     async def nack(self, requeue):
-        log.info("nack %s requeue=%s", self.correlation_id, requeue)
+        log.info(f"nack {self.correlation_id} {requeue=}")
         await self.message.channel.basic_nack(
             self.message.delivery.delivery_tag,
             requeue=requeue,
@@ -71,11 +71,11 @@ class MessageWrapper:
         return res
 
     async def success(self, **kwargs):
-        log.info("success %s", self.correlation_id)
+        log.info(f"success {self.correlation_id}")
         await self.send(success=1, data=kwargs)
 
     async def failure(self, **kwargs):
-        log.error("failure %s", self.correlation_id)
+        log.error(f"failure {self.correlation_id}")
         await self.send(success=0, data=kwargs)
 
     def should_requeue(self):
@@ -196,8 +196,7 @@ class RPCClient:
                 content_type="application/json",
                 correlation_id=corr_id,
                 reply_to=self.reply_queue,
-            ),
-        )
+            ),)
 
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
@@ -210,5 +209,5 @@ class RPCClient:
 
         if result["success"]:
             return result["data"]["result"]
-        else:
-            raise RPCError(result["reason"])
+        
+        raise RPCError(result["reason"])

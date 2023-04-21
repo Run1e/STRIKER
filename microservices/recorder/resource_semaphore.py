@@ -20,7 +20,7 @@ class ResourcePool:
         should_set = not self.queue
         self.queue.append(resource)
 
-        log.info("Adding %s, total: %s", resource, len(self.queue))
+        log.info(f"Adding {resource}, total: {len(self.queue)}")
 
         if should_set and not self.event.is_set():
             self.event.set()
@@ -29,7 +29,7 @@ class ResourcePool:
         h = hash(resource)
 
         if h in self._removed:
-            log.info("%s already removed", resource)
+            log.info(f"{resource} already removed")
             return False
 
         try:
@@ -39,7 +39,7 @@ class ResourcePool:
             # might be in a ResourceRequest at this stage
             pass
 
-        log.info("Removing resource: %s, total: %s", resource, len(self.queue))
+        log.info(f"Removing resource: {resource}, total: {len(self.queue)}")
         self._removed.add(h)
         return True
 
@@ -58,10 +58,7 @@ class ResourcePool:
 
     def release(self, resource):
         if hash(resource) in self._removed:
-            log.info(
-                "Previously removed resource attempted released back to pool %s",
-                resource,
-            )
+            log.info(f"Previously removed resource attempted released back to pool {resource}")
             return
 
         self.queue.append(resource)

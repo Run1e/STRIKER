@@ -55,7 +55,7 @@ def cs_process(pipe, event, username, password, sentry):
         matchtime = match.matchtime
         demo_url = match.roundstatsall[-1].map
 
-        log.info("Received %s", matchid)
+        log.info(f"Received {matchid}")
         pipe.send(dict(event="matchinfo", matchid=matchid, matchtime=matchtime, url=demo_url))
 
     cs.on("full_match_info", recv_match_info)
@@ -65,6 +65,5 @@ def cs_process(pipe, event, username, password, sentry):
             gevent.idle()
         else:
             decoded = pipe.recv()
-
-            log.info("Requesting %s", decoded["matchid"])
+            log.info(f"Requesting {decoded['matchid']}")
             cs.request_full_match_info(**decoded)

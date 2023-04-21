@@ -57,7 +57,7 @@ async def job_limit_checker(inter: disnake.AppCmdInter, limit: int):
     )
 
 
-job_limit = lambda limit: commands.check(partial(job_limit_checker, limit=limit))
+def job_limit(limit): return commands.check(partial(job_limit_checker, limit=limit))
 
 
 class RecorderCog(commands.Cog):
@@ -128,7 +128,7 @@ class RecorderCog(commands.Cog):
                     url=config.DONATE_URL,
                 )
             )
-            
+
         if config.TRADELINK_URL is not None:
             buttons.append(
                 disnake.ui.Button(
@@ -266,7 +266,7 @@ class RecorderCog(commands.Cog):
         # job state is *actually* RECORD.
         # if they're not, more important stuff is likely happening
         if job.state not in (JobState.DEMO, JobState.RECORD):
-            log.warn("Ignoring event because of state %s: %s", job.state, event)
+            log.warn(f"Ignoring event because of state {job.state}: {event}")
             return
 
         inter = job.make_inter(self.bot)
@@ -283,7 +283,7 @@ class RecorderCog(commands.Cog):
             current_task_done = current_task.done()
 
             if not current_task_done:
-                log.warn("%s cancelled by %s for job %s", current_event, event, job.id)
+                log.warn(f"{current_event} cancelled by {event} for {job.id=}")
                 current_task.cancel()
 
         self.job_tasks[job.id] = (

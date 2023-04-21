@@ -1,26 +1,24 @@
+from shared.message import MessageError, MessageWrapper
+from shared.log import logging_config
+from script_builder import make_script
+from sandboxie_config import make_config
+from sandboxie import Sandboxie
+from resource_semaphore import ResourcePool, ResourceRequest
+from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
+import config
+import aiormq.types
+import aiormq
+from shutil import rmtree
+from glob import glob
+from distutils.dir_util import copy_tree
+import subprocess
+import os
+import logging
+import asyncio
 import sys
 
 sys.path.append("../..")
 
-import asyncio
-import logging
-import os
-import subprocess
-from distutils.dir_util import copy_tree
-from glob import glob
-from shutil import rmtree
-
-import aiormq
-import aiormq.types
-import config
-from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
-from resource_semaphore import ResourcePool, ResourceRequest
-from sandboxie import Sandboxie
-from sandboxie_config import make_config
-from script_builder import make_script
-
-from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
@@ -231,6 +229,7 @@ async def prepare_csgo(csgo: CSGO):
 
     def return_checker():
         f = open(rf"{config.CSGO_LOG_DIR}\{log_name}.log", "w")
+
         def checker(line):
             f.write(line + "\n")
             f.flush()
@@ -252,7 +251,7 @@ async def main():
 
     # empty temp dir
     for entry in os.listdir(config.TEMP_DIR):
-        log.info("Removing %s", entry)
+        log.info(f"Removing {entry}")
         rmtree(f"{config.TEMP_DIR}/{entry}")
 
     if config.SANDBOXED:

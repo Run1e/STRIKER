@@ -34,7 +34,7 @@ async def main():
         header, *names = await csgo.run("nav_place_list")
 
         if header == "Map uses 0 place names:":
-            log.info("%s uses 0 place names, skipping", _map)
+            log.info(f"{_map} uses 0 place names, skipping")
 
         else:
             result = await csgo.run("nav_save")

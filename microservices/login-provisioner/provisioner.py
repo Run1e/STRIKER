@@ -1,18 +1,16 @@
 # top-level module include hack for shared :|
+import config
+from shared.message import RPCServer
+from shared.log import logging_config
+import aiormq
+import logging
+import asyncio
+import os
+from base64 import b64decode, b64encode
 import sys
 
 sys.path.append("../..")
 
-from base64 import b64decode, b64encode
-import os
-import asyncio
-import logging
-
-import aiormq
-from shared.log import logging_config
-from shared.message import RPCServer
-
-import config
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
@@ -36,7 +34,7 @@ async def load_sentry(username):
 
 
 async def store_sentry(username, sentry):
-    log.info("Storing sentry for user %s", username)
+    log.info(f"Storing sentry for user {username}")
 
     sentry = b64decode(sentry)
 

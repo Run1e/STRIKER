@@ -78,7 +78,7 @@ async def call(event: Event):
     if len(listeners) != 1:
         raise ValueError(f"Call dispatch can only call one listener, found {len(listeners)}")
 
-    log.info("Call dispatch for %s", event)
+    log.info(f"Call dispatch for {event}")
 
     if config.DUMP_EVENTS:
         store_event(event)

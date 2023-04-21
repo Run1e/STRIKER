@@ -1,23 +1,21 @@
 # top-level module include hack for shared :|
+from shared.utils import timer
+from shared.message import MessageError, MessageWrapper
+from shared.log import logging_config
+from shared.const import DEMOPARSE_VERSION
+import config
+import aiormq
+import aiohttp
+from subprocess import run
+from concurrent.futures import ProcessPoolExecutor
+from bz2 import BZ2Decompressor
+import os
+import logging
+import asyncio
 import sys
 
 sys.path.append("../..")
 
-import asyncio
-import logging
-import os
-from bz2 import BZ2Decompressor
-from concurrent.futures import ProcessPoolExecutor
-from subprocess import run
-
-import aiohttp
-import aiormq
-import config
-
-from shared.const import DEMOPARSE_VERSION
-from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper
-from shared.utils import timer
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -69,7 +67,7 @@ async def on_demoparse(message: aiormq.channel.DeliveredMessage):
         matchid = data["matchid"]
         url = data["url"]
 
-        log.info("Processing matchid %s with url %s", matchid, url)
+        log.info(f"Processing {matchid=} with {url=}")
 
         archive_path = rf"{config.ARCHIVE_FOLDER}/{matchid}.dem.bz2"
         archive_path_temp = rf"{config.TEMP_FOLDER}/{matchid}.dem.bz2"
@@ -79,7 +77,7 @@ async def on_demoparse(message: aiormq.channel.DeliveredMessage):
         # if archive and demo does not exist, download the archive
         if not os.path.isfile(demo_path):
             if not os.path.isfile(archive_path):
-                log.info("%s downloading demo", matchid)
+                log.info(f"{matchid} downloading demo")
 
                 end = timer("download")
                 # down the the demo
@@ -101,18 +99,18 @@ async def on_demoparse(message: aiormq.channel.DeliveredMessage):
 
                 log.info(end())
             else:
-                log.info("%s archive already exist", matchid)
+                log.info(f"{matchid} archive already exist")
 
-            log.info("%s extracting demo", matchid)
+            log.info(f"{matchid} extracting demo")
             end = timer("extraction")
 
             await loop.run_in_executor(executor, decompress, archive_path, demo_path_temp)
             os.rename(demo_path_temp, demo_path)
             log.info(end())
         else:
-            log.info("%s demo already exists", matchid)
+            log.info(f"{matchid} demo already exists")
 
-        log.info("%s parsing demo", matchid)
+        log.info(f"{matchid} parsing demo")
         end = timer("parsing")
 
         data = await loop.run_in_executor(executor, parse_demo, demo_path)

@@ -1,20 +1,18 @@
 # top-level module include hack for shared :|
+from cs_process import cs_process
+import config
+from shared.message import MessageError, MessageWrapper, RPCClient
+from shared.log import logging_config
+from csgo.sharecode import decode
+import aiormq
+from multiprocessing import Event, Pipe, Process
+from base64 import b64decode, b64encode
+import logging
+import asyncio
 import sys
 
 sys.path.append("../..")
 
-import asyncio
-import logging
-from base64 import b64decode, b64encode
-from multiprocessing import Event, Pipe, Process
-
-import aiormq
-from csgo.sharecode import decode
-from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper, RPCClient
-
-import config
-from cs_process import cs_process
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
@@ -39,7 +37,7 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
         data = ctx.data
         sharecode = data["sharecode"]
 
-        log.info("Processing sharecode %s", sharecode)
+        log.info(f"Processing sharecode {sharecode}")
 
         try:
             decoded = decode(sharecode)
@@ -56,7 +54,7 @@ async def on_message(message: aiormq.channel.DeliveredMessage):
         await asyncio.wait_for(event.wait(), timeout=5.0)
         data = matches.pop(matchid)
 
-        log.info("Returning %s", matchid)
+        log.info(f"Returning {matchid}")
         await ctx.success(**data)
 
 
@@ -113,7 +111,7 @@ async def main():
                     event.set()
 
             elif event == "store_sentry":
-                log.info("Storing sentry for user %s", username)
+                log.info(f"Storing sentry for user {username}")
 
                 data = b64encode(data["sentry"]).decode("ascii")
                 await rpc("store_sentry", username=username, sentry=data)

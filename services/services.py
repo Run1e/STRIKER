@@ -50,11 +50,11 @@ async def new_job(
                     # which is needed in handle_demo_step
                     await uow.flush()
 
-                    log.info("Demo with sharecode %s created with id %s", sharecode, demo.id)
+                    log.info(f"Demo with {sharecode=} created with id {demo.id}")
 
             elif demo_id is not None:
                 demo = await uow.demos.get(demo_id)
-                log.info("Demo with sharecode %s exists with id %s", sharecode, demo.id)
+                log.info(f"Demo with {sharecode=} exists with id {demo.id}")
 
             can_record = demo.can_record()
 
@@ -87,11 +87,11 @@ async def new_job(
 async def handle_demo_step(demo: Demo, dispatcher=None):
     # if demo is already queued, do nothing
     if demo.queued:
-        log.info("Demo %s already queued, not finding next step", demo.id)
+        log.info(f"Demo {demo.id} already queued, not finding next step")
         return
 
     if not demo.has_matchinfo():
-        log.info("Demo %s has no matchinfo, dispatching to matchinfo", demo.id)
+        log.info(f"Demo {demo.id} has no matchinfo, dispatching to matchinfo")
         await broker.matchinfo.send(id=demo.id, dispatcher=dispatcher, sharecode=demo.sharecode)
         demo.state = DemoState.MATCH
         demo.queued = True
@@ -102,7 +102,7 @@ async def handle_demo_step(demo: Demo, dispatcher=None):
         # 1. the demo has not been parsed yet
         # 2. the demo has been parsed but is out of date
         # in both cases we need to send it on to the demoparser
-        log.info("Demo %s needs to be parsed, dispatching to demoparse", demo.id)
+        log.info(f"Demo {demo.id} needs to be parsed, dispatching to demoparse")
         await broker.demoparse.send(
             id=demo.id,
             dispatcher=dispatcher,
