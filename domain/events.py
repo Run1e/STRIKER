@@ -101,7 +101,7 @@ class ArchiveSuccess(Event):
     id: UUID
     removed_demos: int
     removed_videos: int
-    current_matchids: list
+    # current_matchids: list
 
 
 @dataclass(frozen=True)

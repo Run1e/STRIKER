@@ -60,7 +60,7 @@ async def on_archive(message: aiormq.channel.DeliveredMessage):
         await ctx.success(
             removed_demos=removed_demos,
             removed_videos=removed_videos,
-            current_matchids=current_matchids,
+            # current_matchids=current_matchids,
         )
 
 
