@@ -10,7 +10,7 @@ EXTENSIONS = ("cog", "error_handler")
 log = logging.getLogger(__name__)
 
 
-class Bot(commands.InteractionBot):
+class Bot(commands.AutoShardedInteractionBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -38,7 +38,7 @@ def start_bot():
     intents.reactions = False
 
     command_sync_flags = commands.CommandSyncFlags(
-        allow_command_deletion=False,
+        allow_command_deletion=config.DEBUG,
         sync_commands=True,
         sync_commands_debug=True,
         sync_global_commands=True,

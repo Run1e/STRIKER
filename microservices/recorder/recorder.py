@@ -231,9 +231,11 @@ async def prepare_csgo(csgo: CSGO):
 
     def return_checker():
         f = open(rf"{config.CSGO_LOG_DIR}\{log_name}.log", "w")
+
         def checker(line):
             f.write(line + "\n")
             f.flush()
+
         return checker
 
     csgo.checks[return_checker()] = asyncio.Event()
@@ -252,8 +254,11 @@ async def main():
 
     # empty temp dir
     for entry in os.listdir(config.TEMP_DIR):
-        log.info("Removing %s", entry)
-        rmtree(f"{config.TEMP_DIR}/{entry}")
+        try:
+            rmtree(f"{config.TEMP_DIR}/{entry}")
+            log.info("Removed %s", entry)
+        except:
+            pass
 
     if config.SANDBOXED:
         sb.terminate_all()

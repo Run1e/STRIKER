@@ -93,6 +93,23 @@ class UploaderFailure(Event):
     reason: str
 
 
+# archiver
+
+
+@dataclass(frozen=True)
+class ArchiveSuccess(Event):
+    id: UUID
+    removed_demos: int
+    removed_videos: int
+    current_matchids: list
+
+
+@dataclass(frozen=True)
+class ArchiveFailure(Event):
+    id: UUID
+    reason: str
+
+
 # job
 
 

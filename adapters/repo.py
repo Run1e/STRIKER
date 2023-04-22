@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from sqlalchemy import func, inspect, select, update
+from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.domain import Demo, DemoState, Job, JobState
@@ -82,6 +82,16 @@ class JobRepository(SqlRepository):
         result = await self.session.execute(stmt)
         return result.scalar()
 
+    async def active_ids(self):
+        stmt = (
+            select(Job.id, Job.state)
+            .select_from(Job)
+            .where(Job.state.in_((JobState.SELECT, JobState.RECORD, JobState.UPLOAD)))
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
 
 class DemoRepository(SqlRepository):
     def __init__(self, session: AsyncSession):
@@ -131,3 +141,43 @@ class DemoRepository(SqlRepository):
     async def set_failed(self, _id):
         stmt = update(Demo).where(Demo.id == _id).values(state=DemoState.FAILED, queued=False)
         await self.session.execute(stmt)
+
+    async def bulk_set_deleted(self, ids: list):
+        # if we set data=None and version=None, it's like we've "deparsed" the demo,
+        # so if it gets given to /record again, handle_demo_step knows to send it
+        # to the demoparse microservice
+        # -- in reality, we could just remove "version" but data holds so much
+        # potentially useless data I'd rather just clear that as well,
+        # I mean the demoparse microservice will re-parse it anyway
+        stmt = (
+            update(Demo)
+            .where(Demo.id.in_(ids))
+            .values(state=DemoState.DELETED, data=None, version=None)
+        )
+        await self.session.execute(stmt)
+
+    async def least_recently_used_matchids(self, keep_count):
+        # bruh sql be like
+        # this gets the matchids of the demos which has been least recently in use
+        # the definition of "least recently" is sorting by the greatest of
+        # the demos downloaded_at date and the demos latest used job started_at date
+        #
+        # there are also safety concerns with sqla when using raw sql like this,
+        # but in this case we're only selecting so it *should* be fine
+        stmt = text(
+            """WITH demos AS (
+                SELECT demo.id, demo.matchid, demo.state, demo.downloaded_at, MAX(job.started_at) AS started_at
+                FROM demo LEFT JOIN job ON job.demo_id=demo.id
+                WHERE demo.state='SUCCESS'
+                GROUP BY demo.id
+            )
+
+            SELECT id, matchid, GREATEST(downloaded_at, started_at)
+            FROM demos AS d
+            WHERE NOT EXISTS(SELECT 1 FROM job WHERE demo_id=d.id AND state IN ('DEMO', 'SELECT', 'RECORD') LIMIT 1)
+            ORDER BY greatest
+            LIMIT (SELECT GREATEST(0, COUNT(*) - :keep) FROM demos)"""
+        ).bindparams(keep=keep_count)
+
+        result = await self.session.execute(stmt)
+        return result.all()

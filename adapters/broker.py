@@ -131,6 +131,10 @@ class Broker:
         except KeyError:
             pass
 
+        if not self.update_count:
+            # no need to continue on, if we've not configured to do updates here
+            return
+
         updates = list(sorted(enumerate(self._progression_updates.items()), key=lambda t: t[1][1]))
 
         now = monotonic()
@@ -177,7 +181,7 @@ recorder = Broker(
     ttl=1800.0,
     progression_event=events.RecorderProgression,
     update_count=3,
-    update_spacing=100.0
+    update_spacing=45.0,
 )
 
 uploader = Broker(
@@ -185,6 +189,14 @@ uploader = Broker(
     id_type_cast=lambda uuid: UUID(str(uuid)),
     success_event=events.UploaderSuccess,
     failure_event=events.UploaderFailure,
+    ttl=300.0,
+)
+
+archive = Broker(
+    prefix="archive",
+    id_type_cast=lambda uuid: UUID(str(uuid)),
+    success_event=events.ArchiveSuccess,
+    failure_event=events.ArchiveFailure,
     ttl=300.0,
 )
 
@@ -197,7 +209,7 @@ async def start_brokers():
     mq = await aiormq.connect(config.RABBITMQ_HOST)
     channel: aiormq.Channel = await mq.channel()
 
-    for broker in (matchinfo, demoparse, recorder, uploader):
+    for broker in (matchinfo, demoparse, recorder, uploader, archive):
         await broker.start(channel)
 
     log.info("Brokers initialized")

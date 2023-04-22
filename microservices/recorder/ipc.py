@@ -220,7 +220,5 @@ class SandboxedCSGO(CSGO):
             msg = f"[{self.box}] " + msg
             log.info(msg)
 
-
     def minimize(self):
         self._minimize(f"Sandbox:{self.box}:Valve001")
-

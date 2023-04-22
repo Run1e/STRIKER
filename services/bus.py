@@ -1,4 +1,5 @@
 import inspect
+import asyncio
 import logging
 from asyncio import create_task
 from collections import defaultdict
@@ -25,6 +26,21 @@ def listen(event: Event):
         return listener
 
     return inner
+
+
+def remove_listener(event, listener):
+    remove = None
+    event_listeners = listeners.get(event, None)
+    if not event_listeners:
+        return
+
+    for inner_listener, needs_uow in event_listeners:
+        if inner_listener == listener:
+            remove = (inner_listener, needs_uow)
+            break
+
+    if remove is not None:
+        event_listeners.remove(remove)
 
 
 def mark(event: Event):
@@ -74,8 +90,11 @@ def store_event(event):
 
 async def call(event: Event):
     listeners = build_listeners(event)
+    listener_count = len(listeners)
 
-    if len(listeners) != 1:
+    if listener_count == 0:
+        return
+    elif listener_count > 1:
         raise ValueError(f"Call dispatch can only call one listener, found {len(listeners)}")
 
     log.info("Call dispatch for %s", event)
@@ -96,3 +115,26 @@ def dispatch(event: Event):
 
     for listener, kwargs in listeners.items():
         create_task(listener(**kwargs))
+
+
+async def wait_for(events, check, timeout: float):
+    return_event = None
+    asyncio_event = asyncio.Event()
+
+    async def listener(event):
+        nonlocal return_event, asyncio_event
+        if check(event):
+            return_event = event
+            asyncio_event.set()
+
+    for event in events:
+        listen(event)(listener)
+
+    try:
+        await asyncio.wait_for(asyncio_event.wait(), timeout=timeout)
+        return return_event
+    except asyncio.TimeoutError:
+        return None
+    finally:
+        for event in events:
+            remove_listener(event, listener)

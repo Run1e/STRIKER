@@ -82,7 +82,7 @@ async def on_demoparse(message: aiormq.channel.DeliveredMessage):
                 log.info("%s downloading demo", matchid)
 
                 end = timer("download")
-                # down the the demo
+                # down the demo
                 async with session.get(url) as resp:
                     # deleted from valve servers
                     if resp.status == 404:

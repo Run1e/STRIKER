@@ -51,8 +51,10 @@ async def job_limit_checker(inter: disnake.AppCmdInter, limit: int):
     if job_count < limit:
         return True
 
+    job_word = "job" if limit == 1 else "jobs"
+
     raise commands.CheckFailure(
-        f"You can only have {limit} jobs queued. "
+        f"You can only have {limit} {job_word} queued at a time. "
         "Please wait for one of your previous jobs to complete before starting a new one."
     )
 
@@ -128,13 +130,13 @@ class RecorderCog(commands.Cog):
                     url=config.DONATE_URL,
                 )
             )
-            
+
         if config.TRADELINK_URL is not None:
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
                     label="Send me some skins",
-                    url=config.TRADELINK_URL
+                    url=config.TRADELINK_URL,
                 )
             )
 
@@ -248,6 +250,25 @@ class RecorderCog(commands.Cog):
             inter_payload=pickle.dumps(inter._payload),
             sharecode=sharecode,
         )
+
+    @commands.slash_command(
+        name="archive",
+        description="Archive (delete) old demos and uploaded videos",
+        dm_permission=False,
+        guild_ids=[config.STRIKER_GUILD_ID],
+    )
+    @commands.is_owner()
+    async def archive(self, inter: disnake.AppCmdInter, dry_run: bool):
+        await inter.response.defer()
+
+        try:
+            result = await services.archive(
+                uow=SqlUnitOfWork(), max_active_demos=config.MAX_ACTIVE_DEMOS, dry_run=dry_run
+            )
+        except services.ServiceError as exc:
+            raise commands.CommandError(str(exc))
+
+        await inter.send(content=str(result))
 
     @bus.mark(events.MatchInfoProgression)
     @bus.mark(events.DemoParseProgression)
@@ -439,7 +460,7 @@ class RecorderCog(commands.Cog):
         embed = job.embed(self.bot)
         embed.description = (
             "If you want to record another highlight from a previously used demo, "
-            "use the `/demos` command and select the the demo from the list."
+            "use the `/demos` command and select the demo from the list."
         )
 
         try:
