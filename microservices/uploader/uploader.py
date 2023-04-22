@@ -49,7 +49,8 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
         buttons.append(
             disnake.ui.Button(
                 style=disnake.ButtonStyle.secondary,
-                label="How do I use this bot?",
+                label="How to use the bot",
+                emoji="\N{Black Question Mark Ornament}",
                 custom_id="howtouse",
             )
         )
@@ -58,7 +59,8 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
-                    label="Join the Discord",
+                    label="Discord",
+                    emoji=":discord:1099362254731882597",
                     url=config.DISCORD_INVITE_URL,
                 )
             )
@@ -67,7 +69,8 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
-                    label="Star on GitHub",
+                    label="GitHub",
+                    emoji=":github:1099362911077544007",
                     url=config.GITHUB_URL,
                 )
             )
@@ -75,7 +78,8 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
         buttons.append(
             disnake.ui.Button(
                 style=disnake.ButtonStyle.secondary,
-                label="Donate!",
+                label="Donate",
+                emoji="\N{Hot Beverage}",
                 custom_id="donatebutton",
             )
         )

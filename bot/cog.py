@@ -106,7 +106,18 @@ class RecorderCog(commands.Cog):
 
         e.set_image(url=config.SHARECODE_IMG_URL)
 
-        await inter.send(embed=e, ephemeral=True)
+        buttons = []
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="Invite the bot to another server",
+                emoji="🎉",
+                url=config.BOT_INVITE_URL,
+            )
+        )
+
+        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
 
     async def _send_donate(self, inter: disnake.Interaction):
         e = disnake.Embed(
@@ -269,6 +280,79 @@ class RecorderCog(commands.Cog):
             raise commands.CommandError(str(exc))
 
         await inter.send(content=str(result))
+
+    @commands.slash_command(name="about", description="About the bot", dm_permission=False)
+    async def about(self, inter: disnake.AppCmdInter):
+        e = disnake.Embed(
+            color=disnake.Color.orange(),
+        )
+
+        e.set_author(name="STRIKER", icon_url=self.bot.user.display_avatar)
+
+        e.add_field(
+            name="Developer",
+            value="runie#0001",
+        )
+
+        e.add_field(
+            name="Shard count",
+            value=self.bot.shard_count,
+        )
+
+        latencies = ', '.join(str(f"{t[1]:.3f}") for t in self.bot.latencies)
+        e.add_field(name="Shard latencies", value=f"`{latencies}`")
+
+        e.add_field(
+            name="Guilds",
+            value=f"{len(self.bot.guilds):,d}",
+        )
+
+        e.add_field(name="Channels", value=f"{sum(len(g.channels) for g in self.bot.guilds):,d}")
+
+        e.add_field(
+            name="Members",
+            value=f"{sum(g.member_count for g in self.bot.guilds):,d}",
+        )
+
+        buttons = []
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="Invite the bot",
+                emoji="🎉",
+                url=config.BOT_INVITE_URL,
+            )
+        )
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="Discord",
+                emoji=":discord:1099362254731882597",
+                url=config.DISCORD_INVITE_URL,
+            )
+        )
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="GitHub",
+                emoji=":github:1099362911077544007",
+                url=config.GITHUB_URL,
+            )
+        )
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.secondary,
+                label="Donate",
+                emoji="\N{Hot Beverage}",
+                custom_id="donatebutton",
+            )
+        )
+
+        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons))
 
     @bus.mark(events.MatchInfoProgression)
     @bus.mark(events.DemoParseProgression)
