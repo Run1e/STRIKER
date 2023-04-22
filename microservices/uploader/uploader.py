@@ -85,7 +85,7 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
         )
 
         await channel.send(
-            content=f"<@{user_id}>",
+            content=f"<@{user_id}> `{file_name}`",
             file=disnake.File(fp=f"{config.VIDEO_DIR}/{job_id}.mp4", filename=file_name + ".mp4"),
             components=disnake.ui.ActionRow(*buttons),
         )
