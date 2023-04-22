@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 loop = None
 
-client = disnake.Client(intents=disnake.Intents.none())
+client = disnake.AutoShardedClient(intents=disnake.Intents.none())
 
 
 async def on_upload(message: aiormq.channel.DeliveredMessage):
