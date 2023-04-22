@@ -5,9 +5,10 @@ import re
 from functools import partial
 
 import disnake
-from disnake.ext import commands
+from disnake.ext import commands, tasks
 from rapidfuzz import fuzz, process
 from tabulate import tabulate
+
 
 from bot.sharecode import is_valid_sharecode
 from domain import events
@@ -73,6 +74,8 @@ class RecorderCog(commands.Cog):
         self._autocomplete_user_mapping = dict()  # user.id: demo_desc
 
         bus.register_instance(self)
+
+        self.archive_task.start()
 
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True)
@@ -281,6 +284,23 @@ class RecorderCog(commands.Cog):
 
         await inter.send(content=str(result))
 
+    @tasks.loop(minutes=5)
+    async def archive_task(self):
+        result = await services.archive(
+            uow=SqlUnitOfWork(), max_active_demos=config.MAX_ACTIVE_DEMOS, dry_run=False
+        )
+
+        log.info(
+            "Archival task deleted %s demos and %s videos",
+            result["removed_demos"],
+            result["removed_videos"],
+        )
+
+    @archive_task.before_loop
+    async def before_archive_task(self):
+        await self.bot.wait_until_ready()
+        await asyncio.sleep(10.0)
+
     @commands.slash_command(name="about", description="About the bot", dm_permission=False)
     async def about(self, inter: disnake.AppCmdInter):
         e = disnake.Embed(
@@ -299,7 +319,7 @@ class RecorderCog(commands.Cog):
             value=self.bot.shard_count,
         )
 
-        latencies = ', '.join(str(f"{t[1]:.3f}") for t in self.bot.latencies)
+        latencies = ", ".join(str(f"{t[1]:.3f}") for t in self.bot.latencies)
         e.add_field(name="Shard latencies", value=f"`{latencies}`")
 
         e.add_field(

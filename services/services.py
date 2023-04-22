@@ -236,8 +236,6 @@ async def archive(uow: SqlUnitOfWork, max_active_demos: int, dry_run: bool):
         overflowed_demo_ids = [tup[0] for tup in overflowed_demos]
         overflowed_matchids = [tup[1] for tup in overflowed_demos]
 
-        log.info("Found %s demos for deletion", len(overflowed_demos))
-
         _uuid = uuid4()
         task = asyncio.create_task(
             bus.wait_for(
