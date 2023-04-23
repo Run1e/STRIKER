@@ -122,14 +122,6 @@ async def restore(uow: SqlUnitOfWork):
         for job in jobs:
             uow.add_event(events.JobReadyForSelect(job))
 
-        # handle queued recording jobs
-        now = monotonic()
-        jobs = await uow.jobs.get_recording()
-        for job in jobs:
-            _id = broker.recorder.id_type_cast(job.id)
-            broker.recorder._queue.append(_id)
-            broker.recorder._progression_updates[_id] = now
-
         demos = await uow.demos.unqueued()
         for demo in demos:
             # on broker failure this will except
