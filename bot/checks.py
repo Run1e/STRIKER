@@ -4,6 +4,8 @@ from disnake.ext import commands
 from .errors import BotAccountRequired
 
 
+# modified from arl's Monty bot. Thanks!
+# https://github.com/onerandomusername/monty-python/blob/main/monty/exts/backend/global_checks.py
 class GlobalCheck(commands.Cog, slash_command_attrs={"dm_permission": False}):
     """Global checks for monty."""
 
