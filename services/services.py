@@ -241,7 +241,7 @@ async def archive(uow: SqlUnitOfWork, max_active_demos: int, dry_run: bool):
             bus.wait_for(
                 events=[events.ArchiveSuccess, events.ArchiveFailure],
                 check=lambda event: event.id == _uuid,
-                timeout=120.0,
+                timeout=20.0,
             )
         )
 

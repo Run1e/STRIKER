@@ -38,7 +38,7 @@ disnake.ApplicationCommandInteraction.__init__ = patched_init(
 
 def not_maintenance():
     async def checker(inter: disnake.AppCmdInter):
-        if not inter.bot._maintenance:
+        if not inter.bot.maintenance:
             return True
 
         raise commands.CheckFailure("Bot is under maintenance! Check back in a bit!")
@@ -61,6 +61,8 @@ async def job_limit_checker(inter: disnake.AppCmdInter, limit: int):
 
 
 job_limit = lambda limit: commands.check(partial(job_limit_checker, limit=limit))
+
+job_perms = dict(send_messages=True, read_messages=True, embed_links=True, attach_files=True)
 
 
 class RecorderCog(commands.Cog):
@@ -116,7 +118,7 @@ class RecorderCog(commands.Cog):
                 style=disnake.ButtonStyle.url,
                 label="Invite the bot to another server",
                 emoji="🎉",
-                url=config.BOT_INVITE_URL,
+                url=self.bot.craft_invite_link(),
             )
         )
 
@@ -166,7 +168,7 @@ class RecorderCog(commands.Cog):
     async def maintenance(self, inter: disnake.AppCmdInter, enable: bool):
         await self.bot.wait_until_ready()
 
-        self.bot._maintenance = enable
+        self.bot.maintenance = enable
         await inter.send(
             "Bot now in maintenance mode!" if enable else "Bot now  accepting new commands!"
         )
@@ -177,7 +179,7 @@ class RecorderCog(commands.Cog):
             await self.bot.normal_presence()
 
     @commands.slash_command(description="Record again from a previous demo", dm_permission=False)
-    @commands.bot_has_permissions(embed_links=True, attach_files=True)
+    @commands.bot_has_permissions(**job_perms)
     @not_maintenance()
     @job_limit(config.JOB_LIMIT)
     async def demos(self, inter: disnake.AppCmdInter, search: str):
@@ -241,7 +243,7 @@ class RecorderCog(commands.Cog):
         return aum
 
     @commands.slash_command(description="Record a CS:GO highlight", dm_permission=False)
-    @commands.bot_has_permissions(embed_links=True, attach_files=True)
+    @commands.bot_has_permissions(**job_perms)
     @not_maintenance()
     @job_limit(config.JOB_LIMIT)
     async def record(self, inter: disnake.AppCmdInter, sharecode: str):
@@ -341,7 +343,7 @@ class RecorderCog(commands.Cog):
                 style=disnake.ButtonStyle.url,
                 label="Invite the bot",
                 emoji="🎉",
-                url=config.BOT_INVITE_URL,
+                url=self.bot.craft_invite_link(),
             )
         )
 

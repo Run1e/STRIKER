@@ -12,7 +12,7 @@ import config
 import disnake
 
 from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper
+from shared.message import MessageWrapper
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -41,8 +41,6 @@ async def on_upload(message: aiormq.channel.DeliveredMessage):
         log.info("Uploading job %s", job_id)
 
         channel = await client.fetch_channel(channel_id)
-        if channel is None:
-            raise MessageError("Uploader failed finding channel.")
 
         buttons = list()
 

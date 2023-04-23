@@ -6,7 +6,7 @@ from disnake.ext import commands
 
 from bot import config
 
-EXTENSIONS = ("cog", "error_handler")
+EXTENSIONS = ("cog", "errors", "checks")
 log = logging.getLogger(__name__)
 
 
@@ -14,8 +14,11 @@ class Bot(commands.AutoShardedInteractionBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._maintenance = False
         self.log = log
+
+        self.maintenance = False
+        self.invite_permissions = disnake.Permissions(274878286912)
+        self.invite_scopes = {"applications.commands", "bot"}
 
     async def on_ready(self):
         await self.change_presence()
@@ -23,6 +26,22 @@ class Bot(commands.AutoShardedInteractionBot):
 
     async def normal_presence(self):
         await self.change_presence(activity=disnake.Game(name="/help"))
+
+    def craft_invite_link(self):
+        return disnake.utils.oauth_url(
+            self.user.id,
+            permissions=self.invite_permissions,
+            scopes=self.invite_scopes,
+        )
+
+    def craft_guild_invite_link(self, guild):
+        return disnake.utils.oauth_url(
+            self.user.id,
+            disable_guild_select=True,
+            guild=guild,
+            permissions=self.invite_permissions,
+            scopes=self.invite_scopes,
+        )
 
 
 def start_bot():
