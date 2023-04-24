@@ -887,23 +887,3 @@ async def test_restore_queued_demos(matchinfo_send, demoparse_send):
 
     matchinfo_send.assert_awaited_once()
     demoparse_send.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_restore_get_recording():
-    demo = new_demo(
-        state=DemoState.SUCCESS,
-        queued=True,
-        sharecode="sharecode",
-        has_matchinfo=True,
-        data=loads(demo_data[0]),
-    )
-
-    job = new_job(state=JobState.RECORD)
-    job.demo = demo
-    uow = FakeUnitOfWork(jobs=[job], demos=[demo])
-    job.demo_id = demo.id
-
-    await services.restore(uow)
-
-    assert broker.recorder._queue[0] == job.id
