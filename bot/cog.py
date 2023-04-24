@@ -250,7 +250,7 @@ class RecorderCog(commands.Cog):
         await self.bot.wait_until_ready()
 
         sharecode = re.sub(
-            r"^steam://rungame/730/\d*/\+csgo_download_match%20", "", sharecode.strip()
+            r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )", "", sharecode.strip()
         )
 
         if not is_valid_sharecode(sharecode):
