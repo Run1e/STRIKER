@@ -54,6 +54,13 @@ recording_table = sa.Table(
     sa.Column("round_id", sa.Integer, nullable=True),
 )
 
+# recording_table = sa.Table(
+#     "usersettings",
+#     meta,
+#     sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+#     sa.Column("user_id", sa.BigInteger),
+# )
+
 engine: aio.AsyncEngine = aio.create_async_engine(
     config.DB_BIND,
     execution_options={"isolation_options": "REPEATABLE READ"},

@@ -301,7 +301,7 @@ class RecorderCog(commands.Cog):
     @archive_task.before_loop
     async def before_archive_task(self):
         await self.bot.wait_until_ready()
-        await asyncio.sleep(10.0)
+        await asyncio.sleep(60.0 * 5)
 
     @commands.slash_command(name="about", description="About the bot", dm_permission=False)
     async def about(self, inter: disnake.AppCmdInter):

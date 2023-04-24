@@ -6,7 +6,7 @@ from disnake.ext import commands
 
 from bot import config
 
-EXTENSIONS = ("cog", "errors", "checks")
+EXTENSIONS = ("checks", "errors", "cog", "owner")
 log = logging.getLogger(__name__)
 
 
@@ -50,8 +50,8 @@ def start_bot():
     logging.getLogger("disnake").setLevel(logging.INFO)
 
     intents = disnake.Intents.default()
+    intents.messages = True
     intents.typing = False
-    intents.messages = False
     intents.voice_states = False
     intents.dm_messages = False
     intents.reactions = False
