@@ -49,12 +49,7 @@ def start_bot():
 
     logging.getLogger("disnake").setLevel(logging.INFO)
 
-    intents = disnake.Intents.default()
-    intents.messages = True
-    intents.typing = False
-    intents.voice_states = False
-    intents.dm_messages = False
-    intents.reactions = False
+    intents = disnake.Intents(guilds=True, guild_messages=True)
 
     command_sync_flags = commands.CommandSyncFlags(
         allow_command_deletion=config.DEBUG,
