@@ -41,6 +41,9 @@ def make_script(
     capture_dir: str,
     video_filters: str,
     unblock_string: str,
+    fragmovie: bool,
+    righthand: bool,
+    crosshair_code: str,
 ) -> CommandSystemBuilder:
     c = CommandSystemBuilder()
 
@@ -81,6 +84,13 @@ def make_script(
     c.delta(tickrate * 0.5)
     # ; demo_timescale 0.5')
     c.run(f"spec_lock_to_accountid {xuid}", "spec_mode 4", "mirv_deathmsg lifetime 999")
+
+    c.delta(tickrate * 0.25)
+    c.run(
+        f"cl_righthand {1 if righthand else 0}",
+        f"cl_draw_only_deathnotices {1 if fragmovie else 0}",
+        f"apply_crosshair_code {crosshair_code}",
+    )
 
     # record!
     c.tick(start_tick)

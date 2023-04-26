@@ -348,3 +348,57 @@ class Job(Entity):
         e.set_footer(text=f"ID: {self.id}")
 
         return e
+
+
+class User(Entity):
+    modifiable_fields = ("crosshair_code", "fragmovie", "color_filter", "righthand", "sixteen_nine")
+
+    def __init__(
+        self,
+        user_id: int,
+        crosshair_code: str = None,
+        fragmovie: bool = None,
+        color_filter: bool = None,
+        righthand: bool = None,
+        sixteen_nine: bool = None,
+    ) -> None:
+        self.user_id = user_id
+        self.crosshair_code = crosshair_code
+        self.fragmovie = fragmovie
+        self.color_filter = color_filter
+        self.righthand = righthand
+        self.sixteen_nine = sixteen_nine
+
+    def get(self, key):
+        return self.all_recording_settings(False).get(key)
+
+    def set(self, key, value):
+        if key in self.all_recording_settings(False):
+            setattr(self, key, value)
+        else:
+            raise ValueError
+
+    def all_recording_settings(self, only_toggleable=True):
+        default = lambda v, d: v if v is not None else d
+
+        d = dict(
+            fragmovie=default(self.fragmovie, False),
+            color_filter=default(self.color_filter, True),
+            righthand=default(self.righthand, True),
+            sixteen_nine=default(self.sixteen_nine, False),
+        )
+
+        if not only_toggleable:
+            d["crosshair_code"] = default(self.crosshair_code, "CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE")
+
+        return d
+
+    def update_recorder_settings(self):
+        d = dict()
+
+        for attr in self.modifiable_fields:
+            val = getattr(self, attr)
+            if val is not None:
+                d[attr] = val
+
+        return d

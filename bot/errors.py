@@ -6,6 +6,10 @@ class BotAccountRequired(commands.CheckFailure):
     pass
 
 
+class SponsorRequired(commands.CheckFailure):
+    pass
+
+
 class ErrorHandler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot

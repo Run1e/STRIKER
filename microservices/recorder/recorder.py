@@ -61,17 +61,20 @@ async def record(
     end_tick: int,
     xuid: int,
     fps: int,
-    resolution: tuple,
     video_bitrate: int,
     audio_bitrate,
     skips: list,
-    color_correction: bool,
+    fragmovie: bool,
+    color_filter: bool,
+    righthand: bool,
+    crosshair_code: str,
+    sixteen_nine: bool,
     **kwargs,
 ):
     demo = rf"{config.DEMO_DIR}\{matchid}.dem"
     output = rf"{config.VIDEO_DIR}\{job_id}.mp4"
     capture_dir = config.TEMP_DIR
-    video_filters = config.VIDEO_FILTERS if color_correction else None
+    video_filters = config.VIDEO_FILTERS if color_filter else None
 
     if not os.path.isfile(demo):
         raise ValueError(f"Demo {demo} does not exist.")
@@ -94,6 +97,9 @@ async def record(
         capture_dir=capture_dir,
         video_filters=video_filters,
         unblock_string=unblock_string,
+        fragmovie=fragmovie,
+        righthand=righthand,
+        crosshair_code=crosshair_code,
     )
 
     script_file = f"{config.SCRIPT_DIR}/{job_id}.xml"
@@ -102,7 +108,8 @@ async def record(
     await csgo.run(f'mirv_cmd clear; mirv_cmd load "{script_file}"')
 
     # change res
-    await csgo.set_resolution(*resolution)
+    res = (1280, 720) if sixteen_nine else (1280, 852)
+    await csgo.set_resolution(*res)
 
     # make sure deathmsg doesn't fill up and clear lock spec
     await csgo.run(f"mirv_deathmsg lifetime 0")

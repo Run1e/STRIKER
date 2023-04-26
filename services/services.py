@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from adapters import broker
 from bot import sequencer
 from domain import events
-from domain.domain import Demo, DemoState, Job, JobState, Player, Recording, RecordingType
+from domain.domain import Demo, DemoState, Job, JobState, Player, Recording, RecordingType, User
 from services import bus
 from services.uow import SqlUnitOfWork
 from shared.const import DEMOPARSE_VERSION
@@ -166,6 +166,7 @@ async def record(
     job: Job,
     player: Player,
     round_id: int,
+    tier: int,
 ):
     demo = job.demo
     all_kills = demo.get_player_kills(player)
@@ -189,13 +190,22 @@ async def record(
         end_tick=end_tick,
         skips=skips,
         fps=60,
-        color_correction=True,
-        resolution=(1280, 854),  # (960, 640),
         video_bitrate=video_bitrate,
         audio_bitrate=192,
+        # user controlled
+        fragmovie=False,
+        color_filter=True,
+        righthand=True,
+        crosshair_code="CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE",
+        sixteen_nine=False,
     )
 
     async with uow:
+        if tier > 0:
+            user = await uow.users.get(job.user_id)
+            if user is not None:
+                data.update(**user.update_recorder_settings())
+
         uow.jobs.add(job)
 
         try:
@@ -262,6 +272,25 @@ async def archive(uow: SqlUnitOfWork, max_active_demos: int, dry_run: bool):
             removed_demos=result.removed_demos,
             removed_videos=result.removed_videos,
         )
+
+
+async def get_user(uow: SqlUnitOfWork, user_id: int) -> User:
+    async with uow:
+        user = await uow.users.get(user_id)
+
+        if user is None:
+            user = User(user_id)
+
+        uow.users.add(user)
+        await uow.commit()
+
+    return user
+
+
+async def store_user(uow: SqlUnitOfWork, user: User):
+    async with uow:
+        uow.users.add(user)
+        await uow.commit()
 
 
 @bus.listen(events.MatchInfoSuccess)

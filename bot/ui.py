@@ -1,13 +1,15 @@
 import asyncio
 from collections import Counter
+from functools import partial
 from typing import List
 
 import disnake
 from tabulate import tabulate
 
-from domain.domain import Death, Job, Player
+from domain.domain import Death, Job, Player, User
 
 from .area import places
+from .sharecode import is_valid_sharecode
 from .config import CT_COIN, T_COIN
 
 
@@ -228,3 +230,163 @@ class RoundView(disnake.ui.View):
         )
 
         return embed
+
+
+class ConfigButton(disnake.ui.Button):
+    def __init__(self, key, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.key = key
+
+    def set_state(self, state):
+        if state:
+            self.style = disnake.ButtonStyle.primary
+        else:
+            self.style = disnake.ButtonStyle.secondary
+
+
+class CrosshairModal(disnake.ui.Modal):
+    def __init__(self, *, on_submit, title: str, timeout: float = 600) -> None:
+        components = [
+            disnake.ui.TextInput(
+                label="Crosshair sharecode",
+                custom_id="crosshairinput",
+                placeholder="Paste sharecode here",
+                style=disnake.TextInputStyle.short,
+                min_length=34,
+                max_length=34,
+            )
+        ]
+
+        self.callback = on_submit
+
+        super().__init__(title=title, components=components, timeout=timeout)
+
+
+class ConfigView(disnake.ui.View):
+    def __init__(
+        self,
+        inter: disnake.AppCmdInter,
+        user: User,
+        store_callback,
+        abort_callback,
+        timeout=900.0,
+    ):
+        super().__init__(timeout=timeout)
+
+        self.inter = inter
+        self.user = user
+        self.store_callback = store_callback
+        self.abort_callback = abort_callback
+
+        row_calc = lambda i: (i // 4)
+
+        for index, (k, v) in enumerate(user.all_recording_settings().items()):
+            row = row_calc(index)
+            button = ConfigButton(
+                key=k,
+                label=self.name_mapper(k),
+                row=row,
+            )
+            button.callback = partial(self.button_click, button)
+            button.set_state(v)
+            self.add_item(button)
+
+        button = disnake.ui.Button(
+            style=disnake.ButtonStyle.secondary, label="Change crosshair", row=row + 1
+        )
+
+        button.callback = self.send_crosshair_modal
+        self.add_item(button)
+
+        button = disnake.ui.Button(
+            style=disnake.ButtonStyle.secondary, label="Reset crosshair", row=row + 1
+        )
+
+        button.callback = self.reset_crosshair
+        self.add_item(button)
+
+        button = disnake.ui.Button(
+            style=disnake.ButtonStyle.primary, label="Save", row=row + 2
+        )
+
+        button.callback = self.save
+        self.add_item(button)
+
+        button = disnake.ui.Button(
+            style=disnake.ButtonStyle.red, label="Abort", row=row + 2
+        )
+
+        button.callback = self.abort
+        self.add_item(button)
+
+    def name_mapper(self, k):
+        return dict(
+            fragmovie="Clean HUD",
+            color_filter="Vibrancy filter",
+            righthand="cl_righthand",
+            sixteen_nine="16:9",
+        ).get(k, k)
+
+    def embed(self):
+        e = disnake.Embed(
+            color=disnake.Color.orange(),
+        )
+
+        e.set_author(
+            name="STRIKER Patreon Configurator", icon_url=self.inter.bot.user.display_avatar
+        )
+
+        cc = self.user.crosshair_code
+        e.description = f"Thank you for your support.\n\nCrosshair: {cc if cc is not None else 'Default'}"
+
+        e.add_field(
+            name="Clean HUD", value="Hide HUD except for killfeed and crosshair", inline=False
+        )
+        e.add_field(name="Vibrancy filter", value="Enable the video filter", inline=False)
+        e.add_field(name="cl_righthand", value="Enable for right handed gun wielding", inline=False)
+        e.add_field(name="16:9", value="Record at a 16:9 aspect ratio", inline=False)
+
+        return e
+
+    async def button_click(self, button: disnake.Button, inter: disnake.MessageInteraction):
+        value = self.user.get(button.key)
+        self.user.set(button.key, not value)
+        button.set_state(not value)
+        await inter.response.edit_message(view=self)
+
+    async def send_crosshair_modal(self, inter: disnake.MessageInteraction):
+        await inter.response.send_modal(
+            modal=CrosshairModal(
+                on_submit=self.save_crosshair, title="Set crosshair", timeout=500.0,
+            )
+        )
+
+    async def save_crosshair(self, inter: disnake.ModalInteraction):
+        sharecode = inter.text_values["crosshairinput"]
+
+        if not is_valid_sharecode(sharecode):
+            await inter.response.send_message(content="That does not appear to be a valid crosshair sharecode", delete_after=6.0)
+            return
+
+        self.user.crosshair_code = sharecode
+        await inter.response.edit_message(embed=self.embed())
+
+    async def reset_crosshair(self, inter: disnake.ModalInteraction):
+        self.user.crosshair_code = None
+        await inter.response.edit_message(embed=self.embed())
+
+    async def save(self, inter: disnake.MessageInteraction):
+        self.stop()
+        asyncio.create_task(self.store_callback(inter, self.user))
+
+    async def abort(self, inter: disnake.MessageInteraction):
+        self.stop()
+        asyncio.create_task(self.abort_callback(inter))
+
+    async def on_timeout(self):
+        e = disnake.Embed(color=disnake.Color.red())
+        e.set_author(name="STRIKER", icon_url=self.inter.bot.user.display_avatar)
+        e.description = "Configurator timed out"
+
+        message = await self.inter.original_message()
+        await message.edit(content=None, embed=e, view=None)

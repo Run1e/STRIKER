@@ -1,5 +1,5 @@
 from adapters.orm import Session
-from adapters.repo import DemoRepository, JobRepository
+from adapters.repo import DemoRepository, JobRepository, UserRepository
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction
 
 from services.bus import dispatch
@@ -13,11 +13,14 @@ class SqlUnitOfWork:
 
     async def __aenter__(self):
         self.session: AsyncSession = Session()
-        self._committed: bool = False
+
         self.events = list()
+        self._committed: bool = False
 
         self.jobs = JobRepository(self.session)
         self.demos = DemoRepository(self.session)
+        self.users = UserRepository(self.session)
+
         self.transaction: AsyncSessionTransaction = await self.session.begin()
         return self
 

@@ -31,6 +31,7 @@ class CSGO:
         self.checks = {}
         self.results = {}
         self._exception = None
+        self.assumed_resolution = (1280, 852)
 
         self.log(f"Starting CSGO on port {port}")
 
@@ -163,7 +164,10 @@ class CSGO:
         await wait_for(self.writer.drain(), timeout)
 
     async def set_resolution(self, w, h):
-        await self.run(f"mat_setvideomode {w} {h} 1")
+        if (w, h) != self.assumed_resolution:
+            await self.run(f"mat_setvideomode {w} {h} 1")
+            self.assumed_resolution = (w, h)
+            await asyncio.sleep(15.0)
 
     async def playdemo(self, demo, unblock_string, start_at=None):
         # disconnect in case we're stuck in another demo playback

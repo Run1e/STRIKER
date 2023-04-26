@@ -4,7 +4,7 @@ from typing import List
 from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.domain import Demo, DemoState, Job, JobState
+from domain.domain import Demo, DemoState, Job, JobState, User
 
 INTERACTION_MINUTES = 13
 
@@ -181,3 +181,11 @@ class DemoRepository(SqlRepository):
 
         result = await self.session.execute(stmt)
         return result.all()
+
+
+class UserRepository(SqlRepository):
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, User)
+
+    async def get(self, _id) -> User:
+        return await self._get(_id)

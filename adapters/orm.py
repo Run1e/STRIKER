@@ -5,7 +5,7 @@ import sqlalchemy as sa
 import sqlalchemy.ext.asyncio as aio
 import sqlalchemy.orm as orm
 from bot import config
-from domain.domain import Demo, DemoState, Job, JobState, RecordingType, Recording
+from domain.domain import Demo, DemoState, Job, JobState, RecordingType, Recording, User
 from sqlalchemy.dialects import postgresql as pg
 
 log = logging.getLogger(__name__)
@@ -54,12 +54,17 @@ recording_table = sa.Table(
     sa.Column("round_id", sa.Integer, nullable=True),
 )
 
-# recording_table = sa.Table(
-#     "usersettings",
-#     meta,
-#     sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-#     sa.Column("user_id", sa.BigInteger),
-# )
+user_table = sa.Table(
+    "discord_user", # a dumb name really but "user" has ns collision in pg
+    meta,
+    sa.Column("user_id", sa.BigInteger, primary_key=True),
+    sa.Column("crosshair_code", sa.TEXT, nullable=True),
+    sa.Column("fragmovie", sa.Boolean, nullable=True),
+    sa.Column("color_filter", sa.Boolean, nullable=True),
+    sa.Column("righthand", sa.Boolean, nullable=True),
+    sa.Column("nobuttons", sa.Boolean, nullable=True),
+    sa.Column("sixteen_nine", sa.Boolean, nullable=True),
+)
 
 engine: aio.AsyncEngine = aio.create_async_engine(
     config.DB_BIND,
@@ -104,6 +109,8 @@ async def start_orm():
     )
 
     registry.map_imperatively(Recording, recording_table)
+
+    registry.map_imperatively(User, user_table)
 
     async with engine.begin() as conn:
         if config.DROP_TABLES:

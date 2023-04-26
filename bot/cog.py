@@ -9,16 +9,16 @@ from disnake.ext import commands, tasks
 from rapidfuzz import fuzz, process
 from tabulate import tabulate
 
-
 from bot.sharecode import is_valid_sharecode
 from domain import events
-from domain.domain import Job, JobState, Player
+from domain.domain import Job, JobState, Player, User
 from services import bus, services
 from services.uow import SqlUnitOfWork
 from shared.utils import TimedDict
 
 from . import config
-from .ui import PlayerView, RoundView
+from .errors import SponsorRequired
+from .ui import ConfigButton, ConfigView, PlayerView, RoundView
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +61,43 @@ async def job_limit_checker(inter: disnake.AppCmdInter, limit: int):
 
 
 job_limit = lambda limit: commands.check(partial(job_limit_checker, limit=limit))
+
+
+async def get_tier(bot: commands.InteractionBot, user_id):
+    guild = bot.get_guild(config.STRIKER_GUILD_ID)
+    if guild is None:
+        return 0
+
+    try:
+        member = await guild.fetch_member(user_id)
+    except disnake.HTTPException:
+        return 0
+
+    for level, role_ids in reversed(config.PATREON_TIERS.items()):
+        if any(role.id in role_ids for role in member.roles):
+            return level
+
+    return 0
+
+
+async def tier_checker(inter: disnake.AppCmdInter, required_tier: int):
+    actual_level = await get_tier(inter.bot, inter.author.id)
+
+    if actual_level == 0:
+        raise SponsorRequired(
+            f"A [Patreon subscription]({config.PATREON_LINK}) is required to run this command.\n\n"
+            "If you're already a Patron, "
+            "make sure your Discord account is linked to your Patreon account "
+            f"and that you've joined the [STRIKER Community Discord]({config.DISCORD_INVITE_URL})."
+        )
+
+    if actual_level < required_tier:
+        raise SponsorRequired(f"This command requires a Tier {required_tier} Patreon subscription.")
+
+    return True
+
+
+tier = lambda tier: commands.check(partial(tier_checker, required_tier=tier))
 
 job_perms = dict(send_messages=True, read_messages=True, embed_links=True, attach_files=True)
 
@@ -159,6 +196,43 @@ class RecorderCog(commands.Cog):
         await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
 
     @commands.slash_command(
+        name="config",
+        description="Tweak the recording parameters",
+        dm_permission=False,
+    )
+    @tier(1)
+    async def _config(self, inter: disnake.AppCmdInter):
+        user: User = await services.get_user(uow=SqlUnitOfWork(), user_id=inter.author.id)
+
+        view = ConfigView(
+            inter=inter,
+            user=user,
+            store_callback=self._store_config,
+            abort_callback=self._abort_config,
+            timeout=180.0,
+        )
+
+        await inter.send(embed=view.embed(), view=view, ephemeral=True)
+
+    async def _store_config(self, inter: disnake.MessageInteraction, user: User):
+        await services.store_user(uow=SqlUnitOfWork(), user=user)
+
+        e = disnake.Embed(color=disnake.Color.green())
+        e.set_author(name="STRIKER", icon_url=self.bot.user.display_avatar)
+
+        e.description = "Configuration saved."
+
+        await inter.response.edit_message(view=None, embed=e)
+
+    async def _abort_config(self, inter: disnake.MessageInteraction):
+        e = disnake.Embed(color=disnake.Color.red())
+        e.set_author(name="STRIKER", icon_url=self.bot.user.display_avatar)
+
+        e.description = "Configurator aborted."
+
+        await inter.response.edit_message(view=None, embed=e)
+
+    @commands.slash_command(
         name="maintenance",
         description="Set bot in maintenance mode",
         dm_permission=False,
@@ -170,7 +244,7 @@ class RecorderCog(commands.Cog):
 
         self.bot.maintenance = enable
         await inter.send(
-            "Bot now in maintenance mode!" if enable else "Bot now  accepting new commands!"
+            "Bot now in maintenance mode!" if enable else "Bot now accepting new commands!"
         )
 
         if enable:
@@ -551,7 +625,13 @@ class RecorderCog(commands.Cog):
             await services.abort_job(uow=SqlUnitOfWork(), job=job)
             return
 
-        await services.record(uow=SqlUnitOfWork(), job=job, player=player, round_id=round_id)
+        await services.record(
+            uow=SqlUnitOfWork(),
+            job=job,
+            player=player,
+            round_id=round_id,
+            tier=await get_tier(self.bot, inter.author.id),
+        )
 
     @bus.mark(events.JobUploadSuccess)
     async def job_upload_success(self, event: events.JobUploadSuccess):
