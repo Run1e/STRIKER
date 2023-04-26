@@ -55,9 +55,10 @@ recording_table = sa.Table(
 )
 
 user_table = sa.Table(
-    "discord_user", # a dumb name really but "user" has ns collision in pg
+    "striker_user", # a dumb name really but "user" has ns collision in pg
     meta,
-    sa.Column("user_id", sa.BigInteger, primary_key=True),
+    sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+    sa.Column("user_id", sa.BigInteger, nullable=False),
     sa.Column("crosshair_code", sa.TEXT, nullable=True),
     sa.Column("fragmovie", sa.Boolean, nullable=True),
     sa.Column("color_filter", sa.Boolean, nullable=True),

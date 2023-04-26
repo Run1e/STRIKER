@@ -202,7 +202,7 @@ async def record(
 
     async with uow:
         if tier > 0:
-            user = await uow.users.get(job.user_id)
+            user = await uow.users.get_user(job.user_id)
             if user is not None:
                 data.update(**user.update_recorder_settings())
 
@@ -276,7 +276,7 @@ async def archive(uow: SqlUnitOfWork, max_active_demos: int, dry_run: bool):
 
 async def get_user(uow: SqlUnitOfWork, user_id: int) -> User:
     async with uow:
-        user = await uow.users.get(user_id)
+        user = await uow.users.get_user(user_id)
 
         if user is None:
             user = User(user_id)

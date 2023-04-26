@@ -189,3 +189,8 @@ class UserRepository(SqlRepository):
 
     async def get(self, _id) -> User:
         return await self._get(_id)
+
+    async def get_user(self, user_id: int) -> User:
+        """Gets demo from a sharecode"""
+        stmt = select(User).where(User.user_id == user_id).limit(1)
+        return await self.session.scalar(stmt)
