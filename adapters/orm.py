@@ -63,8 +63,8 @@ user_table = sa.Table(
     sa.Column("fragmovie", sa.Boolean, nullable=True),
     sa.Column("color_filter", sa.Boolean, nullable=True),
     sa.Column("righthand", sa.Boolean, nullable=True),
-    sa.Column("nobuttons", sa.Boolean, nullable=True),
     sa.Column("sixteen_nine", sa.Boolean, nullable=True),
+    sa.Column("use_demo_crosshair", sa.Boolean, nullable=True),
 )
 
 engine: aio.AsyncEngine = aio.create_async_engine(

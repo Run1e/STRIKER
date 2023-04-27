@@ -351,7 +351,7 @@ class Job(Entity):
 
 
 class User(Entity):
-    modifiable_fields = ("crosshair_code", "fragmovie", "color_filter", "righthand", "sixteen_nine")
+    modifiable_fields = ("crosshair_code", "fragmovie", "color_filter", "righthand", "sixteen_nine", "use_demo_crosshair")
 
     def __init__(
         self,
@@ -361,6 +361,7 @@ class User(Entity):
         color_filter: bool = None,
         righthand: bool = None,
         sixteen_nine: bool = None,
+        use_demo_crosshair: bool = None,
     ) -> None:
         self.user_id = user_id
         self.crosshair_code = crosshair_code
@@ -368,6 +369,7 @@ class User(Entity):
         self.color_filter = color_filter
         self.righthand = righthand
         self.sixteen_nine = sixteen_nine
+        self.use_demo_crosshair = use_demo_crosshair
 
     def get(self, key):
         return self.all_recording_settings(False).get(key)
@@ -386,6 +388,7 @@ class User(Entity):
             color_filter=default(self.color_filter, True),
             righthand=default(self.righthand, True),
             sixteen_nine=default(self.sixteen_nine, False),
+            use_demo_crosshair=default(self.use_demo_crosshair, False),
         )
 
         if not only_toggleable:

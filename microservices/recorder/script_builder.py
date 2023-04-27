@@ -44,6 +44,7 @@ def make_script(
     fragmovie: bool,
     righthand: bool,
     crosshair_code: str,
+    use_demo_crosshair: bool,
 ) -> CommandSystemBuilder:
     c = CommandSystemBuilder()
 
@@ -90,6 +91,11 @@ def make_script(
         f"cl_righthand {1 if righthand else 0}",
         f"cl_draw_only_deathnotices {1 if fragmovie else 0}",
         f"apply_crosshair_code {crosshair_code}",
+    )
+
+    c.delta(tickrate * 0.25)
+    c.run(
+        f"cl_show_observer_crosshair {2 if use_demo_crosshair else 0}"
     )
 
     # record!

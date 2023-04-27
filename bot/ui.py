@@ -278,7 +278,7 @@ class ConfigView(disnake.ui.View):
         self.store_callback = store_callback
         self.abort_callback = abort_callback
 
-        row_calc = lambda i: (i // 4)
+        row_calc = lambda i: (i // 5)
 
         for index, (k, v) in enumerate(user.all_recording_settings().items()):
             row = row_calc(index)
@@ -325,6 +325,7 @@ class ConfigView(disnake.ui.View):
             color_filter="Vibrancy filter",
             righthand="cl_righthand",
             sixteen_nine="16:9",
+            use_demo_crosshair="Use player crosshair",
         ).get(k, k)
 
     def embed(self):
@@ -333,7 +334,7 @@ class ConfigView(disnake.ui.View):
         )
 
         e.set_author(
-            name="STRIKER Patreon Configurator", icon_url=self.inter.bot.user.display_avatar
+            name="STRIKER Donor Configurator", icon_url=self.inter.bot.user.display_avatar
         )
 
         cc = self.user.crosshair_code
@@ -385,7 +386,7 @@ class ConfigView(disnake.ui.View):
 
     async def on_timeout(self):
         e = disnake.Embed(color=disnake.Color.red())
-        e.set_author(name="STRIKER", icon_url=self.inter.bot.user.display_avatar)
+        e.set_author(name="STRIKER Donor Configurator", icon_url=self.inter.bot.user.display_avatar)
         e.description = "Configurator timed out"
 
         message = await self.inter.original_message()

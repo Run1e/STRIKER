@@ -100,6 +100,7 @@ async def record(
         fragmovie=fragmovie,
         righthand=righthand,
         crosshair_code=crosshair_code,
+        use_demo_crosshair=crosshair_code,
     )
 
     script_file = f"{config.SCRIPT_DIR}/{job_id}.xml"
