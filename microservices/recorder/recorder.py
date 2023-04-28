@@ -68,6 +68,7 @@ async def record(
     color_filter: bool,
     righthand: bool,
     crosshair_code: str,
+    use_demo_crosshair: bool,
     **kwargs,
 ):
     demo = rf"{config.DEMO_DIR}\{matchid}.dem"
@@ -99,7 +100,7 @@ async def record(
         fragmovie=fragmovie,
         righthand=righthand,
         crosshair_code=crosshair_code,
-        use_demo_crosshair=crosshair_code,
+        use_demo_crosshair=use_demo_crosshair,
     )
 
     script_file = f"{config.SCRIPT_DIR}/{job_id}.xml"
