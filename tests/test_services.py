@@ -669,7 +669,7 @@ async def test_record(recorder_send):
     job.demo_id = demo.id
     player = demo.get_player_by_id(6)
 
-    await services.record(uow, job=job, player=player, round_id=round_id)
+    await services.record(uow, job=job, player=player, round_id=round_id, tier=0)
 
     assert job.state is JobState.RECORD
     assert isinstance(job.recording, Recording)
@@ -703,7 +703,7 @@ async def test_record_broker_failure():
     player = demo.get_player_by_id(6)
 
     with pytest.raises(Exception):
-        await services.record(uow, job=job, player=player, round_id=round_id)
+        await services.record(uow, job=job, player=player, round_id=round_id, tier=0)
 
     assert job.state is JobState.FAILED
 

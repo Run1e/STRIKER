@@ -197,10 +197,10 @@ class RecorderCog(commands.Cog):
 
     @commands.slash_command(
         name="config",
-        description="Tweak the recording parameters",
+        description="Tweak the recording settings",
         dm_permission=False,
     )
-    @tier(1)
+    @tier(2)
     async def _config(self, inter: disnake.AppCmdInter):
         user: User = await services.get_user(uow=SqlUnitOfWork(), user_id=inter.author.id)
 
