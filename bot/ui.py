@@ -305,16 +305,12 @@ class ConfigView(disnake.ui.View):
         button.callback = self.reset_crosshair
         self.add_item(button)
 
-        button = disnake.ui.Button(
-            style=disnake.ButtonStyle.primary, label="Save", row=row + 2
-        )
+        button = disnake.ui.Button(style=disnake.ButtonStyle.primary, label="Save", row=row + 2)
 
         button.callback = self.save
         self.add_item(button)
 
-        button = disnake.ui.Button(
-            style=disnake.ButtonStyle.red, label="Abort", row=row + 2
-        )
+        button = disnake.ui.Button(style=disnake.ButtonStyle.red, label="Abort", row=row + 2)
 
         button.callback = self.abort
         self.add_item(button)
@@ -333,12 +329,12 @@ class ConfigView(disnake.ui.View):
             color=disnake.Color.orange(),
         )
 
-        e.set_author(
-            name="STRIKER Donor Configurator", icon_url=self.inter.bot.user.display_avatar
-        )
+        e.set_author(name="STRIKER Donor Configurator", icon_url=self.inter.bot.user.display_avatar)
 
         cc = self.user.crosshair_code
-        e.description = f"Thank you for your support.\n\nCrosshair: {cc if cc is not None else 'Default'}"
+        e.description = (
+            f"Thank you for your support.\n\nCrosshair: {cc if cc is not None else 'Default'}"
+        )
 
         e.add_field(
             name="Clean HUD", value="Hide HUD except for killfeed and crosshair", inline=False
@@ -358,7 +354,9 @@ class ConfigView(disnake.ui.View):
     async def send_crosshair_modal(self, inter: disnake.MessageInteraction):
         await inter.response.send_modal(
             modal=CrosshairModal(
-                on_submit=self.save_crosshair, title="Set crosshair", timeout=500.0,
+                on_submit=self.save_crosshair,
+                title="Set crosshair",
+                timeout=500.0,
             )
         )
 
@@ -366,7 +364,9 @@ class ConfigView(disnake.ui.View):
         sharecode = inter.text_values["crosshairinput"]
 
         if not is_valid_sharecode(sharecode):
-            await inter.response.send_message(content="That does not appear to be a valid crosshair sharecode", delete_after=6.0)
+            await inter.response.send_message(
+                content="That does not appear to be a valid crosshair sharecode", delete_after=6.0
+            )
             return
 
         self.user.crosshair_code = sharecode

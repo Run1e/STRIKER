@@ -55,7 +55,7 @@ recording_table = sa.Table(
 )
 
 user_table = sa.Table(
-    "striker_user", # a dumb name really but "user" has ns collision in pg
+    "striker_user",  # a dumb name really but "user" has ns collision in pg
     meta,
     sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
     sa.Column("user_id", sa.BigInteger, nullable=False),

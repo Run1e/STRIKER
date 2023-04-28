@@ -351,7 +351,14 @@ class Job(Entity):
 
 
 class User(Entity):
-    modifiable_fields = ("crosshair_code", "fragmovie", "color_filter", "righthand", "sixteen_nine", "use_demo_crosshair")
+    modifiable_fields = (
+        "crosshair_code",
+        "fragmovie",
+        "color_filter",
+        "righthand",
+        "sixteen_nine",
+        "use_demo_crosshair",
+    )
 
     def __init__(
         self,

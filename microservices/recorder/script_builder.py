@@ -94,9 +94,7 @@ def make_script(
     )
 
     c.delta(tickrate * 0.25)
-    c.run(
-        f"cl_show_observer_crosshair {2 if use_demo_crosshair else 0}"
-    )
+    c.run(f"cl_show_observer_crosshair {2 if use_demo_crosshair else 0}")
 
     # record!
     c.tick(start_tick)
