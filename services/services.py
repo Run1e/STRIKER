@@ -197,7 +197,6 @@ async def record(
         color_filter=True,
         righthand=True,
         crosshair_code="CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE",
-        sixteen_nine=False,
         use_demo_code=False,
     )
 

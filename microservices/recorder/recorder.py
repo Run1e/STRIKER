@@ -68,7 +68,6 @@ async def record(
     color_filter: bool,
     righthand: bool,
     crosshair_code: str,
-    sixteen_nine: bool,
     **kwargs,
 ):
     demo = rf"{config.DEMO_DIR}\{matchid}.dem"
@@ -109,8 +108,7 @@ async def record(
     await csgo.run(f'mirv_cmd clear; mirv_cmd load "{script_file}"')
 
     # change res
-    res = (1280, 720) if sixteen_nine else (1280, 852)
-    await csgo.set_resolution(*res)
+    await csgo.set_resolution(1280, 852)
 
     # make sure deathmsg doesn't fill up and clear lock spec
     await csgo.run(f"mirv_deathmsg lifetime 0")

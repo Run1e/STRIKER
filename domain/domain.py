@@ -356,7 +356,6 @@ class User(Entity):
         "fragmovie",
         "color_filter",
         "righthand",
-        "sixteen_nine",
         "use_demo_crosshair",
     )
 
@@ -394,7 +393,6 @@ class User(Entity):
             fragmovie=default(self.fragmovie, False),
             color_filter=default(self.color_filter, True),
             righthand=default(self.righthand, True),
-            sixteen_nine=default(self.sixteen_nine, False),
             use_demo_crosshair=default(self.use_demo_crosshair, False),
         )
 

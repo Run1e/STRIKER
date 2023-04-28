@@ -320,7 +320,6 @@ class ConfigView(disnake.ui.View):
             fragmovie="Clean HUD",
             color_filter="Vibrancy filter",
             righthand="cl_righthand",
-            sixteen_nine="16:9",
             use_demo_crosshair="Use player crosshair",
         ).get(k, k)
 
@@ -341,7 +340,7 @@ class ConfigView(disnake.ui.View):
         )
         e.add_field(name="Vibrancy filter", value="Enable the video filter", inline=False)
         e.add_field(name="cl_righthand", value="Enable for right handed gun wielding", inline=False)
-        e.add_field(name="16:9", value="Record at a 16:9 aspect ratio", inline=False)
+        e.add_field(name="Use player crosshair", value="Use the players crosshair", inline=False)
 
         return e
 
@@ -387,7 +386,7 @@ class ConfigView(disnake.ui.View):
     async def on_timeout(self):
         e = disnake.Embed(color=disnake.Color.red())
         e.set_author(name="STRIKER Donor Configurator", icon_url=self.inter.bot.user.display_avatar)
-        e.description = "Configurator timed out"
+        e.description = "Configurator timed out."
 
         message = await self.inter.original_message()
         await message.edit(content=None, embed=e, view=None)
