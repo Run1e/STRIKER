@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 from adapters import broker
 from bot import sequencer
-from domain import events
+from domain import events, commands
 from domain.domain import Demo, DemoState, Job, JobState, Player, Recording, RecordingType, User
 from services import bus
 from services.uow import SqlUnitOfWork
@@ -24,43 +24,38 @@ class ServiceError(Exception):
 
 
 async def new_job(
+    command: commands.CreateJob,
     uow: SqlUnitOfWork,
-    guild_id: int,
-    channel_id: int,
-    user_id: int,
-    inter_payload: bytes,
-    sharecode: str = None,
-    demo_id: int = None,
 ):
     async with DEMO_LOCK:
         async with uow:
-            if sharecode is not None:
+            if command.sharecode is not None:
                 # see if demo already exists
-                demo = await uow.demos.from_sharecode(sharecode)
+                demo = await uow.demos.from_sharecode(command.sharecode)
 
                 if demo is None:
-                    demo = Demo(state=DemoState.MATCH, queued=False, sharecode=sharecode)
+                    demo = Demo(state=DemoState.MATCH, queued=False, sharecode=command.sharecode)
                     uow.demos.add(demo)
 
                     # gives the new demo an autoincremented id
                     # which is needed in handle_demo_step
                     await uow.flush()
 
-                    log.info("Demo with sharecode %s created with id %s", sharecode, demo.id)
+                    log.info("Demo with sharecode %s created with id %s", command.sharecode, demo.id)
 
-            elif demo_id is not None:
-                demo = await uow.demos.get(demo_id)
-                log.info("Demo with sharecode %s exists with id %s", sharecode, demo.id)
+            elif command.demo_id is not None:
+                demo = await uow.demos.get(command.demo_id)
+                log.info("Demo with sharecode %s exists with id %s", command.sharecode, demo.id)
 
             can_record = demo.can_record()
 
             job = Job(
                 state=JobState.SELECT if can_record else JobState.DEMO,
-                guild_id=guild_id,
-                channel_id=channel_id,
-                user_id=user_id,
+                guild_id=command.guild_id,
+                channel_id=command.channel_id,
+                user_id=command.user_id,
                 started_at=utcnow(),
-                inter_payload=inter_payload,
+                inter_payload=command.inter_payload,
             )
 
             uow.jobs.add(job)
@@ -115,7 +110,7 @@ async def handle_demo_step(demo: Demo, dispatcher=None):
         demo.queued = False
 
 
-async def restore(uow: SqlUnitOfWork):
+async def restore(command: commands.Restore, uow: SqlUnitOfWork):
     # restores jobs and demos that were cut off during last restart
     async with uow:
         jobs = await uow.jobs.get_restart()

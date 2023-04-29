@@ -7,8 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from adapters import broker
-from domain import events
+from domain import events, commands
 from domain.domain import DemoState, JobState, Recording, RecordingType
 from services import services
 from shared.const import DEMOPARSE_VERSION
@@ -221,10 +220,14 @@ def uploader_send(mocker):
 async def test_new_job_sharecode(matchinfo_send, new_job_junk):
     uow = FakeUnitOfWork()
 
-    await services.new_job(
-        uow=uow,
+    command = commands.CreateJob(
         sharecode="sharecode",
-        **new_job_junk,
+        **new_job_junk
+    )
+
+    await services.new_job(
+        command=command,
+        uow=uow,
     )
 
     job = get_first(uow.jobs)
@@ -253,7 +256,8 @@ async def test_new_job_demo_id_can_record(mock_dispatch, new_job_junk):
 
     uow = FakeUnitOfWork(demos=[demo])
 
-    await services.new_job(uow, demo_id=demo.id, **new_job_junk)
+    command = commands.CreateJob(demo_id=demo.id, **new_job_junk)
+    await services.new_job(command=command, uow=uow)
 
     job = get_first(uow.jobs)
 
@@ -278,7 +282,8 @@ async def test_new_job_demo_id_no_data(demoparse_send, new_job_junk):
 
     uow = FakeUnitOfWork(demos=[demo])
 
-    await services.new_job(uow, demo_id=demo.id, **new_job_junk)
+    command = commands.CreateJob(demo_id=demo.id, **new_job_junk)
+    await services.new_job(command=command, uow=uow)
 
     job = get_first(uow.jobs)
 
@@ -309,7 +314,8 @@ async def test_new_job_demo_id_not_up_to_date(demoparse_send, new_job_junk):
 
     uow = FakeUnitOfWork(demos=[demo])
 
-    await services.new_job(uow, demo_id=demo.id, **new_job_junk)
+    command = commands.CreateJob(demo_id=demo.id, **new_job_junk)
+    await services.new_job(command=command, uow=uow)
 
     job = get_first(uow.jobs)
 
@@ -339,7 +345,8 @@ async def test_new_job_demo_id_no_matchinfo(matchinfo_send, new_job_junk):
 
     uow = FakeUnitOfWork(demos=[demo])
 
-    await services.new_job(uow, demo_id=demo.id, **new_job_junk)
+    command = commands.CreateJob(demo_id=demo.id, **new_job_junk)
+    await services.new_job(command=command, uow=uow)
 
     job = get_first(uow.jobs)
 
@@ -822,7 +829,8 @@ async def test_restore_restart_jobs():
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
     job.demo_id = demo.id
 
-    await services.restore(uow)
+    command = commands.Restore()
+    await services.restore(command=command, uow=uow)
 
     event = uow.events[0]
     assert isinstance(event, events.JobReadyForSelect)
@@ -840,7 +848,8 @@ async def test_restore_unqueued_demos_matchinfo(matchinfo_send):
 
     uow = FakeUnitOfWork(demos=[demo])
 
-    await services.restore(uow)
+    command = commands.Restore()
+    await services.restore(command=command, uow=uow)
 
     matchinfo_send.assert_awaited_once()
 
@@ -856,7 +865,8 @@ async def test_restore_unqueued_demos_demoparse(demoparse_send):
 
     uow = FakeUnitOfWork(demos=[demo])
 
-    await services.restore(uow)
+    command = commands.Restore()
+    await services.restore(command=command, uow=uow)
 
     demoparse_send.assert_awaited_once()
 
@@ -883,7 +893,8 @@ async def test_restore_queued_demos(matchinfo_send, demoparse_send):
 
     uow = FakeUnitOfWork(demos=[demo_one, demo_two, demo_three])
 
-    await services.restore(uow)
+    command = commands.Restore()
+    await services.restore(command=command, uow=uow)
 
     matchinfo_send.assert_awaited_once()
     demoparse_send.assert_awaited_once()
