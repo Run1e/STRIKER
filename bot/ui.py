@@ -351,7 +351,7 @@ class ConfigView(disnake.ui.View):
         )
         e.add_field(name="Vibrancy filter", value="Enable the video filter", inline=False)
         e.add_field(name="cl_righthand", value="Enable for right handed gun wielding", inline=False)
-        e.add_field(name="Use player crosshair", value="Use the players crosshair", inline=False)
+        e.add_field(name="Use demo crosshair", value="Use the crosshair of the player being recorded", inline=False)
 
         return e
 
