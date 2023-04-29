@@ -320,7 +320,7 @@ class ConfigView(disnake.ui.View):
             fragmovie="Clean HUD",
             color_filter="Vibrancy filter",
             righthand="cl_righthand",
-            use_demo_crosshair="Use player crosshair",
+            use_demo_crosshair="Use demo crosshair",
         ).get(k, k)
 
     def embed(self):
@@ -330,10 +330,21 @@ class ConfigView(disnake.ui.View):
 
         e.set_author(name="STRIKER Donor Configurator", icon_url=self.inter.bot.user.display_avatar)
 
-        cc = self.user.crosshair_code
+
+        if self.user.use_demo_crosshair:
+            if self.user.crosshair_code:
+                crosshair_text = "**using crosshair from demo (not crosshair sharecode)**"
+            else:
+                crosshair_text = "using crosshair from demo"
+        elif self.user.crosshair_code is not None:
+            crosshair_text = self.user.crosshair_code
+        else:
+            crosshair_text = "Default"
+
         e.description = (
-            f"Thank you for your support.\n\nCrosshair: {cc if cc is not None else 'Default'}"
+            f"Thank you for your support.\n\nCrosshair: {crosshair_text}"
         )
+
 
         e.add_field(
             name="Clean HUD", value="Hide HUD except for killfeed and crosshair", inline=False
@@ -348,7 +359,7 @@ class ConfigView(disnake.ui.View):
         value = self.user.get(button.key)
         self.user.set(button.key, not value)
         button.set_state(not value)
-        await inter.response.edit_message(view=self)
+        await inter.response.edit_message(embed=self.embed(), view=self)
 
     async def send_crosshair_modal(self, inter: disnake.MessageInteraction):
         await inter.response.send_modal(
