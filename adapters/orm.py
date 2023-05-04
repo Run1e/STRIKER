@@ -4,6 +4,7 @@ from uuid import uuid4
 import sqlalchemy as sa
 import sqlalchemy.ext.asyncio as aio
 import sqlalchemy.orm as orm
+from sqlalchemy import event
 from bot import config
 from domain.enums import DemoGame, DemoState, JobState, RecordingType, DemoOrigin
 from domain.domain import Demo, Job, Recording, User
@@ -77,6 +78,14 @@ engine: aio.AsyncEngine = aio.create_async_engine(
 Session = orm.sessionmaker(
     engine, autocommit=False, expire_on_commit=False, class_=aio.AsyncSession
 )
+
+
+# @event.listens_for(Job, "load")
+# @event.listens_for(Demo, "load")
+# @event.listens_for(User, "load")
+# @event.listens_for(Recording, "load")
+# def model_load(instance, _):
+#     instance.event = []
 
 
 async def start_orm():

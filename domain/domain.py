@@ -14,6 +14,15 @@ class Entity:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id}>"
 
+    def add_event(self, event: events.Event):
+        self.events.append(event)
+
+    @property
+    def events(self):
+        if not hasattr(self, "_events"):
+            self._events = []
+        return self._events
+
 
 class Demo(Entity):
     def __init__(
@@ -44,8 +53,6 @@ class Demo(Entity):
         self.data_version = data_version
         self.data = data
 
-        self.events = []
-
     def has_download_url(self):
         return self.download_url is not None
 
@@ -61,15 +68,15 @@ class Demo(Entity):
 
     def failed(self, reason):
         self.state = DemoState.FAILED
-        self.events.append(events.DemoFailure(self.id, reason))
+        self.add_event(events.DemoFailure(self.id, reason))
 
     def processing(self):
         self.state = DemoState.PROCESSING
-        self.events.append(events.DemoProcessing(self.id))
+        self.add_event(events.DemoProcessing(self.id))
 
     def ready(self):
         self.state = DemoState.READY
-        self.events.append(events.DemoReady(self.id))
+        self.add_event(events.DemoReady(self.id))
 
     def set_demo_data(self, data, version):
         data = json.loads(data)
@@ -90,8 +97,6 @@ class Recording(Entity):
         self.recording_type = recording_type
         self.player_xuid = player_xuid
         self.round_id = round_id
-
-        self.events = []
 
 
 # this job class is discord-specific
@@ -120,8 +125,6 @@ class Job(Entity):
         self.inter_payload = inter_payload
         self.completed_at = completed_at
 
-        self.events = []
-
     def set_demo(self, demo: Demo):
         self.demo = demo
 
@@ -130,11 +133,11 @@ class Job(Entity):
 
     def demo_ready(self):
         self.state = JobState.SELECTING
-        self.events.append(events.JobSelecting(self.id))
+        self.add_event(events.JobSelecting(self.id))
 
     def failed(self, reason: str):
         self.state = JobState.FAILED
-        self.events.append(events.JobFailure(self.id, reason))
+        self.add_event(events.JobFailure(self.id, reason))
 
     def make_dto(self):
         self.events

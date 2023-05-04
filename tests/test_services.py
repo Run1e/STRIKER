@@ -288,7 +288,7 @@ async def test_demo_step_can_record():
     uow = FakeUnitOfWork(demos=[demo])
 
     async with uow:
-        await services.handle_demo_step(demo=demo)
+        await services.handle_demo_step(demo=demo, publish=AsyncMock())
 
     assert not uow.committed
 
@@ -312,6 +312,7 @@ async def test_demoparse_success():
     publish = AsyncMock()
     bus = await create_bus(uow, dict(publish=publish))
 
+    job.demo = demo
     job.demo_id = demo.id
 
     version = 1
