@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from . import events
+from .deco import publish, consume
+
 
 class Command:
     pass
@@ -15,6 +18,7 @@ class CreateJob(Command):
     sharecode: str = None
     demo_id: int = None
 
+
 @dataclass(frozen=True, repr=False)
 class AbortJob(Command):
     job_id: UUID
@@ -26,6 +30,14 @@ class RequestMatchInfo(Command):
 
 
 @dataclass(frozen=True)
+@publish(ttl=5.0, dead_event=events.DemoParseTimeout)
+@consume(
+    error_factory=lambda message, error: events.DemoParseFailure(
+        message.origin, message.identifier, error or "Unable to download/parse demo."
+    ),
+    requeue=True,
+    raise_on_ok=False,
+)
 class RequestDemoParse(Command):
     origin: str
     identifier: str

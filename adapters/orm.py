@@ -5,7 +5,8 @@ import sqlalchemy as sa
 import sqlalchemy.ext.asyncio as aio
 import sqlalchemy.orm as orm
 from bot import config
-from domain.domain import Demo, DemoGame, DemoState, Job, JobState, RecordingType, Recording, User, DemoOrigin
+from domain.enums import DemoGame, DemoState, JobState, RecordingType, DemoOrigin
+from domain.domain import Demo, Job, Recording, User
 from sqlalchemy.dialects import postgresql as pg
 
 log = logging.getLogger(__name__)

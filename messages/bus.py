@@ -1,33 +1,11 @@
-import asyncio
 import logging
-from collections import defaultdict, deque
+from collections import defaultdict
 from functools import partial
 from inspect import signature
 
-from messages import commands, events
-
-deco_command_handlers = dict()
-deco_event_listeners = defaultdict(set)
-
+from . import commands, events, deco
 log = logging.getLogger(__name__)
 
-
-def handler(command: commands.Command):
-    def wrapper(f):
-        if f in deco_command_handlers:
-            raise ValueError(f"Command {command} already has a handler")
-        deco_command_handlers[command] = f
-        return f
-
-    return wrapper
-
-
-def listener(event: events.Event):
-    def wrapper(f):
-        deco_event_listeners[event].add(f)
-        return f
-
-    return wrapper
 
 
 class MessageBus:
@@ -55,14 +33,10 @@ class MessageBus:
         await handler(command)
 
     async def dispatch_event(self, event: events.Event):
-        listeners = self.event_listeners.get(type(event), None)
-        if listeners is not None:
-            log.info("Dispatching event to %s listeners: %s", len(listeners), event)
-
-            for listener in listeners:
-                # TODO: can be changed back to asyncio.gather later
-                # this is just more useful for debugging as we can track down exceptions
-                await listener(event)
+        listeners = self.event_listeners.get(type(event), [])
+        log.info("Dispatching event to %s listeners: %s", len(listeners), event)
+        for listener in listeners:
+            await listener(event)
 
     async def run_message(self, func, message, needs_uow, deps):
         if needs_uow:
@@ -76,12 +50,15 @@ class MessageBus:
                 await self.dispatch(message)
 
     def add_decos(self):
-        for command, handler in deco_command_handlers.items():
+        for command, handler in deco.command_handlers.items():
             self.add_command_handler(command, handler)
 
-        for event, listeners in deco_event_listeners.items():
+        for event, listeners in deco.event_listeners.items():
             for listener in listeners:
                 self.add_event_listener(event, listener)
+
+    def add_dependencies(self, **kwargs):
+        self.dependencies.update(kwargs)
 
     def add_command_handler(self, command, handler):
         if command in self.command_handlers:
@@ -107,8 +84,8 @@ class MessageBus:
         }
 
     @property
-    def in_use_messages(self):
-        return set(self.command_handlers) + set(self.event_listeners)
+    def consuming_messages(self):
+        return set(self.command_handlers).union(set(self.event_listeners))
 
 
 """

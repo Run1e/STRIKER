@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from adapters import orm
+from messages.broker import Broker
 from messages.bus import MessageBus
 from bot import bot, config
 from services.uow import SqlUnitOfWork
@@ -26,9 +27,15 @@ async def bootstrap(
         log.info("publish: %s", message)
 
     bus = MessageBus(
-        dependencies=dict(publish=publish, sharecode_resolver=steam_gc.get_download_link),
+        dependencies=dict(sharecode_resolver=steam_gc.get_download_link),
         uow_factory=lambda: uow_type(),
     )
+
+    broker = Broker(bus)
+
+    bus.add_dependencies(publish=broker.publish)
+    bus.add_decos()
+
 
     if start_bot:
         bot_instance = bot.start_bot(bus)
@@ -36,7 +43,9 @@ async def bootstrap(
 
     log.info("Ready to bot!")
 
-    bus.add_decos()
+
+    await broker.start(config.RABBITMQ_HOST)
+
 
     # this restarts any jobs that were in selectland
     # within the last 12 (at the time of writing, anyway)
@@ -49,6 +58,8 @@ async def bootstrap(
 
 def main():
     loop = asyncio.get_event_loop()
+
+    logging.getLogger("aiormq.connection").setLevel(logging.INFO)
 
     coro = bootstrap(
         uow_type=SqlUnitOfWork,

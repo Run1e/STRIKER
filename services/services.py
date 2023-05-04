@@ -1,15 +1,14 @@
 import asyncio
-import json
 import logging
-from datetime import datetime, timezone
 from typing import List
 from uuid import UUID, uuid4
 
 from bot import sequencer
-from domain.domain import (Demo, DemoGame, DemoOrigin, DemoState, Job,
-                           JobState, Player, Recording, RecordingType, User)
-from messages import commands, events
-from messages.bus import handler, listener
+from domain.domain import Demo, Job, User
+from domain.enums import DemoGame, DemoOrigin, DemoState, JobState
+from domain.demo_events import DemoEvents
+from messages import commands, dto, events
+from messages.deco import handler, listener
 from services.uow import SqlUnitOfWork
 from shared.const import DEMOPARSE_VERSION
 from shared.utils import utcnow
@@ -52,7 +51,7 @@ async def create_job(
                         identifier=str(
                             matchid
                         ),  # kinda hacky but valve is the only to use an int so
-                        time=datetime.fromtimestamp(matchtime, timezone.utc),
+                        time=matchtime,
                         download_url=url,
                     )
 
@@ -139,6 +138,18 @@ async def demo_failure(event: events.DemoFailure, uow: SqlUnitOfWork):
             job.failed(event.reason)
 
         await uow.commit()
+
+
+@listener(events.JobSelecting)
+async def job_selecting(event: events.JobSelecting, uow: SqlUnitOfWork):
+    async with uow:
+        job = await uow.jobs.get(event.job_id)
+        if job is None:
+            return
+
+        uow.add_message(
+            dto.JobSelectable(job.id, job.state, job.inter_payload, DemoEvents(job.demo.data))
+        )
 
 
 @listener(events.DemoParseSuccess)

@@ -6,7 +6,8 @@ from typing import List
 import disnake
 from tabulate import tabulate
 
-from domain.domain import Death, Job, Player, User
+from domain.domain import Job, User
+from domain.demo_events import Death, Player
 
 from .area import places
 from .sharecode import is_valid_sharecode

@@ -4,7 +4,8 @@ from typing import List
 from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.domain import Demo, DemoState, Job, JobState, User
+from domain.domain import Demo, Job, User
+from domain.enums import DemoState, JobState
 
 INTERACTION_MINUTES = 15
 
@@ -88,7 +89,7 @@ class DemoRepository(SqlRepository):
 
     async def from_sharecode(self, sharecode: str) -> Demo:
         """Gets demo from a sharecode"""
-        stmt = select(Demo).where(Demo.valve_sharecode == sharecode).limit(1)
+        stmt = select(Demo).where(Demo.sharecode == sharecode).limit(1)
         return await self.session.scalar(stmt)
 
     async def user_associated(self, user_id: int) -> List[Demo]:

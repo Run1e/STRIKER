@@ -2,7 +2,9 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from .events import Event
-from domain.domain import DemoEvents, JobState
+from domain.enums import JobState
+from domain.demo_events import DemoEvents
+
 
 
 class DTO(Event):

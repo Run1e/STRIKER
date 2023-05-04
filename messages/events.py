@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from bot import config
+from messages.deco import consume
 
 
 class Event:
@@ -45,6 +46,7 @@ class JobFailure(Event):
 # repr removed because it caused a fuckton of
 # console spam
 @dataclass(frozen=True, repr=config.DUMP_EVENTS)
+@consume()
 class DemoParseSuccess(Event):
     origin: str
     identifier: str
@@ -53,9 +55,16 @@ class DemoParseSuccess(Event):
 
 
 @dataclass(frozen=True)
+@consume()
 class DemoParseFailure(Event):
     origin: str
     identifier: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class DemoParseTimeout(Event):
+    command: None
     reason: str
 
 

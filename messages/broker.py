@@ -1,3 +1,4 @@
+import logging
 from dataclasses import asdict
 from functools import partial
 from json import dumps, loads
@@ -5,107 +6,198 @@ from uuid import uuid4
 
 import aiormq
 
-from . import bus, commands, events
+from . import bus, commands, deco, events
 
-queue_args = dict()
+log = logging.getLogger(__name__)
 
 
-def queue(ttl=None, timeout_event=None):
-    def inner(message):
-        queue_args[message] = dict(ttl=ttl, timeout_event=timeout_event)
-        return message
-
-    return inner
+class MessageError(Exception):
+    pass
 
 
 class Broker:
     def __init__(self, bus: bus.MessageBus) -> None:
         self.bus = bus
-        self.publish_props = dict()
 
-    async def channel_setup(self, channel: aiormq.abc.AbstractChannel, messages: list):
+        self.channel: aiormq.Channel = None
+        self.publish_setup_completed = set()
+
+    async def start(self, connect_uri: str):
+        mq = await aiormq.connect(connect_uri)
+        channel = await mq.channel()
+
         self.channel = channel
+        await self.setup(channel)
 
-        await self.channel.exchange_declare(
-            exchange="command",
-            exchange_type="direct",
-            durable=True,
-            auto_delete=False,
-        )
+    async def setup(self, channel: aiormq.abc.AbstractChannel):
+        for exchange_name in ("command", "event", "dead"):
+            await channel.exchange_declare(
+                exchange=exchange_name,
+                exchange_type="direct",
+                durable=True,
+                auto_delete=False,
+            )
 
-        await self.channel.exchange_declare(
-            exchange="event",
-            exchange_type="direct",
-            durable=True,
-            auto_delete=False,
-        )
+        instance_id = str(uuid4())[:8]
 
-        for message in self.bus.in_use_messages:
-            args = queue_args.get(message, None)
+        for message_type in self.bus.consuming_messages:
+            args = deco.consume_args.get(message_type, None)
             if args is None:
                 continue
 
-            ttl = args["ttl"]
-            self.publish_props[message] = dict(expiration=None if ttl is None else int(ttl * 1000))
+            routing_key = message_type.__name__
 
-            if isinstance(message, commands.Command):
+            if issubclass(message_type, commands.Command):
                 exchange = "command"
-            elif isinstance(message, events.Event):
+                queue_name = routing_key
+                exclusive = False
+                auto_delete = False
+            elif issubclass(message_type, events.Event):
                 exchange = "event"
+                queue_name = f"{routing_key}-{instance_id}"
+                exclusive = True
+                auto_delete = True
 
-            await self._create_queue(message_type=message, exchange=exchange, **args)
+            # create the message queue
+            await self.channel.queue_declare(
+                queue=queue_name,
+                exclusive=exclusive,
+                auto_delete=auto_delete,
+            )
 
-    async def _create_queue(self, message_type, exchange=None, ttl=None, timeout_event=None):
-        # message type has a handler/listener in this process,
-        # so we need to make sure the queue exists,
-        # and then make the consume call
+            # bind the queue to its related exchange
+            await self.channel.queue_bind(
+                queue=queue_name, exchange=exchange, routing_key=routing_key
+            )
+
+            # consume from the queue
+            await self.channel.basic_consume(
+                queue_name,
+                partial(self.recv, message_type, **args),
+            )
+
+    async def _prepare_publish(self, message_type, dead_event):
+        if issubclass(message_type, commands.Command):
+            exchange = "command"
+        elif issubclass(message_type, events.Event):
+            exchange = "event"
 
         queue_name = message_type.__name__
-        dlx_queue_name = f"{queue_name}-dlx"
-        arguments = dict()
+        dlx_queue_name = f"{queue_name}-dead"
+        queue_args = dict()
 
-        if timeout_event:
-            arguments["x-dead-letter-exchange"] = exchange
-            arguments["x-dead-letter-routing-key"] = dlx_queue_name
+        if dead_event:
+            await self.channel.queue_declare(
+                queue=dlx_queue_name,
+                exclusive=False,
+                auto_delete=False,
+            )
 
-        # declare the main queue with dlx if timeout_event is specified
+            queue_args["x-dead-letter-exchange"] = "dead"
+            queue_args["x-dead-letter-routing-key"] = dlx_queue_name
+
+        # create the message queue
         await self.channel.queue_declare(
             queue=queue_name,
-            arguments=arguments,
-            exclusive=True,
-            auto_delete=True,
+            arguments=queue_args,
+            exclusive=False,
+            auto_delete=False,
         )
 
+        # bind the queue to its related exchange
         await self.channel.queue_bind(queue=queue_name, exchange=exchange, routing_key=queue_name)
 
-        # since this is called if we have a handler for the message, just start consuming
-        await self.channel.basic_consume(queue_name, partial(self.recv, message_type))
+        # and the dlx is applicable
+        if dead_event:
+            # bind the dlx queue to its related exchange
+            await self.channel.queue_bind(
+                queue=dlx_queue_name, exchange="dead", routing_key=dlx_queue_name
+            )
 
-        # also consume from the dlx if we configured out
-        if timeout_event:
-            await self.channel.basic_consume(dlx_queue_name, partial(self.recv, message_type))
+            await self.channel.basic_consume(
+                dlx_queue_name, partial(self.recv_dead, message_type, dead_event)
+            )
 
     async def publish(self, message):
-        queue_name = message.__name__
+        message_type = type(message)
+
+        args = deco.publish_args.get(message_type, None)
+        if not args:
+            raise ValueError(
+                "Attempted to publish message of type %s but no publish args set up", message_type
+            )
+
+        queue_name = message_type.__name__
         data = asdict(message)
 
+        ttl = args["ttl"]
+        dead_event = args["dead_event"]
+
         if isinstance(message, commands.Command):
-            # if message not in self.publish_setup_completed:
-            #     await self._pre_publish_setup(message, **queue_args.get(message, {}))
+            if message_type not in self.publish_setup_completed:
+                await self._prepare_publish(message_type, dead_event=dead_event)
+                self.publish_setup_completed.add(message_type)
 
             exchange = "command"
         else:
             exchange = "event"
 
+        log.info("Publishing to exchange '%s': %s", exchange, message)
+
         conf = await self.channel.basic_publish(
             body=dumps(data).encode("utf-8"),
             exchange=exchange,
             routing_key=queue_name,
-            properties=aiormq.spec.Basic.Properties(**self.publish_args.get(type(message), {})),
+            properties=aiormq.spec.Basic.Properties(expiration=str(int(ttl * 1000))),
         )
 
         return conf
 
-    async def recv(self, message_type, message: aiormq.abc.DeliveredMessage):
-        body = loads(message.body)
-        await self.bus.dispatch(message_type(**body))
+    async def recv_dead(self, message_type, dead_event, message: aiormq.abc.DeliveredMessage):
+        log.info(
+            "Consuming dead letter of type %s from exchange '%s'", message_type, message.exchange
+        )
+
+        command = message_type(**loads(message.body))
+        event = dead_event(
+            command=command, reason=message.header.properties.headers["x-first-death-reason"]
+        )
+
+        await self.bus.dispatch(event)
+        await self.ack(message)
+
+    async def recv(
+        self,
+        message_type,
+        error_factory: callable,
+        requeue: bool,
+        raise_on_ok: bool,
+        message: aiormq.abc.DeliveredMessage,
+    ):
+        try:
+            msg = message_type(**loads(message.body))
+            log.info("Consuming type %s on exchange '%s'", message_type, message.exchange)
+            await self.bus.dispatch(msg)
+        except Exception as exc:
+            is_ok = isinstance(exc, MessageError)
+
+            if requeue and not message.redelivered:
+                await self.nack(message, requeue=True)
+            else:
+                if error_factory:
+                    await self.publish(error_factory(msg, str(exc) if is_ok else None))
+                await self.ack(message)
+
+            if is_ok and not raise_on_ok:
+                return True
+        else:
+            await self.ack(message)
+
+    async def ack(self, message: aiormq.abc.DeliveredMessage):
+        await self.channel.basic_ack(message.delivery.delivery_tag)
+
+    async def nack(self, message: aiormq.abc.DeliveredMessage, requeue: bool):
+        await self.channel.basic_nack(
+            message.delivery.delivery_tag,
+            requeue=requeue,
+        )

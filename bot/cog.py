@@ -3,7 +3,6 @@ import logging
 import pickle
 import re
 from functools import partial
-from uuid import UUID, uuid4
 
 import disnake
 from disnake.ext import commands, tasks
@@ -11,9 +10,11 @@ from rapidfuzz import fuzz, process
 from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
-from domain.domain import DemoEvents, Job, JobState, Player, User
+from domain.domain import Job, User
+from domain.enums import JobState
+from domain.demo_events import Player
 from messages import commands as cmds
-from messages import dto, events
+from messages import dto
 from messages.bus import MessageBus
 from services import services
 from services.uow import SqlUnitOfWork
