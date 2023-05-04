@@ -48,9 +48,7 @@ async def create_job(
                         origin=DemoOrigin.VALVE,
                         state=DemoState.PROCESSING,
                         sharecode=command.sharecode,
-                        identifier=str(
-                            matchid
-                        ),  # kinda hacky but valve is the only to use an int so
+                        identifier=str(matchid),  # hacky
                         time=matchtime,
                         download_url=url,
                     )

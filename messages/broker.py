@@ -192,8 +192,9 @@ class Broker:
                     await self.publish(error_factory(msg, str(exc) if is_ok else None))
                 await self.ack(message)
 
-            if is_ok and not raise_on_ok:
-                return True
+            if not is_ok or raise_on_ok:
+                raise exc
+            
         else:
             await self.ack(message)
 

@@ -139,8 +139,8 @@ async def create_bus(uow: FakeUnitOfWork, dependencies=None) -> MessageBus:
 @pytest.mark.asyncio
 async def test_new_job_sharecode(new_job_junk):
     matchid = 1337
-    matchtime = 1520689874
-    url = ("http://replay184.valve.net/730/003265661444162584623_2064223309.dem.bz2",)
+    matchtime = datetime.fromtimestamp(1520689874, timezone.utc)
+    url = "http://replay184.valve.net/730/003265661444162584623_2064223309.dem.bz2"
     sharecode = "not a sharecode"
 
     uow = FakeUnitOfWork()

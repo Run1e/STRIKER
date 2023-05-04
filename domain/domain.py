@@ -139,8 +139,6 @@ class Job(Entity):
         self.state = JobState.FAILED
         self.add_event(events.JobFailure(self.id, reason))
 
-    def make_dto(self):
-        self.events
 
 
 class User(Entity):
