@@ -1,11 +1,12 @@
 import asyncio
 import logging
 
-from adapters import broker, orm
+from adapters import orm
+from messages.bus import MessageBus
 from bot import bot, config
-from services import services
 from services.uow import SqlUnitOfWork
 from shared.log import logging_config
+from adapters import steam_gc
 
 logging_config(config.DEBUG)
 
@@ -13,37 +14,46 @@ log = logging.getLogger(__name__)
 
 
 async def bootstrap(
+    uow_type,
     start_orm: bool,
     start_bot: bool,
-    start_broker: bool,
     restore: bool,
-):
+) -> MessageBus:
     if start_orm:
         await orm.start_orm()
 
+    async def publish(message):
+        log.info("publish: %s", message)
+
+    bus = MessageBus(
+        dependencies=dict(publish=publish, sharecode_resolver=steam_gc.get_download_link),
+        uow_factory=lambda: uow_type(),
+    )
+
     if start_bot:
-        bot_instance = bot.start_bot()
+        bot_instance = bot.start_bot(bus)
         await bot_instance.wait_until_ready()
 
-    if start_broker:
-        await broker.start_brokers()
-
     log.info("Ready to bot!")
+
+    bus.add_decos()
 
     # this restarts any jobs that were in selectland
     # within the last 12 (at the time of writing, anyway)
     # minutes last we restarted
-    if restore:
-        await services.restore(uow=SqlUnitOfWork())
+    # if restore:
+    #     await messagebus.dispatch(commands.Restore())
+
+    return bus
 
 
 def main():
     loop = asyncio.get_event_loop()
 
     coro = bootstrap(
+        uow_type=SqlUnitOfWork,
         start_orm=True,
         start_bot=True,
-        start_broker=True,
         restore=True,
     )
 

@@ -3,6 +3,7 @@ import logging
 import pickle
 import re
 from functools import partial
+from uuid import UUID, uuid4
 
 import disnake
 from disnake.ext import commands, tasks
@@ -10,15 +11,17 @@ from rapidfuzz import fuzz, process
 from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
-from domain import events
-from domain.domain import Job, JobState, Player, User
-from services import bus, services
+from domain.domain import DemoEvents, Job, JobState, Player, User
+from messages import commands as cmds
+from messages import dto, events
+from messages.bus import MessageBus
+from services import services
 from services.uow import SqlUnitOfWork
 from shared.utils import TimedDict
 
 from . import config
 from .errors import SponsorRequired
-from .ui import ConfigButton, ConfigView, PlayerView, RoundView
+from .ui import ConfigView, PlayerView, RoundView
 
 log = logging.getLogger(__name__)
 
@@ -31,9 +34,43 @@ def patched_init(original):
     return patched
 
 
+# monkey patch appcmdinter's init so it stores its payload data
+# so we can store it ourselves later
 disnake.ApplicationCommandInteraction.__init__ = patched_init(
     disnake.ApplicationCommandInteraction.__init__
 )
+
+
+def make_inter(inter_payload: bytes, bot: commands.InteractionBot) -> disnake.AppCommandInteraction:
+    return disnake.ApplicationCommandInteraction(
+        data=pickle.loads(inter_payload), state=bot._connection
+    )
+
+
+def job_embed(job_id, job_state, bot: commands.InteractionBot) -> disnake.Embed:
+    color = {
+        JobState.WAITING: disnake.Color.orange(),
+        JobState.SELECTING: disnake.Color.blurple(),
+        JobState.RECORDING: disnake.Color.orange(),
+        JobState.SUCCESS: disnake.Color.green(),
+        JobState.FAILED: disnake.Color.red(),
+        JobState.ABORTED: disnake.Color.red(),
+    }.get(job_state, disnake.Color.blurple())
+
+    title = {
+        JobState.WAITING: "Demo queued",
+        JobState.SELECTING: "Select what you want to record",
+        JobState.RECORDING: "Recording queued",
+        JobState.SUCCESS: "Job completed, enjoy!",
+        JobState.FAILED: "Oops!",
+        JobState.ABORTED: "Job aborted",
+    }.get(job_state, None)
+
+    e = disnake.Embed(color=color)
+    e.set_author(name=title, icon_url=bot.user.display_avatar)
+    e.set_footer(text=f"ID: {job_id}")
+
+    return e
 
 
 def not_maintenance():
@@ -105,6 +142,7 @@ job_perms = dict(send_messages=True, read_messages=True, embed_links=True, attac
 class RecorderCog(commands.Cog):
     def __init__(self, bot):
         self.bot: commands.InteractionBot = bot
+        self.bus: MessageBus = bot.bus
         self.job_tasks = dict()  # Job.id -> (task, cancellable)
 
         # holds values for 10 seconds between get and sets
@@ -112,9 +150,9 @@ class RecorderCog(commands.Cog):
         self._autocomplete_mapping = dict()  # desc_desc: demo.id
         self._autocomplete_user_mapping = dict()  # user.id: demo_desc
 
-        bus.register_instance(self)
+        # self.archive_task.start()
 
-        self.archive_task.start()
+        self.bus.add_event_listener(dto.JobSelectable, self.start_select)
 
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True)
@@ -275,7 +313,7 @@ class RecorderCog(commands.Cog):
 
         await inter.response.defer(ephemeral=True)
 
-        await services.new_job(
+        await services.create_job(
             uow=SqlUnitOfWork(),
             guild_id=inter.guild.id,
             channel_id=inter.channel.id,
@@ -332,13 +370,14 @@ class RecorderCog(commands.Cog):
 
         await inter.response.defer(ephemeral=True)
 
-        await services.new_job(
-            uow=SqlUnitOfWork(),
-            guild_id=inter.guild.id,
-            channel_id=inter.channel.id,
-            user_id=inter.user.id,
-            inter_payload=pickle.dumps(inter._payload),
-            sharecode=sharecode,
+        await self.bus.dispatch(
+            cmds.CreateJob(
+                guild_id=inter.guild.id,
+                channel_id=inter.channel.id,
+                user_id=inter.user.id,
+                inter_payload=pickle.dumps(inter._payload),
+                sharecode=sharecode,
+            )
         )
 
     @commands.slash_command(
@@ -450,112 +489,31 @@ class RecorderCog(commands.Cog):
 
         await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons))
 
-    @bus.mark(events.MatchInfoProgression)
-    @bus.mark(events.DemoParseProgression)
-    async def demo_progression(self, event: events.Event):
-        jobs = await services.get_jobs_waiting_for_demo(uow=SqlUnitOfWork(), demo_id=event.id)
-        for job in jobs:
-            await self.job_event(job, event)
-
-    @bus.mark(events.RecorderProgression)
-    async def job_progression(self, event: events.Event):
-        job = await services.get_job(uow=SqlUnitOfWork(), job_id=event.id)
-        await self.job_event(job, event)
-
-    async def job_event(self, job: Job, event: events.Event):
-        # we only care about these enqueued/processing events if the
-        # job state is *actually* RECORD.
-        # if they're not, more important stuff is likely happening
-        if job.state not in (JobState.DEMO, JobState.RECORD):
-            log.warn("Ignoring event because of state %s: %s", job.state, event)
-            return
-
-        inter = job.make_inter(self.bot)
-        message = await inter.original_message()
-
-        embed = job.embed(self.bot)
-
-        # get current enqueued/processing task
-        # if it's cancellable, cancel it before running this task
-        current_task: asyncio.Task
-        current_task_tuple = self.job_tasks.get(job.id, None)
-        if current_task_tuple is not None:
-            current_task, current_event = self.job_tasks[job.id]
-            current_task_done = current_task.done()
-
-            if not current_task_done:
-                log.warn("%s cancelled by %s for job %s", current_event, event, job.id)
-                current_task.cancel()
-
-        self.job_tasks[job.id] = (
-            asyncio.create_task(self.event_progression(message, embed, event)),
-            event,
-        )
-
-    async def event_progression(
-        self,
-        message: disnake.InteractionMessage,
-        embed: disnake.Embed,
-        event: events.Event,
-    ):
-        infront = event.infront
-
-        desc = {
-            events.MatchInfoProgression: "Fetching match information...",
-            events.DemoParseProgression: "Downloading and parsing demo...",
-            events.RecorderProgression: (
-                "Recording now!",
-                f"#{event.infront + 1} in the recording queue",
-            )[int(infront > 0)],
-        }.get(event.__class__)
-
-        embed.description = f"{config.SPINNER} {desc}"
-        await message.edit(content=None, embed=embed, view=None)
-
-    @bus.mark(events.JobMatchInfoFailed)
-    @bus.mark(events.JobDemoParseFailed)
-    @bus.mark(events.JobRecordingFailed)
-    @bus.mark(events.JobUploadFailed)
-    async def job_failed(self, event: events.Event):
-        job: Job = event.job
-        inter: disnake.AppCmdInter = job.make_inter(self.bot)
-        embed = job.embed(self.bot)
-
-        message = await inter.original_message()
-
-        embed.description = event.reason
-        await message.edit(content=None, embed=embed, view=None)
-
-    @bus.mark(events.JobReadyForSelect)
-    async def start_select(self, event: events.JobReadyForSelect):
-        job = event.job
-        inter = job.make_inter(self.bot)
-
-        # ensure demo has been parsed
-        job.demo.parse()
+    async def start_select(self, event: dto.JobSelectable):
+        inter = make_inter(event.job_inter)
 
         # also clear this users demo cache
         if inter.author.id in self._demo_cache:
             del self._demo_cache[inter.author.id]
 
-        await self.select_player(job, inter)
+        await self.select_player(event, inter)
 
-    async def select_player(self, job: Job, inter: disnake.Interaction):
+    async def select_player(self, event: dto.JobSelectable, inter: disnake.AppCmdInter):
         view = PlayerView(
-            job=job,
-            player_callback=partial(self.select_round, job),
-            abort_callback=partial(self.abort_job, job),
-            timeout_callback=partial(self.view_timeout, job),
+            demo_events=dto.demo_events,
+            player_callback=partial(self.select_round, event, inter),
+            abort_callback=partial(self.abort_job, event, inter),
+            timeout_callback=partial(self.view_timeout, event, inter),
             timeout=300.0,
         )
 
-        embed = job.embed(self.bot)
+        embed = job_embed(event.job_id, event.job_state, self.bot)
         embed.description = "Select a player you want to record a highlight from below."
 
         data = (
-            ("Map", job.demo.map),
-            ("Score", job.demo.score_string),
-            ("Date", job.demo.matchtime_string),
+            ("Map", event.demo_events.map),
+            ("Score", event.demo_events.score_string),
+            ("Date", event.demo_events.matchtime_string),
         )
         data_str = tabulate(
             tabular_data=data,
@@ -575,27 +533,26 @@ class RecorderCog(commands.Cog):
             message = await inter.original_message()
             await message.edit(**edit_kwargs)
 
-    async def abort_job(self, job: Job, inter: disnake.Interaction, reason=None):
-        await services.abort_job(uow=SqlUnitOfWork(), job=job)
+    async def abort_job(self, event: dto.JobSelectable, inter: disnake.Interaction, reason=None):
+        await self.bus.dispatch(cmds.AbortJob(event.job_id))
 
-        embed = job.embed(self.bot)
+        embed = job_embed(event.job_id, event.job_state, self.bot)
         embed.description = reason or "Aborted."
 
         await inter.response.edit_message(content=None, embed=embed, view=None)
 
-    async def view_timeout(self, job: Job):
-        await services.abort_job(uow=SqlUnitOfWork(), job=job)
+    async def view_timeout(self, event: dto.JobSelectable, inter: disnake.Interaction):
+        await self.bus.dispatch(cmds.AbortJob(event.job_id))
 
-        embed = job.embed(self.bot)
+        embed = job_embed(event.job_id, event.job_state, self.bot)
         embed.description = "Command timed out."
 
-        inter = job.make_inter(self.bot)
         message = await inter.original_message()
         await message.edit(content=None, embed=embed, view=None)
 
-    async def select_round(self, job: Job, inter: disnake.AppCmdInter, player: Player):
+    async def select_round(self, event: dto.JobSelectable, inter: disnake.Interaction, player: Player):
         view = RoundView(
-            round_callback=partial(self.record_highlight, job, player),
+            round_callback=partial(self.record_highlight, event, player),
             reselect_callback=partial(self.select_player, job),
             abort_callback=partial(self.abort_job, job),
             timeout_callback=partial(self.view_timeout, job),
@@ -633,26 +590,26 @@ class RecorderCog(commands.Cog):
             tier=await get_tier(self.bot, inter.author.id),
         )
 
-    @bus.mark(events.JobUploadSuccess)
-    async def job_upload_success(self, event: events.JobUploadSuccess):
-        job: Job = event.job
-        inter = job.make_inter(self.bot)
+    # @bus.mark(events.JobUploadSuccess)
+    # async def job_upload_success(self, event: events.JobUploadSuccess):
+    #     job: Job = event.job
+    #     inter = job.make_inter(self.bot)
 
-        try:
-            message = await inter.original_message()
-        except disnake.HTTPException:
-            return
+    #     try:
+    #         message = await inter.original_message()
+    #     except disnake.HTTPException:
+    #         return
 
-        embed = job.embed(self.bot)
-        embed.description = (
-            "If you want to record another highlight from a previously used demo, "
-            "use the `/demos` command and select the demo from the list."
-        )
+    #     embed = job.embed(self.bot)
+    #     embed.description = (
+    #         "If you want to record another highlight from a previously used demo, "
+    #         "use the `/demos` command and select the demo from the list."
+    #     )
 
-        try:
-            await message.edit(content=None, embed=embed, view=None)
-        except:
-            pass
+    #     try:
+    #         await message.edit(content=None, embed=embed, view=None)
+    #     except:
+    #         pass
 
 
 def setup(bot: commands.InteractionBot):

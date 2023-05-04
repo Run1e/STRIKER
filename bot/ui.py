@@ -37,20 +37,20 @@ class PlayerView(disnake.ui.View):
     def __init__(
         self,
         *,
-        job: Job,
+        demo_events,
         player_callback,
         abort_callback,
         timeout_callback,
         timeout=180.0,
     ):
         super().__init__(timeout=timeout)
-        self.job = job
+        self.demo_events = demo_events
         self.player_callback = player_callback
         self.abort_callback = abort_callback
         self.on_timeout = timeout_callback
 
         # team one starts as T, team two starts as CT
-        team_one, team_two = job.demo.teams
+        team_one, team_two = self.demo_events.teams
 
         for row, players in enumerate([team_two, team_one]):
             label = f"Team {row + 1}"
@@ -330,7 +330,6 @@ class ConfigView(disnake.ui.View):
 
         e.set_author(name="STRIKER Donor Configurator", icon_url=self.inter.bot.user.display_avatar)
 
-
         if self.user.use_demo_crosshair:
             if self.user.crosshair_code:
                 crosshair_text = "**using crosshair from demo (not crosshair sharecode)**"
@@ -341,17 +340,18 @@ class ConfigView(disnake.ui.View):
         else:
             crosshair_text = "Default"
 
-        e.description = (
-            f"Thank you for your support.\n\nCrosshair: {crosshair_text}"
-        )
-
+        e.description = f"Thank you for your support.\n\nCrosshair: {crosshair_text}"
 
         e.add_field(
             name="Clean HUD", value="Hide HUD except for killfeed and crosshair", inline=False
         )
         e.add_field(name="Vibrancy filter", value="Enable the video filter", inline=False)
         e.add_field(name="cl_righthand", value="Enable for right handed gun wielding", inline=False)
-        e.add_field(name="Use demo crosshair", value="Use the crosshair of the player being recorded", inline=False)
+        e.add_field(
+            name="Use demo crosshair",
+            value="Use the crosshair of the player being recorded",
+            inline=False,
+        )
 
         return e
 

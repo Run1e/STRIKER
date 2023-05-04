@@ -2,12 +2,15 @@ from random import randint
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from domain.domain import Demo, DemoState, Job, JobState
+
+from domain.domain import Demo, DemoGame, DemoOrigin, DemoState, Job, JobState
 from shared.const import DEMOPARSE_VERSION
 from shared.utils import utcnow
 
+from .data import demo_data
 
-def new_job(state):
+
+def create_job(state):
     job = Job(
         state=state,
         guild_id=0,
@@ -25,23 +28,24 @@ def random_matchid():
     return randint(1, 10_000)
 
 
-def new_demo(state, queued, sharecode, has_matchinfo, data=None):
-    demo = Demo(
-        state=state,
-        queued=queued,
-        sharecode=sharecode,
-    )
+def new_demo(
+    game=DemoGame.CSGO,
+    origin=DemoOrigin.VALVE,
+    state=DemoState.PROCESSING,
+    add_matchinfo=False,
+    add_data=False,
+    **kwargs,
+):
+    if add_matchinfo:
+        kwargs["identifier"] = str(random_matchid())
+        kwargs["time"] = utcnow()
+        kwargs["download_url"] = "not a real url"
 
-    if has_matchinfo:
-        demo.matchid = random_matchid()
-        demo.matchtime = utcnow()
-        demo.url = "not a real url"
+    if add_data:
+        kwargs["data"] = demo_data[0]
+        kwargs["data_version"] = DEMOPARSE_VERSION
 
-    if data:
-        demo.data = data
-        demo.version = DEMOPARSE_VERSION
-
-    return demo
+    return Demo(game=game, origin=origin, state=state, **kwargs)
 
 
 @pytest.fixture
@@ -56,39 +60,19 @@ def new_job_junk():
 
 @pytest.fixture
 def demo_job():
-    return new_job(JobState.DEMO)
+    return create_job(JobState.WAITING)
 
 
 @pytest.fixture
 def select_job():
-    return new_job(JobState.SELECT)
+    return create_job(JobState.SELECTING)
 
 
 @pytest.fixture
 def record_job():
-    return new_job(JobState.RECORD)
+    return create_job(JobState.RECORDING)
 
 
 @pytest.fixture
 def success_job():
-    return new_job(JobState.SUCCESS)
-
-
-@pytest.fixture
-def mock_send_raise(mocker):
-    return mocker.patch("adapters.broker.send", side_effect=Exception)
-
-
-@pytest.fixture
-def mock_call(mocker):
-    return mocker.patch("services.bus.call", side_effect=AsyncMock())
-
-
-@pytest.fixture
-def mock_call_raises(mocker):
-    return mocker.patch("services.bus.call", side_effect=AsyncMock(side_effect=Exception))
-
-
-@pytest.fixture
-def mock_dispatch(mocker):
-    return mocker.patch("services.bus.dispatch", side_effect=Mock())
+    return create_job(JobState.SUCCESS)

@@ -5,16 +5,16 @@ import disnake
 from disnake.ext import commands
 
 from bot import config
+from messages.bus import MessageBus
 
 EXTENSIONS = ("checks", "errors", "cog", "owner")
 log = logging.getLogger(__name__)
 
 
 class Bot(commands.AutoShardedInteractionBot):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, bus, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.log = log
+        self.bus: MessageBus = bus
 
         self.maintenance = False
         self.invite_permissions = disnake.Permissions(274878286912)
@@ -44,7 +44,7 @@ class Bot(commands.AutoShardedInteractionBot):
         )
 
 
-def start_bot():
+def start_bot(bus: MessageBus):
     log.info("Initializing bot")
 
     logging.getLogger("disnake").setLevel(logging.INFO)
@@ -70,7 +70,7 @@ def start_bot():
     if config.TEST_GUILDS:
         bot_kwargs["test_guilds"] = config.TEST_GUILDS
 
-    bot = Bot(**bot_kwargs)
+    bot = Bot(bus=bus, **bot_kwargs)
 
     for name in EXTENSIONS:
         log.info("Loading extension %s", name)

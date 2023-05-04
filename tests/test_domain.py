@@ -13,7 +13,7 @@ def test_demo_has_nothing():
     assert not demo.has_matchinfo()
     assert not demo.has_data()
     assert not demo.is_up_to_date()
-    assert not demo.can_record()
+    assert not demo.is_ready()
 
 
 def test_demo_has_matchinfo():
@@ -22,7 +22,7 @@ def test_demo_has_matchinfo():
     assert demo.has_matchinfo()
     assert not demo.has_data()
     assert not demo.is_up_to_date()
-    assert not demo.can_record()
+    assert not demo.is_ready()
 
 
 def test_demo_has_data():
@@ -37,7 +37,7 @@ def test_demo_has_data():
     assert demo.has_matchinfo()
     assert demo.has_data()
     assert demo.is_up_to_date()
-    assert demo.can_record()
+    assert demo.is_ready()
 
 
 def test_demo_is_out_of_date():
@@ -54,7 +54,7 @@ def test_demo_is_out_of_date():
     assert demo.has_matchinfo()
     assert demo.has_data()
     assert not demo.is_up_to_date()
-    assert not demo.can_record()
+    assert not demo.is_ready()
 
 
 def test_demo_misc():

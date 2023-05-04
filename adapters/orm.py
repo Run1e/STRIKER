@@ -5,7 +5,7 @@ import sqlalchemy as sa
 import sqlalchemy.ext.asyncio as aio
 import sqlalchemy.orm as orm
 from bot import config
-from domain.domain import Demo, DemoState, Job, JobState, RecordingType, Recording, User
+from domain.domain import Demo, DemoGame, DemoState, Job, JobState, RecordingType, Recording, User, DemoOrigin
 from sqlalchemy.dialects import postgresql as pg
 
 log = logging.getLogger(__name__)
@@ -16,17 +16,17 @@ demo_table = sa.Table(
     "demo",
     meta,
     sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+    sa.Column("game", pg.ENUM(DemoGame), unique=False, nullable=False),
+    sa.Column("origin", pg.ENUM(DemoOrigin), unique=False, nullable=False),
     sa.Column("state", pg.ENUM(DemoState), unique=False, nullable=False),
-    sa.Column("queued", sa.Boolean, nullable=False),
+    sa.Column("identifier", sa.TEXT, nullable=True),
     sa.Column("sharecode", sa.TEXT, unique=True),
-    sa.Column("matchid", sa.BigInteger, nullable=True),
-    sa.Column("matchtime", sa.DateTime(timezone=True), nullable=True),
-    sa.Column("url", sa.TEXT, nullable=True),
+    sa.Column("time", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("download_url", sa.TEXT, nullable=True),
     sa.Column("map", sa.TEXT, nullable=True),
-    sa.Column("protocol", sa.Integer, nullable=True),
-    sa.Column("version", sa.SmallInteger, nullable=True),
-    sa.Column("downloaded_at", sa.DateTime(timezone=True), nullable=True),
     sa.Column("score", pg.ARRAY(sa.SmallInteger), nullable=True),
+    sa.Column("downloaded_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("parsed_version", sa.SmallInteger, nullable=True),
     sa.Column("data", sa.JSON, nullable=True),
 )
 

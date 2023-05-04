@@ -1,36 +1,50 @@
+import json
 import pickle
 from collections import Counter, defaultdict, namedtuple
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum, auto
 from typing import List
 
 import disnake
 from disnake.ext import commands
 
+from messages import dto, events
 from shared.const import DEMOPARSE_VERSION
+
+demoevents_cache = dict()
 
 
 class JobState(Enum):
-    DEMO = auto()  # associated demo is currently processing
-    SELECT = auto()  # job is or can have user selecting
-    RECORD = auto()  # job is on record queue
-    UPLOAD = auto()  # job is on upload queue
+    WAITING = auto()  # associated demo is currently processing
+    SELECTING = auto()  # job is or can have user selecting
+    RECORDING = auto()  # job is on record queue
+    UPLOADING = auto()  # job is on upload queue
     ABORTED = auto()  # job was aborted by the user, view timeout, or job limit
     FAILED = auto()  # job failed for some reason
     SUCCESS = auto()  # job completed successfully
 
 
+class DemoGame(Enum):
+    CSGO = auto()
+    CS2 = auto()
+
+
+class DemoOrigin(Enum):
+    VALVE = auto()
+    FACEIT = auto()
+    UPLOAD = auto()
+
+
 class DemoState(Enum):
-    MATCH = auto()  # demo is or should be on matchinfo queue
-    PARSE = auto()  # demo is or should be on parse queue
+    PROCESSING = auto()
     FAILED = auto()  # demo failed, not recordable
-    SUCCESS = auto()  # demo successful, can be used by jobs
+    READY = auto()  # demo successful, can be used by jobs
     DELETED = auto()  # demo unavailable, archived/delete probably
 
 
 class RecordingType(Enum):
-    HIGHLIGHT = auto()
+    PLAYER_ROUND = auto()
 
 
 class Entity:
@@ -38,55 +52,200 @@ class Entity:
         return f"<{self.__class__.__name__} id={self.id}>"
 
 
-Player = namedtuple("Player", "xuid name userid fakeplayer")
-Death = namedtuple("Death", "tick victim attacker pos weapon")
-
-
 class Demo(Entity):
-    _parsed = False
-
     def __init__(
         self,
+        game: DemoGame,
+        origin: DemoOrigin,
         state: DemoState,
-        queued: bool,
-        sharecode: str,
-        matchid: int = None,
-        matchtime: datetime = None,
-        url: str = None,
+        identifier: str = None,
+        sharecode: str = None,
+        time: datetime = None,
+        download_url: str = None,
         map: str = None,
-        version: int = None,
-        downloaded_at: datetime = None,
         score: List[int] = None,
+        downloaded_at: datetime = None,
+        data_version: int = None,
         data: dict = None,
     ):
+        self.game = game
+        self.origin = origin
         self.state = state
-        self.queued = queued
+        self.identifier = identifier
         self.sharecode = sharecode
-        self.matchid = matchid
-        self.matchtime = matchtime
-        self.url = url
+        self.time = time
+        self.download_url = download_url
         self.map = map
-        self.version = version
-        self.downloaded_at = downloaded_at
         self.score = score
+        self.downloaded_at = downloaded_at
+        self.data_version = data_version
         self.data = data
 
-    def has_matchinfo(self):
-        return all((self.matchid, self.matchtime, self.url))
+        self.events = []
+
+    def has_download_url(self):
+        return self.download_url is not None
 
     def has_data(self):
         return self.data is not None
 
     def is_up_to_date(self):
-        return self.version == DEMOPARSE_VERSION
+        # I don't like how this uses an external constant at all
+        return self.data_version == DEMOPARSE_VERSION
 
-    def can_record(self):
-        return (
-            self.has_matchinfo()
-            and self.has_data()
-            and self.is_up_to_date()
-            and self.state is DemoState.SUCCESS
+    def is_ready(self):
+        return self.has_data() and self.is_up_to_date() and self.state is DemoState.READY
+
+    def failed(self, reason):
+        self.state = DemoState.FAILED
+        self.events.append(events.DemoFailure(self.id, reason))
+
+    def processing(self):
+        self.state = DemoState.PROCESSING
+        self.events.append(events.DemoProcessing(self.id))
+
+    def ready(self):
+        self.state = DemoState.READY
+        self.events.append(events.DemoReady(self.id))
+
+    def set_demo_data(self, data, version):
+        data = json.loads(data)
+
+        self.data = data
+        self.data_version = version
+        self.downloaded_at = datetime.now(timezone.utc)
+
+        demoheader = data["demoheader"]
+        self.map = demoheader["mapname"]
+        self.score = data["score"]
+
+        self.ready()
+
+
+class Recording(Entity):
+    def __init__(self, recording_type: RecordingType, player_xuid: int, round_id: int = None):
+        self.recording_type = recording_type
+        self.player_xuid = player_xuid
+        self.round_id = round_id
+
+        self.events = []
+
+
+# this job class is discord-specific
+# which does mean some discord (frontend) specific things
+# kind of flow into the domain, which is not the best,
+# but it'll have to do. it's just the easiest way of doing this
+class Job(Entity):
+    demo: Demo
+    recording: Recording
+
+    def __init__(
+        self,
+        state: JobState,
+        guild_id: int,
+        channel_id: int,
+        user_id: int,
+        started_at: datetime,
+        inter_payload: bytes,
+        completed_at: datetime = None,
+    ):
+        self.state = state
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+        self.user_id = user_id
+        self.started_at = started_at
+        self.inter_payload = inter_payload
+        self.completed_at = completed_at
+
+        self.events = []
+
+    def set_demo(self, demo: Demo):
+        self.demo = demo
+
+        if demo.is_ready() and self.state is JobState.WAITING:
+            self.demo_ready()
+
+    def demo_ready(self):
+        self.state = JobState.SELECTING
+        demo_events = DemoEvents(self.demo.data)
+        self.events.append(dto.JobSelectable(self.id, self.state, self.inter_payload, demo_events))
+
+    def failed(self, reason: str):
+        self.state = JobState.FAILED
+        self.events.append(events.JobFailure(self.id, reason))
+
+    def make_dto(self):
+        self.events
+
+
+class User(Entity):
+    modifiable_fields = (
+        "crosshair_code",
+        "fragmovie",
+        "color_filter",
+        "righthand",
+        "use_demo_crosshair",
+    )
+
+    def __init__(
+        self,
+        user_id: int,
+        crosshair_code: str = None,
+        fragmovie: bool = None,
+        color_filter: bool = None,
+        righthand: bool = None,
+        use_demo_crosshair: bool = None,
+    ) -> None:
+        self.user_id = user_id
+        self.crosshair_code = crosshair_code
+        self.fragmovie = fragmovie
+        self.color_filter = color_filter
+        self.righthand = righthand
+        self.use_demo_crosshair = use_demo_crosshair
+
+    def get(self, key):
+        return self.all_recording_settings(False).get(key)
+
+    def set(self, key, value):
+        if key in self.all_recording_settings(False):
+            setattr(self, key, value)
+        else:
+            raise ValueError
+
+    def all_recording_settings(self, only_toggleable=True):
+        default = lambda v, d: v if v is not None else d
+
+        d = dict(
+            fragmovie=default(self.fragmovie, False),
+            color_filter=default(self.color_filter, True),
+            righthand=default(self.righthand, True),
+            use_demo_crosshair=default(self.use_demo_crosshair, False),
         )
+
+        if not only_toggleable:
+            d["crosshair_code"] = default(self.crosshair_code, "CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE")
+
+        return d
+
+    def update_recorder_settings(self):
+        d = dict()
+
+        for attr in self.modifiable_fields:
+            val = getattr(self, attr)
+            if val is not None:
+                d[attr] = val
+
+        return d
+
+
+Player = namedtuple("Player", "xuid name userid fakeplayer")
+Death = namedtuple("Death", "tick victim attacker pos weapon")
+
+
+class DemoEvents(Entity):
+    def __init__(self, data) -> None:
+        self.data = data
+        self._parsed = False
 
     def get_player_team(self, player: Player) -> int:
         for teamidx, players in enumerate(self.teams):
@@ -283,130 +442,8 @@ class Demo(Entity):
         )
 
 
-class Recording(Entity):
-    def __init__(self, recording_type: RecordingType, player_xuid: int, round_id: int = None):
-        self.recording_type = recording_type
-        self.player_xuid = player_xuid
-        self.round_id = round_id
-
-
-# this job class is discord-specific
-# which does mean some discord (frontend) specific things
-# kind of flow into the domain, which is not the best,
-# but it'll have to do. it's just the easiest way of doing this
-class Job(Entity):
-    demo: Demo
-    recording: Recording
-
-    def __init__(
-        self,
-        state: JobState,
-        guild_id: int,
-        channel_id: int,
-        user_id: int,
-        started_at: datetime,
-        inter_payload: bytes,
-        completed_at: datetime = None,
-    ):
-        self.state = state
-        self.guild_id = guild_id
-        self.channel_id = channel_id
-        self.user_id = user_id
-        self.started_at = started_at
-        self.inter_payload = inter_payload
-        self.completed_at = completed_at
-
-    def make_inter(self, bot: commands.InteractionBot) -> disnake.AppCommandInteraction:
-        if self.inter_payload is None:
-            raise ValueError("Attempted to restore job interaction without stored payload")
-
-        return disnake.ApplicationCommandInteraction(
-            data=pickle.loads(self.inter_payload), state=bot._connection
-        )
-
-    def embed(self, bot: commands.InteractionBot) -> disnake.Embed:
-        color = {
-            JobState.DEMO: disnake.Color.orange(),
-            JobState.SELECT: disnake.Color.blurple(),
-            JobState.RECORD: disnake.Color.orange(),
-            JobState.SUCCESS: disnake.Color.green(),
-            JobState.FAILED: disnake.Color.red(),
-            JobState.ABORTED: disnake.Color.red(),
-        }.get(self.state, disnake.Color.blurple())
-
-        title = {
-            JobState.DEMO: "Demo queued",
-            JobState.SELECT: "Select what you want to record",
-            JobState.RECORD: "Recording queued",
-            JobState.SUCCESS: "Job completed, enjoy!",
-            JobState.FAILED: "Oops!",
-            JobState.ABORTED: "Job aborted",
-        }.get(self.state, None)
-
-        e = disnake.Embed(color=color)
-        e.set_author(name=title, icon_url=bot.user.display_avatar)
-        e.set_footer(text=f"ID: {self.id}")
-
-        return e
-
-
-class User(Entity):
-    modifiable_fields = (
-        "crosshair_code",
-        "fragmovie",
-        "color_filter",
-        "righthand",
-        "use_demo_crosshair",
-    )
-
-    def __init__(
-        self,
-        user_id: int,
-        crosshair_code: str = None,
-        fragmovie: bool = None,
-        color_filter: bool = None,
-        righthand: bool = None,
-        sixteen_nine: bool = None,
-        use_demo_crosshair: bool = None,
-    ) -> None:
-        self.user_id = user_id
-        self.crosshair_code = crosshair_code
-        self.fragmovie = fragmovie
-        self.color_filter = color_filter
-        self.righthand = righthand
-        self.sixteen_nine = sixteen_nine
-        self.use_demo_crosshair = use_demo_crosshair
-
-    def get(self, key):
-        return self.all_recording_settings(False).get(key)
-
-    def set(self, key, value):
-        if key in self.all_recording_settings(False):
-            setattr(self, key, value)
-        else:
-            raise ValueError
-
-    def all_recording_settings(self, only_toggleable=True):
-        default = lambda v, d: v if v is not None else d
-
-        d = dict(
-            fragmovie=default(self.fragmovie, False),
-            color_filter=default(self.color_filter, True),
-            righthand=default(self.righthand, True),
-            use_demo_crosshair=default(self.use_demo_crosshair, False),
-        )
-
-        if not only_toggleable:
-            d["crosshair_code"] = default(self.crosshair_code, "CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE")
-
-        return d
-
-    def update_recorder_settings(self):
-        d = dict()
-
-        for attr in self.modifiable_fields:
-            val = getattr(self, attr)
-            if val is not None:
-                d[attr] = val
-
-        return d
+# @LRUCache(maxsize=256)
+def demo_data_parse(data):
+    demo_events = DemoEvents(data)
+    demo_events.parse()
+    return demo_events
