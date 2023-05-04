@@ -22,9 +22,11 @@ class Broker:
         self.channel: aiormq.Channel = None
         self.publish_setup_completed = set()
 
-    async def start(self, connect_uri: str):
+    async def start(self, connect_uri: str, prefetch=1):
         mq = await aiormq.connect(connect_uri)
         channel = await mq.channel()
+
+        await channel.basic_qos(prefetch_count=prefetch)
 
         self.channel = channel
         await self.setup(channel)
@@ -48,40 +50,31 @@ class Broker:
             routing_key = message_type.__name__
 
             if issubclass(message_type, commands.Command):
-                exchange = "command"
-                queue_name = routing_key
-                exclusive = False
-                auto_delete = False
+                publish_args = deco.publish_args.get(message_type, None)
+                await self._prepare_command_queue(
+                    message_type, dead_event=publish_args["dead_event"], consume_args=args
+                )
             elif issubclass(message_type, events.Event):
-                exchange = "event"
                 queue_name = f"{routing_key}-{instance_id}"
-                exclusive = True
-                auto_delete = True
 
-            # create the message queue
-            await self.channel.queue_declare(
-                queue=queue_name,
-                exclusive=exclusive,
-                auto_delete=auto_delete,
-            )
+                await self.channel.queue_declare(
+                    queue=queue_name,
+                    exclusive=True,
+                    auto_delete=True,
+                )
 
-            # bind the queue to its related exchange
-            await self.channel.queue_bind(
-                queue=queue_name, exchange=exchange, routing_key=routing_key
-            )
+                # bind the queue to its related exchange
+                await self.channel.queue_bind(
+                    queue=queue_name, exchange="event", routing_key=routing_key
+                )
 
-            # consume from the queue
-            await self.channel.basic_consume(
-                queue_name,
-                partial(self.recv, message_type, **args),
-            )
+                # consume from the queue
+                await self.channel.basic_consume(
+                    queue_name,
+                    partial(self.recv, message_type=message_type, **args),
+                )
 
-    async def _prepare_publish(self, message_type, dead_event):
-        if issubclass(message_type, commands.Command):
-            exchange = "command"
-        elif issubclass(message_type, events.Event):
-            exchange = "event"
-
+    async def _prepare_command_queue(self, message_type, dead_event, consume_args: dict = None):
         queue_name = message_type.__name__
         dlx_queue_name = f"{queue_name}-dead"
         queue_args = dict()
@@ -96,6 +89,17 @@ class Broker:
             queue_args["x-dead-letter-exchange"] = "dead"
             queue_args["x-dead-letter-routing-key"] = dlx_queue_name
 
+            # bind the dlx queue to its related exchange
+            await self.channel.queue_bind(
+                queue=dlx_queue_name, exchange="dead", routing_key=dlx_queue_name
+            )
+
+            if not consume_args:
+                # we're publisher, so consume dead letter queue
+                await self.channel.basic_consume(
+                    dlx_queue_name, partial(self.recv_dead, message_type=message_type, dead_event=dead_event)
+                )
+
         # create the message queue
         await self.channel.queue_declare(
             queue=queue_name,
@@ -105,17 +109,12 @@ class Broker:
         )
 
         # bind the queue to its related exchange
-        await self.channel.queue_bind(queue=queue_name, exchange=exchange, routing_key=queue_name)
+        await self.channel.queue_bind(queue=queue_name, exchange="command", routing_key=queue_name)
 
-        # and the dlx is applicable
-        if dead_event:
-            # bind the dlx queue to its related exchange
-            await self.channel.queue_bind(
-                queue=dlx_queue_name, exchange="dead", routing_key=dlx_queue_name
-            )
-
+        if consume_args:
+            # we're consumer, so consume the main queue
             await self.channel.basic_consume(
-                dlx_queue_name, partial(self.recv_dead, message_type, dead_event)
+                queue_name, partial(self.recv, message_type=message_type, **consume_args)
             )
 
     async def publish(self, message):
@@ -135,7 +134,10 @@ class Broker:
 
         if isinstance(message, commands.Command):
             if message_type not in self.publish_setup_completed:
-                await self._prepare_publish(message_type, dead_event=dead_event)
+                await self._prepare_command_queue(
+                    message_type=message_type,
+                    dead_event=dead_event,
+                )
                 self.publish_setup_completed.add(message_type)
 
             exchange = "command"
@@ -148,12 +150,14 @@ class Broker:
             body=dumps(data).encode("utf-8"),
             exchange=exchange,
             routing_key=queue_name,
-            properties=aiormq.spec.Basic.Properties(expiration=str(int(ttl * 1000))),
+            properties=aiormq.spec.Basic.Properties(
+                expiration=str(int(ttl * 1000)) if ttl is not None else None
+            ),
         )
 
         return conf
 
-    async def recv_dead(self, message_type, dead_event, message: aiormq.abc.DeliveredMessage):
+    async def recv_dead(self, message: aiormq.abc.DeliveredMessage, message_type, dead_event):
         log.info(
             "Consuming dead letter of type %s from exchange '%s'", message_type, message.exchange
         )
@@ -168,11 +172,11 @@ class Broker:
 
     async def recv(
         self,
+        message: aiormq.abc.DeliveredMessage,
         message_type,
         error_factory: callable,
         requeue: bool,
         raise_on_ok: bool,
-        message: aiormq.abc.DeliveredMessage,
     ):
         try:
             msg = message_type(**loads(message.body))

@@ -34,7 +34,7 @@ async def bootstrap(
     broker = Broker(bus)
 
     bus.add_dependencies(publish=broker.publish)
-    bus.add_decos()
+    bus.register_decos()
 
 
     if start_bot:

@@ -3,14 +3,14 @@ from collections import defaultdict
 from functools import partial
 from inspect import signature
 
-from . import commands, events, deco
+from . import commands, deco, events
+
 log = logging.getLogger(__name__)
 
 
-
 class MessageBus:
-    def __init__(self, dependencies: dict, uow_factory=None) -> None:
-        self.dependencies = dependencies
+    def __init__(self, dependencies: dict = None, uow_factory=None) -> None:
+        self.dependencies = dependencies or dict()
         self.uow_factory = uow_factory
 
         self.command_handlers = dict()
@@ -49,7 +49,7 @@ class MessageBus:
             for message in uow.messages:
                 await self.dispatch(message)
 
-    def add_decos(self):
+    def register_decos(self):
         for command, handler in deco.command_handlers.items():
             self.add_command_handler(command, handler)
 

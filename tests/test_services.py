@@ -132,7 +132,7 @@ from messages.bus import MessageBus
 
 async def create_bus(uow: FakeUnitOfWork, dependencies=None) -> MessageBus:
     messagebus = eventbus.MessageBus(dependencies=dependencies or dict(), uow_factory=lambda: uow)
-    messagebus.add_decos()
+    messagebus.register_decos()
     return messagebus
 
 
