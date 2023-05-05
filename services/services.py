@@ -1,14 +1,16 @@
 import asyncio
 import logging
+from json import loads
 from typing import List
 from uuid import UUID, uuid4
 
 from bot import sequencer
+from domain.demo_events import DemoEvents
 from domain.domain import Demo, Job, User
 from domain.enums import DemoGame, DemoOrigin, DemoState, JobState
-from domain.demo_events import DemoEvents
 from messages import commands, dto, events
 from messages.deco import handler, listener
+from services import views
 from services.uow import SqlUnitOfWork
 from shared.const import DEMOPARSE_VERSION
 from shared.utils import utcnow
@@ -122,11 +124,28 @@ async def abort_job(command: commands.AbortJob, uow: SqlUnitOfWork):
         job = await uow.jobs.get(command.job_id)
         if job is None:
             return
-        
-        job.aborted()
 
-        uow.add_message(dto.JobAborted(job_id=job.id, job_state=job.state, job_inter=job.inter_payload))
+        job.aborted()
         await uow.commit()
+
+
+@listener(events.JobWaiting)
+async def job_waiting(event: events.JobWaiting, uow: SqlUnitOfWork):
+    async with uow:
+        uow.add_message(dto.JobDemoProcessing(event.job_id, event.job_inter))
+
+@listener(events.JobSelecting)
+async def job_selecting(event: events.JobSelecting, uow: SqlUnitOfWork):
+    async with uow:
+        job = await uow.jobs.get(event.job_id)
+        if job is None:
+            return
+
+        demo_events = DemoEvents.from_demo(job.demo)
+        demo_events.parse()
+
+        uow.add_message(dto.JobSelectable(job.id, job.inter_payload, demo_events))
+
 
 
 @listener(events.DemoReady)
@@ -151,19 +170,12 @@ async def demo_failure(event: events.DemoFailure, uow: SqlUnitOfWork):
         await uow.commit()
 
 
-@listener(events.JobSelecting)
-async def job_selecting(event: events.JobSelecting, uow: SqlUnitOfWork):
-    async with uow:
-        job = await uow.jobs.get(event.job_id)
-        if job is None:
-            return
 
-        demo_events = DemoEvents.from_demo(job.demo)
-        demo_events.parse()
 
-        uow.add_message(
-            dto.JobSelectable(job.id, job.state, job.inter_payload, demo_events)
-        )
+@listener(events.JobFailed)
+async def job_failure(event: events.JobFailed, uow: SqlUnitOfWork):
+    inter_payload = await views.get_job_inter(event.job_id, uow)
+    uow.add_message(dto.JobFailed(event.job_id, inter_payload, event.reason))
 
 
 @listener(events.DemoParseSuccess)
@@ -192,7 +204,7 @@ async def demoparse_success_up_to_date(event: events.DemoParseSuccess, uow: SqlU
         if demo is None:
             return
 
-        demo.set_demo_data(event.data, event.version)
+        demo.set_demo_data(loads(event.data), event.version)
         await uow.commit()
 
 
@@ -205,6 +217,22 @@ async def demoparse_failure(event: events.DemoParseFailure, uow: SqlUnitOfWork):
 
         demo.failed(event.reason)
         await uow.commit()
+
+
+@listener(events.DemoParseDL)
+async def demoparse_died(event: events.DemoParseDL, uow: SqlUnitOfWork):
+    async with uow:
+        command: commands.RequestDemoParse = event.command
+        reason = event.reason
+
+        prose_version = dict(
+            rejected="The demo parse service was unable to process your request.",
+            expired="The demo parse service request timed out.",
+        ).get(reason, "The demo parse service request failed.")
+
+        uow.add_message(
+            events.DemoParseFailure(command.origin, command.identifier, reason=prose_version)
+        )
 
 
 async def restore(command: commands.Restore, uow: SqlUnitOfWork):
@@ -255,11 +283,12 @@ async def record(
         job = await uow.jobs.get(command.job_id)
         demo = job.demo
 
-        demo.parse()
+        demo_events = DemoEvents.from_demo(demo)
+        demo_events.parse()
 
-        player = demo.get_player_by_xuid(command.player_xuid)
+        player = demo_events.get_player_by_xuid(command.player_xuid)
 
-        all_kills = demo.get_player_kills(player)
+        all_kills = demo_events.get_player_kills(player)
         kills = all_kills[command.round_id]
 
         BITRATE_SCALAR = 0.7
@@ -267,7 +296,7 @@ async def record(
         MAX_FILE_SIZE = 25 * 8 * 1024 * 1024
 
         start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(
-            demo.tickrate, kills
+            demo_events.tickrate, kills
         )
 
         # video_bitrate = 20 * 1024 * 1024
@@ -277,9 +306,10 @@ async def record(
 
         data = dict(
             job_id=str(job.id),
-            demo=demo.matchid,
+            demo_origin=demo.origin.name,
+            demo_identifier=demo.identifier,
             player_xuid=player.xuid,
-            tickrate=demo.tickrate,
+            tickrate=demo_events.tickrate,
             start_tick=start_tick,
             end_tick=end_tick,
             skips=skips,

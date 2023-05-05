@@ -55,7 +55,7 @@ class Broker:
                     message_type, dead_event=publish_args["dead_event"], consume_args=args
                 )
             elif issubclass(message_type, events.Event):
-                queue_name = f"{routing_key}-{instance_id}"
+                queue_name = f"event-{routing_key}-{instance_id}"
 
                 await self.channel.queue_declare(
                     queue=queue_name,
@@ -75,8 +75,9 @@ class Broker:
                 )
 
     async def _prepare_command_queue(self, message_type, dead_event, consume_args: dict = None):
-        queue_name = message_type.__name__
-        dlx_queue_name = f"{queue_name}-dead"
+        routing_key = message_type.__name__
+        queue_name = f"cmd-{routing_key}"
+        dlx_queue_name = f"dead-{routing_key}"
         queue_args = dict()
 
         if dead_event:
@@ -87,17 +88,18 @@ class Broker:
             )
 
             queue_args["x-dead-letter-exchange"] = "dead"
-            queue_args["x-dead-letter-routing-key"] = dlx_queue_name
+            queue_args["x-dead-letter-routing-key"] = routing_key
 
             # bind the dlx queue to its related exchange
             await self.channel.queue_bind(
-                queue=dlx_queue_name, exchange="dead", routing_key=dlx_queue_name
+                queue=dlx_queue_name, exchange="dead", routing_key=routing_key,
             )
 
             if not consume_args:
                 # we're publisher, so consume dead letter queue
                 await self.channel.basic_consume(
-                    dlx_queue_name, partial(self.recv_dead, message_type=message_type, dead_event=dead_event)
+                    dlx_queue_name,
+                    partial(self.recv_dead, message_type=message_type, dead_event=dead_event),
                 )
 
         # create the message queue
@@ -109,7 +111,7 @@ class Broker:
         )
 
         # bind the queue to its related exchange
-        await self.channel.queue_bind(queue=queue_name, exchange="command", routing_key=queue_name)
+        await self.channel.queue_bind(queue=queue_name, exchange="command", routing_key=routing_key)
 
         if consume_args:
             # we're consumer, so consume the main queue
@@ -194,7 +196,7 @@ class Broker:
 
             if not is_ok or raise_on_ok:
                 raise exc
-            
+
         else:
             await self.ack(message)
 

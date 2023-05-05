@@ -13,12 +13,18 @@ class DTO(Event):
 @dataclass(frozen=True, repr=False)
 class JobSelectable(DTO):
     job_id: UUID
-    job_state: JobState
     job_inter: bytes
     demo_events: DemoEvents
 
+
 @dataclass(frozen=True, repr=False)
-class JobAborted(DTO):
+class JobFailed(DTO):
     job_id: UUID
-    job_state: JobState
+    job_inter: bytes
+    reason: str
+
+
+@dataclass(frozen=True, repr=False)
+class JobDemoProcessing(DTO):
+    job_id: UUID
     job_inter: bytes

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import List
+from uuid import UUID
 
 from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +35,12 @@ class JobRepository(SqlRepository):
 
     async def get(self, _id) -> Job:
         return await self._get(_id)
+
+    async def get_inter(self, job_id: UUID):
+        stmt = text("SELECT inter_payload FROM job WHERE id=:job_id").bindparams(job_id=job_id)
+
+        result = await self.session.execute(stmt)
+        return result.scalar()
 
     async def waiting_for_demo(self, demo_id, minutes=INTERACTION_MINUTES) -> List[Job]:
         stmt = select(Job).where(

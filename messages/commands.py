@@ -30,7 +30,7 @@ class RequestMatchInfo(Command):
 
 
 @dataclass(frozen=True)
-@publish(ttl=60.0, dead_event=events.DemoParseDL)
+@publish(ttl=4.0, dead_event=events.DemoParseDL)
 @consume(
     error_factory=lambda message, error: events.DemoParseFailure(
         message.origin, message.identifier, error or "Unable to download/parse demo."

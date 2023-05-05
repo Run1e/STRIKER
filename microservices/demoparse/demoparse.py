@@ -124,6 +124,8 @@ async def on_demoparse(command: RequestDemoParse, publish):
 
     log.info(end())
 
+    await asyncio.sleep(10.0)
+
     await publish(
         events.DemoParseSuccess(
             origin=origin, identifier=identifier, data=data.decode("utf-8"), version=DEMOPARSE_VERSION

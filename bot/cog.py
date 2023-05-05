@@ -160,7 +160,8 @@ class RecorderCog(commands.Cog):
         # self.archive_task.start()
 
         self.bus.add_event_listener(dto.JobSelectable, self.start_select)
-        # self.bus.add_event_listener(dto.JobAborted, self.job_aborted)
+        self.bus.add_event_listener(dto.JobFailed, self.job_failed)
+        self.bus.add_event_listener(dto.JobDemoProcessing, self.job_processing)
 
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True)
@@ -481,6 +482,28 @@ class RecorderCog(commands.Cog):
 
         await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons))
 
+    # DTOs
+
+    async def job_processing(self, event: dto.DTO):
+        inter = make_inter(event.job_inter, self.bot)
+        embed = self.embed.waiting(event.job_id)
+
+        embed.description = {
+            dto.JobDemoProcessing: "Processing demo...",
+        }.get(type(event))
+
+        original_message = await inter.original_response()
+        await original_message.edit(embed=embed, content=None, components=None)
+
+    async def job_failed(self, event: dto.JobFailed):
+        inter = make_inter(event.job_inter, self.bot)
+
+        embed = self.embed.failed(event.job_id)
+        embed.description = event.reason
+
+        original_message = await inter.original_response()
+        await original_message.edit(embed=embed, content=None, components=None)
+
     async def start_select(self, event: dto.JobSelectable):
         inter = make_inter(event.job_inter, self.bot)
 
@@ -525,7 +548,7 @@ class RecorderCog(commands.Cog):
             message = await inter.original_message()
             await message.edit(**edit_kwargs)
 
-    async def abort_job(self, event: dto.JobAborted, inter: disnake.Interaction, reason=None):
+    async def abort_job(self, event, inter: disnake.Interaction):
         await self.bus.dispatch(cmds.AbortJob(event.job_id))
 
         embed = self.embed.aborted(event.job_id)
@@ -576,12 +599,10 @@ class RecorderCog(commands.Cog):
             await self.bus.dispatch(cmds.AbortJob(event.job_id))
             return
 
-        await services.record(
-            uow=SqlUnitOfWork(),
-            job=job,
-            player=player,
-            round_id=round_id,
-            tier=await get_tier(self.bot, inter.author.id),
+        tier = await get_tier(self.bot, inter.author.id)
+
+        await self.bus.dispatch(
+            cmds.Record(job_id=event.job_id, player_xuid=player.xuid, round_id=round_id, tier=tier)
         )
 
     # @bus.mark(events.JobUploadSuccess)

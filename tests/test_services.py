@@ -384,7 +384,9 @@ async def test_demoparse_failure():
     job.demo_id = demo.id
 
     reason = "demo failed sadge"
-    event = events.DemoParseFailure(origin=demo.origin.name, identifier=demo.identifier, reason=reason)
+    event = events.DemoParseFailure(
+        origin=demo.origin.name, identifier=demo.identifier, reason=reason
+    )
     await bus.dispatch(event)
 
     assert uow.committed

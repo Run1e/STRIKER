@@ -46,7 +46,7 @@ class ErrorHandler(commands.Cog):
         kwargs = dict(content=None, view=None, embed=embed)
 
         try:
-            message = await inter.original_message()
+            message = await inter.original_response()
         except disnake.NotFound:
             message = None
 

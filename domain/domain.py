@@ -72,15 +72,12 @@ class Demo(Entity):
 
     def processing(self):
         self.state = DemoState.PROCESSING
-        self.add_event(events.DemoProcessing(self.id))
 
     def ready(self):
         self.state = DemoState.READY
         self.add_event(events.DemoReady(self.id))
 
     def set_demo_data(self, data, version):
-        data = json.loads(data)
-
         self.data = data
         self.data_version = version
         self.downloaded_at = datetime.now(timezone.utc)
@@ -99,10 +96,6 @@ class Recording(Entity):
         self.round_id = round_id
 
 
-# this job class is discord-specific
-# which does mean some discord (frontend) specific things
-# kind of flow into the domain, which is not the best,
-# but it'll have to do. it's just the easiest way of doing this
 class Job(Entity):
     demo: Demo
     recording: Recording
@@ -130,10 +123,16 @@ class Job(Entity):
 
         if demo.is_ready() and self.state is JobState.WAITING:
             self.demo_ready()
+        elif demo.state is DemoState.PROCESSING:
+            self.demo_processing()
 
     def demo_ready(self):
         self.state = JobState.SELECTING
         self.add_event(events.JobSelecting(self.id))
+
+    def demo_processing(self):
+        self.state = JobState.WAITING
+        self.add_event(events.JobWaiting(self.id, self.inter_payload))
 
     def aborted(self):
         self.state = JobState.ABORTED
@@ -141,8 +140,7 @@ class Job(Entity):
 
     def failed(self, reason: str):
         self.state = JobState.FAILED
-        self.add_event(events.JobFailure(self.id, reason))
-
+        self.add_event(events.JobFailed(self.id, reason))
 
 
 class User(Entity):

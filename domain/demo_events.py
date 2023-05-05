@@ -77,9 +77,7 @@ class DemoEvents:
 
         ordinal = {1: "st", 2: "nd", 3: "rd"}.get(self.time.day % 10, "th")
         return (
-            self.time.strftime("%d").lstrip("0")
-            + ordinal
-            + self.time.strftime(" %b %Y at %I:%M")
+            self.time.strftime("%d").lstrip("0") + ordinal + self.time.strftime(" %b %Y at %I:%M")
         )
 
     @property

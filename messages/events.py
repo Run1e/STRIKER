@@ -11,9 +11,11 @@ class Event:
 
 # demo events
 
+
 @dataclass(frozen=True)
 class DemoProcessing(Event):
     demo_id: int
+
 
 @dataclass(frozen=True)
 class DemoReady(Event):
@@ -35,9 +37,16 @@ class JobSelecting(Event):
 
 
 @dataclass(frozen=True)
-class JobFailure(Event):
+class JobWaiting(Event):
+    job_id: UUID
+    job_inter: bytes
+
+
+@dataclass(frozen=True)
+class JobFailed(Event):
     job_id: UUID
     reason: str
+
 
 @dataclass(frozen=True)
 class JobAborted(Event):
@@ -55,7 +64,7 @@ class JobAborted(Event):
 class DemoParseSuccess(Event):
     origin: str
     identifier: str
-    data: dict
+    data: str
     version: int
 
 
@@ -88,7 +97,6 @@ class RecorderFailure(Event):
     reason: str
 
 
-
 # uploader
 @dataclass(frozen=True)
 class UploaderSuccess(Event):
@@ -116,4 +124,3 @@ class ArchiveSuccess(Event):
 class ArchiveFailure(Event):
     id: UUID
     reason: str
-

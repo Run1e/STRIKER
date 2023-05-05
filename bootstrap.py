@@ -36,16 +36,13 @@ async def bootstrap(
     bus.add_dependencies(publish=broker.publish)
     bus.register_decos()
 
-
     if start_bot:
         bot_instance = bot.start_bot(bus)
         await bot_instance.wait_until_ready()
 
     log.info("Ready to bot!")
 
-
     await broker.start(config.RABBITMQ_HOST)
-
 
     # this restarts any jobs that were in selectland
     # within the last 12 (at the time of writing, anyway)

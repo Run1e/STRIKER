@@ -1,3 +1,4 @@
+from json import loads
 from random import randint
 from unittest.mock import AsyncMock, Mock
 
@@ -42,7 +43,7 @@ def new_demo(
         kwargs["download_url"] = "not a real url"
 
     if add_data:
-        kwargs["data"] = demo_data[0]
+        kwargs["data"] = loads(demo_data[0])
         kwargs["data_version"] = DEMOPARSE_VERSION
 
     return Demo(game=game, origin=origin, state=state, **kwargs)
