@@ -28,7 +28,7 @@ demo_table = sa.Table(
     sa.Column("map", sa.TEXT, nullable=True),
     sa.Column("score", pg.ARRAY(sa.SmallInteger), nullable=True),
     sa.Column("downloaded_at", sa.DateTime(timezone=True), nullable=True),
-    sa.Column("parsed_version", sa.SmallInteger, nullable=True),
+    sa.Column("data_version", sa.SmallInteger, nullable=True),
     sa.Column("data", sa.JSON, nullable=True),
 )
 

@@ -1,4 +1,5 @@
 # top-level module include hack for shared :|
+from json import dumps
 import sys
 
 
@@ -71,10 +72,10 @@ async def on_demoparse(command: RequestDemoParse, publish):
 
     log.info("Processing %s url %s", path, download_url)
 
-    archive_path = rf"{config.ARCHIVE_FOLDER}/{path}.dem.bz2"
-    archive_path_temp = rf"{config.TEMP_FOLDER}/{path}.dem.bz2"
-    demo_path = rf"{config.DEMO_FOLDER}/{path}.dem"
-    demo_path_temp = rf"{config.TEMP_FOLDER}/{path}.dem"
+    archive_path = f"{config.ARCHIVE_FOLDER}/{path}.dem.bz2"
+    archive_path_temp = f"{config.TEMP_FOLDER}/{identifier}.dem.bz2"
+    demo_path = f"{config.DEMO_FOLDER}/{path}.dem"
+    demo_path_temp = f"{config.TEMP_FOLDER}/{identifier}.dem"
 
     # if archive and demo does not exist, download the archive
     if not os.path.isfile(archive_path):
@@ -119,13 +120,13 @@ async def on_demoparse(command: RequestDemoParse, publish):
 
     data = await loop.run_in_executor(executor, parse_demo, demo_path)
     if not data:
-        raise ValueError("demoinfogo returned no data")
+        raise ValueError("demofile returned no data")
 
     log.info(end())
 
     await publish(
         events.DemoParseSuccess(
-            origin=origin, identifier=identifier, data=data, version=DEMOPARSE_VERSION
+            origin=origin, identifier=identifier, data=data.decode("utf-8"), version=DEMOPARSE_VERSION
         )
     )
 

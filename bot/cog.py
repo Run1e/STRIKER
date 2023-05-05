@@ -10,9 +10,9 @@ from rapidfuzz import fuzz, process
 from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
+from domain.demo_events import Player
 from domain.domain import Job, User
 from domain.enums import JobState
-from domain.demo_events import Player
 from messages import commands as cmds
 from messages import dto
 from messages.bus import MessageBus
@@ -48,30 +48,34 @@ def make_inter(inter_payload: bytes, bot: commands.InteractionBot) -> disnake.Ap
     )
 
 
-def job_embed(job_id, job_state, bot: commands.InteractionBot) -> disnake.Embed:
-    color = {
-        JobState.WAITING: disnake.Color.orange(),
-        JobState.SELECTING: disnake.Color.blurple(),
-        JobState.RECORDING: disnake.Color.orange(),
-        JobState.SUCCESS: disnake.Color.green(),
-        JobState.FAILED: disnake.Color.red(),
-        JobState.ABORTED: disnake.Color.red(),
-    }.get(job_state, disnake.Color.blurple())
+class EmbedBuilder:
+    def __init__(self, bot) -> None:
+        self.bot = bot
 
-    title = {
-        JobState.WAITING: "Demo queued",
-        JobState.SELECTING: "Select what you want to record",
-        JobState.RECORDING: "Recording queued",
-        JobState.SUCCESS: "Job completed, enjoy!",
-        JobState.FAILED: "Oops!",
-        JobState.ABORTED: "Job aborted",
-    }.get(job_state, None)
+    def build(self, title, color=disnake.Color.orange(), job_id=None):
+        e = disnake.Embed(color=color)
+        e.set_author(name=title, icon_url=self.bot.user.display_avatar)
+        if job_id is not None:
+            e.set_footer(text=f"ID: {job_id}")
+        return e
 
-    e = disnake.Embed(color=color)
-    e.set_author(name=title, icon_url=bot.user.display_avatar)
-    e.set_footer(text=f"ID: {job_id}")
+    def waiting(self, job_id):
+        return self.build("Processing demo", disnake.Color.orange(), job_id)
 
-    return e
+    def selecting(self, job_id):
+        return self.build("Select what you want to record", disnake.Color.blurple(), job_id)
+
+    def recording(self, job_id):
+        return self.build("Recording queued!", disnake.Color.orange(), job_id)
+
+    def success(self, job_id):
+        return self.build("Job completed, enjoy!", disnake.Color.green(), job_id)
+
+    def failed(self, job_id):
+        return self.build("Oops!", disnake.Color.red(), job_id)
+
+    def aborted(self, job_id):
+        return self.build("Job aborted", disnake.Color.red(), job_id)
 
 
 def not_maintenance():
@@ -146,6 +150,8 @@ class RecorderCog(commands.Cog):
         self.bus: MessageBus = bot.bus
         self.job_tasks = dict()  # Job.id -> (task, cancellable)
 
+        self.embed = EmbedBuilder(bot)
+
         # holds values for 10 seconds between get and sets
         self._demo_cache = TimedDict(10.0)  # user.id: List[Demo]
         self._autocomplete_mapping = dict()  # desc_desc: demo.id
@@ -154,6 +160,7 @@ class RecorderCog(commands.Cog):
         # self.archive_task.start()
 
         self.bus.add_event_listener(dto.JobSelectable, self.start_select)
+        # self.bus.add_event_listener(dto.JobAborted, self.job_aborted)
 
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True)
@@ -170,11 +177,7 @@ class RecorderCog(commands.Cog):
             await self._send_donate(inter)
 
     async def _send_help_embed(self, inter: disnake.Interaction):
-        e = disnake.Embed(
-            color=disnake.Color.orange(),
-        )
-
-        e.set_author(name="How to use the bot!", icon_url=self.bot.user.display_avatar)
+        e = self.embed.build("How to use the bot!")
 
         e.description = (
             "This bot can record and upload CS:GO clips from matchmaking games straight to Discord. "
@@ -201,11 +204,7 @@ class RecorderCog(commands.Cog):
         await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
 
     async def _send_donate(self, inter: disnake.Interaction):
-        e = disnake.Embed(
-            color=disnake.Color.orange(),
-        )
-
-        e.set_author(name="Donate to support the project!", icon_url=self.bot.user.display_avatar)
+        e = self.embed.build("Donate to support the project!")
 
         e.description = (
             "Thanks for your interest in supporting the project!\n\n"
@@ -256,17 +255,13 @@ class RecorderCog(commands.Cog):
     async def _store_config(self, inter: disnake.MessageInteraction, user: User):
         await services.store_user(uow=SqlUnitOfWork(), user=user)
 
-        e = disnake.Embed(color=disnake.Color.green())
-        e.set_author(name="STRIKER", icon_url=self.bot.user.display_avatar)
-
+        e = self.embed.build("STRIKER")
         e.description = "Configuration saved."
 
         await inter.response.edit_message(view=None, embed=e)
 
     async def _abort_config(self, inter: disnake.MessageInteraction):
-        e = disnake.Embed(color=disnake.Color.red())
-        e.set_author(name="STRIKER", icon_url=self.bot.user.display_avatar)
-
+        e = self.embed.build("STRIKER")
         e.description = "Configurator aborted."
 
         await inter.response.edit_message(view=None, embed=e)
@@ -419,11 +414,7 @@ class RecorderCog(commands.Cog):
 
     @commands.slash_command(name="about", description="About the bot", dm_permission=False)
     async def about(self, inter: disnake.AppCmdInter):
-        e = disnake.Embed(
-            color=disnake.Color.orange(),
-        )
-
-        e.set_author(name="STRIKER", icon_url=self.bot.user.display_avatar)
+        e = self.embed.build("STRIKER")
 
         e.add_field(
             name="Developer",
@@ -491,7 +482,7 @@ class RecorderCog(commands.Cog):
         await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons))
 
     async def start_select(self, event: dto.JobSelectable):
-        inter = make_inter(event.job_inter)
+        inter = make_inter(event.job_inter, self.bot)
 
         # also clear this users demo cache
         if inter.author.id in self._demo_cache:
@@ -501,20 +492,20 @@ class RecorderCog(commands.Cog):
 
     async def select_player(self, event: dto.JobSelectable, inter: disnake.AppCmdInter):
         view = PlayerView(
-            demo_events=dto.demo_events,
-            player_callback=partial(self.select_round, event, inter),
-            abort_callback=partial(self.abort_job, event, inter),
-            timeout_callback=partial(self.view_timeout, event, inter),
+            demo_events=event.demo_events,
+            player_callback=partial(self.select_round, event),
+            abort_callback=partial(self.abort_job, event),
+            timeout_callback=partial(self.view_timeout, event),
             timeout=300.0,
         )
 
-        embed = job_embed(event.job_id, event.job_state, self.bot)
+        embed = self.embed.selecting(event.job_id)
         embed.description = "Select a player you want to record a highlight from below."
 
         data = (
             ("Map", event.demo_events.map),
-            ("Score", event.demo_events.score_string),
-            ("Date", event.demo_events.matchtime_string),
+            ("Score", event.demo_events.score_str),
+            ("Date", event.demo_events.time_str),
         )
         data_str = tabulate(
             tabular_data=data,
@@ -534,31 +525,33 @@ class RecorderCog(commands.Cog):
             message = await inter.original_message()
             await message.edit(**edit_kwargs)
 
-    async def abort_job(self, event: dto.JobSelectable, inter: disnake.Interaction, reason=None):
+    async def abort_job(self, event: dto.JobAborted, inter: disnake.Interaction, reason=None):
         await self.bus.dispatch(cmds.AbortJob(event.job_id))
 
-        embed = job_embed(event.job_id, event.job_state, self.bot)
-        embed.description = reason or "Aborted."
+        embed = self.embed.aborted(event.job_id)
+        embed.description = "Aborted."
 
         await inter.response.edit_message(content=None, embed=embed, view=None)
 
     async def view_timeout(self, event: dto.JobSelectable, inter: disnake.Interaction):
         await self.bus.dispatch(cmds.AbortJob(event.job_id))
 
-        embed = job_embed(event.job_id, event.job_state, self.bot)
+        embed = self.embed.aborted(event.job_id)
         embed.description = "Command timed out."
 
         message = await inter.original_message()
         await message.edit(content=None, embed=embed, view=None)
 
-    async def select_round(self, event: dto.JobSelectable, inter: disnake.Interaction, player: Player):
+    async def select_round(
+        self, event: dto.JobSelectable, inter: disnake.Interaction, player: Player
+    ):
         view = RoundView(
+            demo_events=event.demo_events,
             round_callback=partial(self.record_highlight, event, player),
-            reselect_callback=partial(self.select_player, job),
-            abort_callback=partial(self.abort_job, job),
-            timeout_callback=partial(self.view_timeout, job),
-            job=job,
-            embed_factory=partial(job.embed, self.bot),
+            reselect_callback=partial(self.select_player, event),
+            abort_callback=partial(self.abort_job, event),
+            timeout_callback=partial(self.view_timeout, event),
+            embed_factory=partial(self.embed.selecting, job_id=event.job_id),
             player=player,
             timeout=300.0,
         )
@@ -569,7 +562,7 @@ class RecorderCog(commands.Cog):
 
     async def record_highlight(
         self,
-        job: Job,
+        event: dto.JobSelectable,
         player: Player,
         inter: disnake.AppCmdInter,
         round_id: int,
@@ -580,7 +573,7 @@ class RecorderCog(commands.Cog):
             await job_limit_checker(inter=inter, limit=config.JOB_LIMIT)
         except commands.CheckFailure as exc:
             self.bot.dispatch("slash_command_error", inter, exc)
-            await services.abort_job(uow=SqlUnitOfWork(), job=job)
+            await self.bus.dispatch(cmds.AbortJob(event.job_id))
             return
 
         await services.record(

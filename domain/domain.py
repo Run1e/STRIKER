@@ -135,6 +135,10 @@ class Job(Entity):
         self.state = JobState.SELECTING
         self.add_event(events.JobSelecting(self.id))
 
+    def aborted(self):
+        self.state = JobState.ABORTED
+        self.add_event(events.JobAborted(self.id))
+
     def failed(self, reason: str):
         self.state = JobState.FAILED
         self.add_event(events.JobFailure(self.id, reason))

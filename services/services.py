@@ -116,6 +116,19 @@ async def handle_demo_step(demo: Demo, publish):
         demo.ready()
 
 
+@handler(commands.AbortJob)
+async def abort_job(command: commands.AbortJob, uow: SqlUnitOfWork):
+    async with uow:
+        job = await uow.jobs.get(command.job_id)
+        if job is None:
+            return
+        
+        job.aborted()
+
+        uow.add_message(dto.JobAborted(job_id=job.id, job_state=job.state, job_inter=job.inter_payload))
+        await uow.commit()
+
+
 @listener(events.DemoReady)
 async def demo_ready(event: events.DemoReady, uow: SqlUnitOfWork):
     async with uow:
@@ -145,8 +158,11 @@ async def job_selecting(event: events.JobSelecting, uow: SqlUnitOfWork):
         if job is None:
             return
 
+        demo_events = DemoEvents.from_demo(job.demo)
+        demo_events.parse()
+
         uow.add_message(
-            dto.JobSelectable(job.id, job.state, job.inter_payload, DemoEvents(job.demo.data))
+            dto.JobSelectable(job.id, job.state, job.inter_payload, demo_events)
         )
 
 

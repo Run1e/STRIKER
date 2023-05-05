@@ -12,6 +12,15 @@ class DemoEvents:
         self.data = data
         self._parsed = False
 
+    @classmethod
+    def from_demo(cls, demo):
+        self = cls(demo.data)
+
+        self.origin = demo.origin
+        self.time = demo.time
+
+        return self
+
     def get_player_team(self, player: Player) -> int:
         for teamidx, players in enumerate(self.teams):
             if player in players:
@@ -62,21 +71,24 @@ class DemoEvents:
         return kills
 
     @property
-    def matchtime_string(self):
-        ordinal = {1: "st", 2: "nd", 3: "rd"}.get(self.matchtime.day % 10, "th")
+    def time_str(self):
+        if self.time is None:
+            return "Unknown"
+
+        ordinal = {1: "st", 2: "nd", 3: "rd"}.get(self.time.day % 10, "th")
         return (
-            self.matchtime.strftime("%d").lstrip("0")
+            self.time.strftime("%d").lstrip("0")
             + ordinal
-            + self.matchtime.strftime(" %b %Y at %I:%M")
+            + self.time.strftime(" %b %Y at %I:%M")
         )
 
     @property
-    def score_string(self):
+    def score_str(self):
         return "-".join(str(s) for s in self.score)
 
     def format(self):
-        date = self.matchtime_string
-        score = self.score_string
+        date = self.time_str
+        score = self.score_str
 
         return f"{self.map} [{score}] - {date}"
 
@@ -84,8 +96,6 @@ class DemoEvents:
         if self._parsed:
             return
 
-        self.score = [0, 0]
-        self.teams = [[], []]
         self._player_team = dict()
         self._players = dict()
         self._rounds = defaultdict(list)

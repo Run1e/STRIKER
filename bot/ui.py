@@ -92,28 +92,27 @@ class RoundView(disnake.ui.View):
     def __init__(
         self,
         *,
+        demo_events,
         round_callback,
         reselect_callback,
         abort_callback,
         timeout_callback,
-        job: Job,
         embed_factory,
         player: Player,
         timeout=180.0,
     ):
         super().__init__(timeout=timeout)
 
+        self.demo_events = demo_events
         self.round_callback = round_callback
         self.reselect_callback = reselect_callback
         self.abort_callback = abort_callback
         self.on_timeout = timeout_callback
         self.timeout_callback = timeout_callback
-        self.job = job
         self.embed_factory = embed_factory
-        self.demo = job.demo
         self.player = player
-        self.player_team = self.demo.get_player_team(player)
-        self.kills: List[Death] = self.demo.get_player_kills(player)
+        self.player_team = self.demo_events.get_player_team(player)
+        self.kills: List[Death] = self.demo_events.get_player_kills(player)
         self.round_buttons = list()
 
         self.first_half.emoji = T_COIN if self.player_team == 0 else CT_COIN
@@ -124,7 +123,7 @@ class RoundView(disnake.ui.View):
             False: self.create_table(False),
         }
 
-        for round_id in range(1, self.demo.halftime + 1):
+        for round_id in range(1, self.demo_events.halftime + 1):
             button = RoundButton(
                 callback=round_callback,
                 style=disnake.ButtonStyle.primary,
@@ -166,22 +165,21 @@ class RoundView(disnake.ui.View):
         asyncio.create_task(self.abort_callback(inter))
 
     def round_range(self, first_half):
-        halftime = self.demo.halftime
+        halftime = self.demo_events.halftime
         return range(
             1 if first_half else halftime + 1,
             (halftime if first_half else halftime * 2) + 1,
         )
 
     def create_table(self, first_half):
-        demo = self.job.demo
         round_range = self.round_range(first_half)
-        map_area = places.get(demo.map, None)
+        map_area = places.get(self.demo_events.map, None)
         data = []
 
         for round_id in round_range:
             kills = self.kills.get(round_id, None)
             if kills is not None:
-                data.append(demo.kills_info(round_id, kills, map_area))
+                data.append(self.demo_events.kills_info(round_id, kills, map_area))
 
         if not data:
             return "This player got zero kills this half."
@@ -202,7 +200,7 @@ class RoundView(disnake.ui.View):
         self.second_half.style = disabled_style if first_half else enabled_style
 
         round_range = self.round_range(first_half)
-        max_rounds = self.demo.round_count
+        max_rounds = self.demo_events.round_count
 
         for round_id, button in zip(round_range, self.round_buttons):
             button.label = str(round_id)

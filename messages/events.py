@@ -39,6 +39,10 @@ class JobFailure(Event):
     job_id: UUID
     reason: str
 
+@dataclass(frozen=True)
+class JobAborted(Event):
+    job_id: UUID
+
 
 # demoparse
 
@@ -65,7 +69,7 @@ class DemoParseFailure(Event):
 
 
 @dataclass(frozen=True)
-class DemoParseTimeout(Event):
+class DemoParseDL(Event):
     command: None
     reason: str
 
