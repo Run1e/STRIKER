@@ -10,6 +10,7 @@ microservices/demoparse_py
 microservices/demoparse/config.py
 microservices/demoparse/parse/amqp_tests.js
 microservices/demoparse/parse/asd
+microservices/demoparse/data
 
 # matchinfo microservice
 microservices/matchinfo/cred
@@ -37,9 +38,8 @@ venv
 __pycache__
 node_modules
 package-lock.json
+push_images.sh
 
 # glob
 *.exe
 *.sum
-push_images.sh
-messagebus.py

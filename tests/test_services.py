@@ -316,7 +316,7 @@ async def test_demoparse_success():
     job.demo_id = demo.id
 
     version = 1
-    event = events.DemoParseSuccess(
+    event = events.DemoParsed(
         origin=demo.origin.name, identifier=demo.identifier, data=demo_data[0], version=version
     )
     await bus.dispatch(event)
@@ -351,7 +351,7 @@ async def test_demoparse_success_outdated():
 
     version = DEMOPARSE_VERSION - 1
 
-    event = events.DemoParseSuccess(
+    event = events.DemoParsed(
         origin=demo.origin.name, identifier=demo.identifier, data=demo_data[0], version=version
     )
 

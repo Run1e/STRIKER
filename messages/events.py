@@ -61,11 +61,19 @@ class JobAborted(Event):
 @dataclass(frozen=True, repr=config.DUMP_EVENTS)
 @consume()
 @publish()
-class DemoParseSuccess(Event):
+class DemoParsed(Event):
     origin: str
     identifier: str
     data: str
     version: int
+
+
+@dataclass(frozen=True)
+@consume()
+@publish()
+class DemoUploaded(Event):
+    origin: str
+    identifier: str
 
 
 @dataclass(frozen=True)

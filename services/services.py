@@ -178,8 +178,8 @@ async def job_failure(event: events.JobFailed, uow: SqlUnitOfWork):
     uow.add_message(dto.JobFailed(event.job_id, inter_payload, event.reason))
 
 
-@listener(events.DemoParseSuccess)
-async def demoparse_success(event: events.DemoParseSuccess, uow: SqlUnitOfWork, publish):
+@listener(events.DemoParsed)
+async def demoparse_success(event: events.DemoParsed, uow: SqlUnitOfWork, publish):
     if event.version != DEMOPARSE_VERSION:
         await demoparse_success_out_of_date(event, uow, publish)
     else:
@@ -187,7 +187,7 @@ async def demoparse_success(event: events.DemoParseSuccess, uow: SqlUnitOfWork, 
 
 
 async def demoparse_success_out_of_date(
-    event: events.DemoParseSuccess, uow: SqlUnitOfWork, publish
+    event: events.DemoParsed, uow: SqlUnitOfWork, publish
 ):
     async with uow:
         demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
@@ -198,7 +198,7 @@ async def demoparse_success_out_of_date(
         await uow.commit()
 
 
-async def demoparse_success_up_to_date(event: events.DemoParseSuccess, uow: SqlUnitOfWork):
+async def demoparse_success_up_to_date(event: events.DemoParsed, uow: SqlUnitOfWork):
     async with uow:
         demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
         if demo is None:
