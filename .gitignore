@@ -12,15 +12,14 @@ microservices/demoparse/parse/amqp_tests.js
 microservices/demoparse/parse/asd
 microservices/demoparse/data
 
-# matchinfo microservice
-microservices/matchinfo/cred
-microservices/matchinfo/config.py
-
 # recorder microservice
 microservices/recorder/hlae
 microservices/recorder/mmcfg
 microservices/recorder/config.py
 microservices/recorder/standalone.py
+
+# uploader microservice
+microservices/uploader/config.py
 
 # docker stuff
 .env

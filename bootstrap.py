@@ -1,13 +1,13 @@
 import asyncio
 import logging
 
-from adapters import orm
+from adapters import orm, steam
 from messages.broker import Broker
 from messages.bus import MessageBus
 from bot import bot, config
 from services.uow import SqlUnitOfWork
 from shared.log import logging_config
-from adapters import steam_gc
+from adapters import steam
 
 logging_config(config.DEBUG)
 
@@ -17,17 +17,16 @@ log = logging.getLogger(__name__)
 async def bootstrap(
     uow_type,
     start_orm: bool,
+    start_steam: bool,
     start_bot: bool,
     restore: bool,
 ) -> MessageBus:
+
     if start_orm:
         await orm.start_orm()
 
-    async def publish(message):
-        log.info("publish: %s", message)
-
     bus = MessageBus(
-        dependencies=dict(sharecode_resolver=steam_gc.get_download_link),
+        dependencies=dict(sharecode_resolver=await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)),
         uow_factory=lambda: uow_type(),
     )
 
@@ -61,6 +60,7 @@ def main():
     coro = bootstrap(
         uow_type=SqlUnitOfWork,
         start_orm=True,
+        start_steam=True,
         start_bot=True,
         restore=True,
     )

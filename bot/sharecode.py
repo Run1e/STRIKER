@@ -31,7 +31,7 @@ def decode(code):
     a = _swap_endianness(a)
 
     return {
-        "matchId": a & _bitmask64,
-        "outcomeId": a >> 64 & _bitmask64,
-        "tokenId": a >> 128 & 0xFFFF,
+        "id": a & _bitmask64,
+        "outcome_id": a >> 64 & _bitmask64,
+        "token": a >> 128 & 0xFFFF,
     }
