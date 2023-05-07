@@ -327,50 +327,6 @@ async def user_recording_count(uow: SqlUnitOfWork, user_id: int):
         return await uow.jobs.recording_count(user_id)
 
 
-async def archive(uow: SqlUnitOfWork, max_active_demos: int, dry_run: bool):
-    async with uow:
-        overflowed_demos = await uow.demos.least_recently_used_matchids(keep_count=max_active_demos)
-        ignore_videos = await uow.jobs.active_ids()
-
-        overflowed_demo_ids = [tup[0] for tup in overflowed_demos]
-        overflowed_matchids = [tup[1] for tup in overflowed_demos]
-
-        _uuid = uuid4()
-        task = asyncio.create_task(
-            bus.wait_for(
-                events=[events.ArchiveSuccess, events.ArchiveFailure],
-                check=lambda event: event.id == _uuid,
-                timeout=20.0,
-            )
-        )
-
-        # await broker.archive.send(
-        #     id=_uuid,
-        #     dry_run=dry_run,
-        #     remove_matchids=overflowed_matchids,
-        #     ignore_videos=[str(_id) for _id in ignore_videos],
-        # )
-
-        result = await task
-
-        if result is None:
-            raise ServiceError("Archive microservice did not respond in time.")
-
-        if isinstance(result, events.ArchiveFailure):
-            raise ServiceError(result.reason)
-
-        # otherwise, we succeeded and can go about changing some heckin' demo states
-        await uow.demos.bulk_set_deleted(overflowed_demo_ids)
-
-        if not dry_run:
-            await uow.commit()
-
-        return dict(
-            removed_demos=result.removed_demos,
-            removed_videos=result.removed_videos,
-        )
-
-
 async def get_user(uow: SqlUnitOfWork, user_id: int) -> User:
     async with uow:
         user = await uow.users.get_user(user_id)

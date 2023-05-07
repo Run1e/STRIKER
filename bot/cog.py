@@ -157,8 +157,6 @@ class RecorderCog(commands.Cog):
         self._autocomplete_mapping = dict()  # desc_desc: demo.id
         self._autocomplete_user_mapping = dict()  # user.id: demo_desc
 
-        # self.archive_task.start()
-
         self.bus.add_event_listener(dto.JobSelectable, self.start_select)
         self.bus.add_event_listener(dto.JobFailed, self.job_failed)
         self.bus.add_event_listener(dto.JobDemoProcessing, self.job_processing)
@@ -376,42 +374,6 @@ class RecorderCog(commands.Cog):
                 sharecode=sharecode,
             )
         )
-
-    @commands.slash_command(
-        name="archive",
-        description="Archive (delete) old demos and uploaded videos",
-        dm_permission=False,
-        guild_ids=[config.STRIKER_GUILD_ID],
-    )
-    @commands.is_owner()
-    async def archive(self, inter: disnake.AppCmdInter, dry_run: bool):
-        await inter.response.defer()
-
-        try:
-            result = await services.archive(
-                uow=SqlUnitOfWork(), max_active_demos=config.MAX_ACTIVE_DEMOS, dry_run=dry_run
-            )
-        except services.ServiceError as exc:
-            raise commands.CommandError(str(exc))
-
-        await inter.send(content=str(result))
-
-    @tasks.loop(minutes=5)
-    async def archive_task(self):
-        result = await services.archive(
-            uow=SqlUnitOfWork(), max_active_demos=config.MAX_ACTIVE_DEMOS, dry_run=False
-        )
-
-        log.info(
-            "Archival task deleted %s demos and %s videos",
-            result["removed_demos"],
-            result["removed_videos"],
-        )
-
-    @archive_task.before_loop
-    async def before_archive_task(self):
-        await self.bot.wait_until_ready()
-        await asyncio.sleep(60.0 * 5)
 
     @commands.slash_command(name="about", description="About the bot", dm_permission=False)
     async def about(self, inter: disnake.AppCmdInter):
