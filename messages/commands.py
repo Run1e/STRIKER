@@ -61,7 +61,7 @@ class Record(Command):
 @publish(ttl=60.0 * 20, dead_event=events.RecorderDL)
 @consume(
     error_factory=lambda m, e: events.RecorderFailure(m.job_id, e or "Recording failed."),
-    requeue=True,
+    requeue=False,  # False because rabbitmq won't redeliver to same consumer, and we only have one
     raise_on_ok=False,
 )
 class RequestRecording(Command):
@@ -69,6 +69,7 @@ class RequestRecording(Command):
     demo_origin: str
     demo_identifier: str
     demo_url: str
+    upload_token: str
     player_xuid: int
     tickrate: int
     start_tick: int

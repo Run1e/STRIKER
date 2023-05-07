@@ -87,11 +87,15 @@ class DemoParseDL(Event):
 
 
 @dataclass(frozen=True)
+@consume()
+@publish()
 class RecorderSuccess(Event):
     job_id: str
 
 
 @dataclass(frozen=True)
+@consume()
+@publish()
 class RecorderFailure(Event):
     job_id: str
     reason: str

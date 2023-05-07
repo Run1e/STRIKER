@@ -42,6 +42,13 @@ class FakeJobRepository(FakeRepository):
 
         return super().add(instance)
 
+
+    async def get_inter(self, job_id):
+        for job in self.instances.values():
+            if job.id == job_id:
+                return job.inter_payload
+        return None
+
     async def get_recording(self):
         jobs = []
         for job in self.instances.values():

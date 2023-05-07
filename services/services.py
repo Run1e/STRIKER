@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from bot import sequencer
 from domain.demo_events import DemoEvents
-from domain.domain import Demo, Job, User
+from domain.domain import Demo, Job, User, build_demo_url, calculate_bitrate
 from domain.enums import DemoGame, DemoOrigin, DemoState, JobState
 from messages import commands, dto, events
 from messages.deco import handler, listener
@@ -231,6 +231,63 @@ async def demoparse_died(event: events.DemoParseDL, uow: SqlUnitOfWork):
         )
 
 
+@handler(commands.Record)
+async def record(command: commands.Record, uow: SqlUnitOfWork, publish):
+    async with uow:
+        job = await uow.jobs.get(command.job_id)
+        job.set_recording()
+
+        demo = job.demo
+
+        upload_token = job.generate_upload_token()
+
+        demo_events = DemoEvents.from_demo(demo)
+        demo_events.parse()
+
+        player = demo_events.get_player_by_xuid(command.player_xuid)
+
+        all_kills = demo_events.get_player_kills(player)
+        kills = all_kills[command.round_id]
+
+        start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(
+            demo_events.tickrate, kills
+        )
+
+        video_bitrate = calculate_bitrate(total_seconds)
+
+        data = dict(
+            job_id=str(job.id),
+            demo_origin=demo.origin.name,
+            demo_identifier=demo.identifier,
+            demo_url=build_demo_url(demo.origin.name, demo.identifier),
+            upload_token=upload_token,
+            player_xuid=player.xuid,
+            tickrate=demo_events.tickrate,
+            start_tick=start_tick,
+            end_tick=end_tick,
+            skips=skips,
+            fps=60,
+            video_bitrate=video_bitrate,
+            audio_bitrate=192,
+            # user controlled
+            fragmovie=False,
+            color_filter=True,
+            righthand=True,
+            crosshair_code="CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE",
+            use_demo_crosshair=False,
+        )
+
+        # if command.tier > 0:
+        #     user = await uow.users.get_user(job.user_id)
+        #     if user is not None:
+        #         data.update(**user.update_recorder_settings())
+
+        cmd = commands.RequestRecording(**data)
+        await publish(cmd)
+
+        await uow.commit()
+
+
 async def restore(command: commands.Restore, uow: SqlUnitOfWork):
     # restores jobs and demos that were cut off during last restart
     async with uow:
@@ -268,69 +325,6 @@ async def abort_job(uow: SqlUnitOfWork, job: Job):
 async def user_recording_count(uow: SqlUnitOfWork, user_id: int):
     async with uow:
         return await uow.jobs.recording_count(user_id)
-
-
-@handler(commands.Record)
-async def record(
-    command: commands.Record,
-    uow: SqlUnitOfWork,
-):
-    async with uow:
-        job = await uow.jobs.get(command.job_id)
-        demo = job.demo
-
-        demo_events = DemoEvents.from_demo(demo)
-        demo_events.parse()
-
-        player = demo_events.get_player_by_xuid(command.player_xuid)
-
-        all_kills = demo_events.get_player_kills(player)
-        kills = all_kills[command.round_id]
-
-        BITRATE_SCALAR = 0.7
-        MAX_VIDEO_BITRATE = 10 * 1024 * 1024
-        MAX_FILE_SIZE = 25 * 8 * 1024 * 1024
-
-        start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(
-            demo_events.tickrate, kills
-        )
-
-        # video_bitrate = 20 * 1024 * 1024
-        video_bitrate = min(
-            MAX_VIDEO_BITRATE, int((MAX_FILE_SIZE / total_seconds) * BITRATE_SCALAR)
-        )
-
-        data = dict(
-            job_id=str(job.id),
-            demo_origin=demo.origin.name,
-            demo_identifier=demo.identifier,
-            player_xuid=player.xuid,
-            tickrate=demo_events.tickrate,
-            start_tick=start_tick,
-            end_tick=end_tick,
-            skips=skips,
-            fps=60,
-            video_bitrate=video_bitrate,
-            audio_bitrate=192,
-            # user controlled
-            fragmovie=False,
-            color_filter=True,
-            righthand=True,
-            crosshair_code="CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE",
-            use_demo_crosshair=False,
-        )
-
-        if command.tier > 0:
-            user = await uow.users.get_user(job.user_id)
-            if user is not None:
-                data.update(**user.update_recorder_settings())
-
-        cmd = commands.RequestRecording(**data)
-        uow.add_message(cmd)
-
-        job.state = JobState.RECORDING
-
-        await uow.commit()
 
 
 async def archive(uow: SqlUnitOfWork, max_active_demos: int, dry_run: bool):
@@ -445,27 +439,27 @@ async def recorder_failure(uow: SqlUnitOfWork, event: events.RecorderFailure):
         await uow.commit()
 
 
-# @bus.listen(events.UploaderSuccess)
-async def uploader_success(uow: SqlUnitOfWork, event: events.UploaderSuccess):
-    async with uow:
-        job = await uow.jobs.get(event.id)
-        if job is None:
-            raise ValueError(f"Upload success references job that does not exist: {event.id}")
+# # @bus.listen(events.UploaderSuccess)
+# async def uploader_success(uow: SqlUnitOfWork, event: events.UploaderSuccess):
+#     async with uow:
+#         job = await uow.jobs.get(event.id)
+#         if job is None:
+#             raise ValueError(f"Upload success references job that does not exist: {event.id}")
 
-        job.state = JobState.SUCCESS
+#         job.state = JobState.SUCCESS
 
-        uow.add_message(events.JobUploadSuccess(job))
-        await uow.commit()
+#         uow.add_message(events.JobUploadSuccess(job))
+#         await uow.commit()
 
 
-# @bus.listen(events.UploaderFailure)
-async def uploader_failure(uow: SqlUnitOfWork, event: events.UploaderFailure):
-    async with uow:
-        job = await uow.jobs.get(event.id)
-        if job is None:
-            raise ValueError(f"Upload failure references job that does not exist: {event.id}")
+# # @bus.listen(events.UploaderFailure)
+# async def uploader_failure(uow: SqlUnitOfWork, event: events.UploaderFailure):
+#     async with uow:
+#         job = await uow.jobs.get(event.id)
+#         if job is None:
+#             raise ValueError(f"Upload failure references job that does not exist: {event.id}")
 
-        job.state = JobState.FAILED
+#         job.state = JobState.FAILED
 
-        uow.add_message(events.JobUploadFailed(job, reason=event.reason))
-        await uow.commit()
+#         uow.add_message(events.JobUploadFailed(job, reason=event.reason))
+#         await uow.commit()

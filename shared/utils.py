@@ -1,3 +1,4 @@
+from bz2 import BZ2Decompressor
 from datetime import datetime, timezone
 from time import monotonic
 
@@ -15,6 +16,22 @@ ordinal = lambda n: "%d%s" % (
     n,
     "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
 )
+
+
+class DemoCorrupted(Exception):
+    pass
+
+
+def decompress(archive, file):
+    with open(file, "wb") as new_file, open(archive, "rb") as file:
+        decompressor = BZ2Decompressor()
+        for data in iter(lambda: file.read(1024 * 1024), b""):
+            try:
+                chunk = decompressor.decompress(data)
+            except OSError as exc:
+                raise DemoCorrupted("Demo corrupted.") from exc
+
+            new_file.write(chunk)
 
 
 class MISSING:

@@ -1,6 +1,8 @@
 import json
 from datetime import datetime, timezone
 from typing import List
+from uuid import uuid4
+from bot.config import DEMO_URL_FORMAT
 
 from messages import events
 from shared.const import DEMOPARSE_VERSION
@@ -84,6 +86,7 @@ class Demo(Entity):
 
         demoheader = data["demoheader"]
         self.map = demoheader["mapname"]
+
         self.score = data["score"]
 
         self.ready()
@@ -109,6 +112,7 @@ class Job(Entity):
         started_at: datetime,
         inter_payload: bytes,
         completed_at: datetime = None,
+        upload_token: str = None,
     ):
         self.state = state
         self.guild_id = guild_id
@@ -117,6 +121,15 @@ class Job(Entity):
         self.started_at = started_at
         self.inter_payload = inter_payload
         self.completed_at = completed_at
+        self.upload_token = upload_token
+
+    def generate_upload_token(self):
+        token = "".join(str(uuid4()).split("-"))
+        self.upload_token = token
+        return token
+
+    def set_completed(self):
+        self.state = JobState.SUCCESS
 
     def set_demo(self, demo: Demo):
         self.demo = demo
@@ -141,6 +154,9 @@ class Job(Entity):
     def failed(self, reason: str):
         self.state = JobState.FAILED
         self.add_event(events.JobFailed(self.id, reason))
+
+    def set_recording(self):
+        self.state = JobState.RECORDING
 
 
 class User(Entity):
@@ -201,3 +217,16 @@ class User(Entity):
                 d[attr] = val
 
         return d
+
+
+def calculate_bitrate(duration: float, bitrate_scalar=0.7, max_bitrate_mbit=10, max_file_size_mb=25):
+    max_bitrate = max_bitrate_mbit * 1024 * 1024
+    max_file_size = max_file_size_mb * 8 * 1024 * 1024
+    return min(max_bitrate, int((max_file_size / duration) * bitrate_scalar))
+
+
+def build_demo_url(origin, identifier):
+    return DEMO_URL_FORMAT.format(
+        origin=origin.lower(),
+        identifier=identifier,
+    )

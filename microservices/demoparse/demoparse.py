@@ -21,7 +21,7 @@ from messages.commands import RequestDemoParse
 from messages.deco import handler
 from shared.const import DEMOPARSE_VERSION
 from shared.log import logging_config
-from shared.utils import timer
+from shared.utils import DemoCorrupted, decompress, timer
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -78,16 +78,6 @@ class DemoStorage:
             )
 
 
-def decompress(archive, file):
-    with open(file, "wb") as new_file, open(archive, "rb") as file:
-        decompressor = BZ2Decompressor()
-        for data in iter(lambda: file.read(1024 * 1024), b""):
-            try:
-                chunk = decompressor.decompress(data)
-            except OSError as exc:
-                raise MessageError("Demo corrupted.") from exc
-
-            new_file.write(chunk)
 
 
 def parse_demo(demofile):
@@ -144,7 +134,10 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
         log.info("extracting %s", demo_path)
         end = timer("extraction")
 
-        await loop.run_in_executor(executor, decompress, archive_path, demo_path)
+        try:
+            await loop.run_in_executor(executor, decompress, archive_path, demo_path)
+        except DemoCorrupted:
+            raise MessageError("Demo corrupted.")
 
         log.info(end())
     else:
@@ -195,7 +188,7 @@ async def main():
     broker = Broker(bus)
     bus.add_dependencies(publish=broker.publish, upload_demo=s3.upload_demo, get_url=s3.get_url)
     bus.register_decos()
-    await broker.start(config.RABBITMQ_HOST, prefetch=3)
+    await broker.start(config.RABBITMQ_HOST, prefetch_count=3)
 
     log.info("Ready to parse!")
 

@@ -6,11 +6,15 @@ import asyncio
 import logging
 import os
 import subprocess
+from concurrent.futures import ProcessPoolExecutor
 from distutils.dir_util import copy_tree
+from functools import partial
 from glob import glob
 from json import dumps, loads
 from shutil import rmtree
 
+import aiofiles
+import aiohttp
 import config
 from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
 from resource_semaphore import ResourcePool, ResourceRequest
@@ -22,9 +26,12 @@ from websockets.exceptions import ConnectionClosed
 
 from messages import commands
 from shared.log import logging_config
+from shared.utils import DemoCorrupted, decompress
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
+
+executor = ProcessPoolExecutor(max_workers=3)
 
 
 def count(start: int):
@@ -34,6 +41,7 @@ def count(start: int):
 
 
 new_port = iter(count(41920))
+CHUNK_SIZE = 4 * 1024 * 1024
 
 sb = Sandboxie(config.SANDBOXIE_START)
 
@@ -58,7 +66,7 @@ async def record(
         raise ValueError("End tick must be after start tick")
 
     log.info(
-        f"Recording player {command.xuid} from tick {command.start_tick} to {command.end_tick} with skips {command.skips}"
+        f"Recording player {command.player_xuid} from tick {command.start_tick} to {command.end_tick} with skips {command.skips}"
     )
 
     unblock_string = random_string()
@@ -68,7 +76,7 @@ async def record(
         start_tick=command.start_tick,
         end_tick=command.end_tick,
         skips=command.skips,
-        xuid=command.xuid,
+        xuid=command.player_xuid,
         fps=command.fps,
         bitrate=command.video_bitrate,
         fragmovie=command.fragmovie,
@@ -208,7 +216,48 @@ async def prepare_csgo(csgo: CSGO):
         await asyncio.sleep(0.5)
 
 
-async def start_ws(pool):
+async def handle_recording_request(
+    command: commands.RequestRecording,
+    session: aiohttp.ClientSession,
+    pool: ResourcePool,
+):
+    demo_dir = f"{config.TEMP_DIR}/{command.demo_origin.lower()}"
+    archive_dir = f"{config.DEMO_DIR}/{command.demo_origin.lower()}"
+
+    # ensure this demos origin type has a folder
+    for _dir in (demo_dir, archive_dir):
+        try:
+            os.makedirs(_dir)
+        except FileExistsError:
+            pass
+
+    archive_path = f"{archive_dir}/{command.demo_identifier}.dem.bz2"
+    demo_path = f"{demo_dir}/{command.demo_identifier}.dem"
+
+    has_archive = os.path.isfile(archive_path)
+    has_demo = os.path.isfile(demo_path)
+
+    if not has_archive:
+        async with session.get(command.demo_url) as resp:
+            if resp.status == 200:
+                async with aiofiles.open(archive_path, "wb") as f:
+                    while not resp.content.at_eof():
+                        await f.write(await resp.content.read(CHUNK_SIZE))
+            else:
+                pass  # TODO: handle
+
+    if not has_archive or not has_demo:
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(executor, decompress, archive_path, demo_path)
+        except DemoCorrupted:
+            raise RecordingError("Demo corrupted.")
+
+    async with ResourceRequest(pool) as csgo:
+        await record(csgo, demo_path, command)
+
+
+async def start_ws(recording_request_handler):
     async def send(c: str, d: dict = None):
         await websocket.send(dumps([c, d or {}]))
 
@@ -228,28 +277,39 @@ async def start_ws(pool):
             try:
                 await send("request")
                 request = await websocket.recv()
+                action, data = loads(request)
+
+                if action == "record":
+                    command = commands.RequestRecording(**data)
+                    log.info("Received recording request %s", command)
+
+                    try:
+                        await recording_request_handler(command)
+                    except RecordingError as exc:
+                        await send("failed", dict(reason=str(exc)))
+                    else:
+                        await send("success", dict(job_id=command.job_id))
+
             except ConnectionClosed as exc:
                 if exc.code == 1008:
-                    raise
+                    raise  # invalid auth
                 log.warn("Lost connection to gateway!")
-                break
-
-            command, data = loads(request)
-            cmd = commands.RequestRecording(**data)
-            async with ResourceRequest(pool) as csgo:
-                await record(csgo, cmd)
+                break  # retry
 
 
 async def main():
     global sb
 
-    logging.getLogger("websockets").setLevel(logging.INFO)
+    # logging.getLogger("websockets").setLevel(logging.INFO)
 
     # copy over csgo config files
     copy_tree("cfg", config.CSGO_DIR + "/cfg")
 
     # delete temp dir
-    rmtree(config.TEMP_DIR)
+    try:
+        rmtree(config.TEMP_DIR)
+    except FileNotFoundError:
+        pass
 
     # ensure data folders exist
     for path in (config.TEMP_DIR, config.DEMO_DIR):
@@ -295,7 +355,15 @@ async def main():
         csgo.set_connection_lost_callback(pool.on_removal)
 
     for _ in csgos:
-        asyncio.create_task(start_ws(pool))
+        asyncio.create_task(
+            start_ws(
+                partial(
+                    handle_recording_request,
+                    session=aiohttp.ClientSession(),
+                    pool=pool,
+                )
+            )
+        )
 
     log.info("Ready to record!")
 
