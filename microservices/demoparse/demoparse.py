@@ -1,5 +1,6 @@
 # top-level module include hack for shared :|
 import sys
+
 sys.path.append("../..")
 
 import asyncio
@@ -73,9 +74,7 @@ class DemoStorage:
         async with self.make_client() as client:
             return await client.generate_presigned_url(
                 "get_object",
-                Params=dict(
-                    Bucket=self.bucket, Key=self._build_key(origin, identifier)
-                ),
+                Params=dict(Bucket=self.bucket, Key=self._build_key(origin, identifier)),
             )
 
 
@@ -175,16 +174,7 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
     await upload_demo(origin, identifier)
     log.info(end())
 
-    await publish(
-        events.DemoUploaded(
-            origin=origin,
-            identifier=identifier,
-        )
-    )
-
     os.remove(archive_path)
-
-
 
 
 async def main():

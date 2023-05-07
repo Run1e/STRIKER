@@ -84,7 +84,7 @@ class MessageBus:
         }
 
     @property
-    def consuming_messages(self):
+    def has_deco(self):
         return set(self.command_handlers).union(set(self.event_listeners))
 
 

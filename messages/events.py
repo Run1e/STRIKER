@@ -71,14 +71,6 @@ class DemoParsed(Event):
 @dataclass(frozen=True)
 @consume()
 @publish()
-class DemoUploaded(Event):
-    origin: str
-    identifier: str
-
-
-@dataclass(frozen=True)
-@consume()
-@publish()
 class DemoParseFailure(Event):
     origin: str
     identifier: str
@@ -96,39 +88,56 @@ class DemoParseDL(Event):
 
 @dataclass(frozen=True)
 class RecorderSuccess(Event):
-    id: UUID
+    job_id: str
 
 
 @dataclass(frozen=True)
 class RecorderFailure(Event):
-    id: UUID
+    job_id: str
     reason: str
 
 
-# uploader
 @dataclass(frozen=True)
-class UploaderSuccess(Event):
-    id: UUID
-
-
-@dataclass(frozen=True)
-class UploaderFailure(Event):
-    id: UUID
+class RecorderDL(Event):
+    command: None
     reason: str
 
 
-# archiver
+# @dataclass(frozen=True)
+# class RecorderSuccess(Event):
+#     id: UUID
 
 
-@dataclass(frozen=True)
-class ArchiveSuccess(Event):
-    id: UUID
-    removed_demos: int
-    removed_videos: int
-    # current_matchids: list
+# @dataclass(frozen=True)
+# class RecorderFailure(Event):
+#     id: UUID
+#     reason: str
 
 
-@dataclass(frozen=True)
-class ArchiveFailure(Event):
-    id: UUID
-    reason: str
+# # uploader
+# @dataclass(frozen=True)
+# class UploaderSuccess(Event):
+#     id: UUID
+
+
+# @dataclass(frozen=True)
+# class UploaderFailure(Event):
+#     id: UUID
+#     reason: str
+
+
+# # archiver
+
+
+# @dataclass(frozen=True)
+# class ArchiveSuccess(Event):
+#     id: UUID
+#     removed_demos: int
+#     removed_videos: int
+#     # current_matchids: list
+
+
+# @dataclass(frozen=True)
+# class ArchiveFailure(Event):
+#     id: UUID
+#     reason: str

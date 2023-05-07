@@ -16,73 +16,85 @@ class MessageError(Exception):
 
 
 class Broker:
-    def __init__(self, bus: bus.MessageBus) -> None:
+    def __init__(self, bus: bus.MessageBus, identifier=None) -> None:
         self.bus = bus
 
         self.channel: aiormq.Channel = None
-        self.publish_setup_completed = set()
+        self.identifier = identifier or str(uuid4())[:8]
 
-    async def start(self, connect_uri: str, prefetch=1):
-        mq = await aiormq.connect(connect_uri)
-        channel = await mq.channel()
+        self._publish_setup = set()
+        self._identified = bool(identifier)
 
-        await channel.basic_qos(prefetch_count=prefetch)
+    async def start(self, url: str, prefetch_count=0):
+        mq = await aiormq.connect(url)
+        self.channel = await mq.channel()
 
-        self.channel = channel
-        await self.setup(channel)
+        await self.prefetch(prefetch_count=prefetch_count)
+        await self.setup()
 
-    async def setup(self, channel: aiormq.abc.AbstractChannel):
+    async def prefetch(self, prefetch_count):
+        await self.channel.basic_qos(prefetch_count=prefetch_count)
+
+    def message_type_to_queue_name(self, message_type):
+        if issubclass(message_type, events.Event):
+            return f"event-{message_type.__name__}-{self.identifier}"
+        elif issubclass(message_type, commands.Command):
+            return f"cmd-{message_type.__name__}"
+
+    async def setup(self):
         for exchange_name in ("command", "event", "dead"):
-            await channel.exchange_declare(
+            await self.channel.exchange_declare(
                 exchange=exchange_name,
                 exchange_type="direct",
                 durable=True,
                 auto_delete=False,
             )
 
-        instance_id = str(uuid4())[:8]
+        has_deco = self.bus.has_deco
+        also_has_consume_args = has_deco.intersection(set(deco.consume_args.keys()))
 
-        for message_type in self.bus.consuming_messages:
-            args = deco.consume_args.get(message_type, None)
-            if args is None:
-                continue
-
-            routing_key = message_type.__name__
-
+        for message_type in also_has_consume_args:
             if issubclass(message_type, commands.Command):
-                publish_args = deco.publish_args.get(message_type, None)
-                await self._prepare_command_queue(
-                    message_type, dead_event=publish_args["dead_event"], consume_args=args
-                )
+                await self.prepare_command(message_type, as_consumer=True)
             elif issubclass(message_type, events.Event):
-                queue_name = f"event-{routing_key}-{instance_id}"
+                await self.prepare_event(message_type)
 
-                await self.channel.queue_declare(
-                    queue=queue_name,
-                    exclusive=True,
-                    auto_delete=True,
-                )
-
-                # bind the queue to its related exchange
-                await self.channel.queue_bind(
-                    queue=queue_name, exchange="event", routing_key=routing_key
-                )
-
-                # consume from the queue
-                await self.channel.basic_consume(
-                    queue_name,
-                    partial(self.recv, message_type=message_type, **args),
-                )
-
-    async def _prepare_command_queue(self, message_type, dead_event, consume_args: dict = None):
+    async def prepare_event(self, message_type):
         routing_key = message_type.__name__
-        queue_name = f"cmd-{routing_key}"
+        queue_name = self.message_type_to_queue_name(message_type)
+
+        consume_args = deco.consume_args.get(message_type, None)
+
+        await self.channel.queue_declare(
+            queue=queue_name,
+            durable=self._identified,
+            exclusive=not self._identified,
+            auto_delete=not self._identified,
+        )
+
+        # bind the queue to its related exchange
+        await self.channel.queue_bind(queue=queue_name, exchange="event", routing_key=routing_key)
+
+        # consume from the queue
+        log.info("Consuming event %s", queue_name)
+        await self.channel.basic_consume(
+            queue_name,
+            partial(self.recv, message_type=message_type, **consume_args),
+        )
+
+    async def prepare_command(self, message_type, as_consumer: bool):
+        routing_key = message_type.__name__
+        queue_name = self.message_type_to_queue_name(message_type)
         dlx_queue_name = f"dead-{routing_key}"
         queue_args = dict()
+
+        publish_args = deco.publish_args.get(message_type, None)
+        dead_event = publish_args["dead_event"]
 
         if dead_event:
             await self.channel.queue_declare(
                 queue=dlx_queue_name,
+                durable=True,
                 exclusive=False,
                 auto_delete=False,
             )
@@ -92,11 +104,14 @@ class Broker:
 
             # bind the dlx queue to its related exchange
             await self.channel.queue_bind(
-                queue=dlx_queue_name, exchange="dead", routing_key=routing_key,
+                queue=dlx_queue_name,
+                exchange="dead",
+                routing_key=routing_key,
             )
 
-            if not consume_args:
+            if not as_consumer:
                 # we're publisher, so consume dead letter queue
+                log.info("Consuming dlx %s", dlx_queue_name)
                 await self.channel.basic_consume(
                     dlx_queue_name,
                     partial(self.recv_dead, message_type=message_type, dead_event=dead_event),
@@ -106,6 +121,7 @@ class Broker:
         await self.channel.queue_declare(
             queue=queue_name,
             arguments=queue_args,
+            durable=True,
             exclusive=False,
             auto_delete=False,
         )
@@ -113,8 +129,17 @@ class Broker:
         # bind the queue to its related exchange
         await self.channel.queue_bind(queue=queue_name, exchange="command", routing_key=routing_key)
 
-        if consume_args:
+        if as_consumer:
+            consume_args = deco.consume_args.get(message_type, None)
+            if consume_args is None:
+                # not really a possible branch but nice as a sanity check I guess
+                raise ValueError(
+                    "Tried to consume command handler for type %s but no consume args configured",
+                    message_type,
+                )
+
             # we're consumer, so consume the main queue
+            log.info("Consuming command %s", queue_name)
             await self.channel.basic_consume(
                 queue_name, partial(self.recv, message_type=message_type, **consume_args)
             )
@@ -130,17 +155,15 @@ class Broker:
 
         queue_name = message_type.__name__
         data = asdict(message)
-
         ttl = args["ttl"]
-        dead_event = args["dead_event"]
 
         if isinstance(message, commands.Command):
-            if message_type not in self.publish_setup_completed:
-                await self._prepare_command_queue(
+            if message_type not in self._publish_setup:
+                await self.prepare_command(
                     message_type=message_type,
-                    dead_event=dead_event,
+                    as_consumer=False,
                 )
-                self.publish_setup_completed.add(message_type)
+                self._publish_setup.add(message_type)
 
             exchange = "command"
         else:

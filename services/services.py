@@ -134,6 +134,7 @@ async def job_waiting(event: events.JobWaiting, uow: SqlUnitOfWork):
     async with uow:
         uow.add_message(dto.JobDemoProcessing(event.job_id, event.job_inter))
 
+
 @listener(events.JobSelecting)
 async def job_selecting(event: events.JobSelecting, uow: SqlUnitOfWork):
     async with uow:
@@ -145,7 +146,6 @@ async def job_selecting(event: events.JobSelecting, uow: SqlUnitOfWork):
         demo_events.parse()
 
         uow.add_message(dto.JobSelectable(job.id, job.inter_payload, demo_events))
-
 
 
 @listener(events.DemoReady)
@@ -170,8 +170,6 @@ async def demo_failure(event: events.DemoFailure, uow: SqlUnitOfWork):
         await uow.commit()
 
 
-
-
 @listener(events.JobFailed)
 async def job_failure(event: events.JobFailed, uow: SqlUnitOfWork):
     inter_payload = await views.get_job_inter(event.job_id, uow)
@@ -186,9 +184,7 @@ async def demoparse_success(event: events.DemoParsed, uow: SqlUnitOfWork, publis
         await demoparse_success_up_to_date(event, uow)
 
 
-async def demoparse_success_out_of_date(
-    event: events.DemoParsed, uow: SqlUnitOfWork, publish
-):
+async def demoparse_success_out_of_date(event: events.DemoParsed, uow: SqlUnitOfWork, publish):
     async with uow:
         demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
         if demo is None:

@@ -31,7 +31,7 @@ async def bootstrap(
         uow_factory=lambda: uow_type(),
     )
 
-    broker = Broker(bus)
+    broker = Broker(bus, identifier="bot")
 
     bus.add_dependencies(publish=broker.publish)
     bus.register_decos()

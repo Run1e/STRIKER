@@ -6,7 +6,7 @@ colors = [
 ]
 
 
-def make_config(user, data_dir, temp_dir, log_dir, boxes):
+def make_config(user, demo_dir, temp_dir, boxes):
     sections = [
         f"""
 [UserSettings_{user}]
@@ -21,9 +21,7 @@ Enabled=y
     ]
 
     for box, color in zip(boxes, colors):
-        sections.append(
-            make_box(box=box, data_dir=data_dir, temp_dir=temp_dir, log_dir=log_dir, color=color)
-        )
+        sections.append(make_box(box=box, data_dir=demo_dir, temp_dir=temp_dir, color=color))
 
     return "\n".join(sections)
 
@@ -47,8 +45,7 @@ AutoDelete=y
 NeverDelete=n
 CopyLimitKb=-1
 CopyLimitSilent=y
-OpenFilePath={data_dir}
-OpenFilePath={log_dir}
+OpenFilePath={demo_dir}
 OpenFilePath={temp_dir}""".format(
         **kwargs
     )

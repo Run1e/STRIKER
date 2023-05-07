@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from . import events
-from .deco import publish, consume
+from .deco import consume, publish
 
 
 class Command:
@@ -30,10 +30,10 @@ class RequestMatchInfo(Command):
 
 
 @dataclass(frozen=True)
-@publish(ttl=4.0, dead_event=events.DemoParseDL)
+@publish(ttl=60.0, dead_event=events.DemoParseDL)
 @consume(
-    error_factory=lambda message, error: events.DemoParseFailure(
-        message.origin, message.identifier, error or "Unable to download/parse demo."
+    error_factory=lambda m, e: events.DemoParseFailure(
+        m.origin, m.identifier, e or "Failed processsing demo."
     ),
     requeue=True,
     raise_on_ok=False,
@@ -42,8 +42,6 @@ class RequestDemoParse(Command):
     origin: str
     identifier: str
     download_url: str
-
-
 
 
 @dataclass(frozen=True)
@@ -60,9 +58,17 @@ class Record(Command):
 
 
 @dataclass(frozen=True)
+@publish(ttl=60.0 * 20, dead_event=events.RecorderDL)
+@consume(
+    error_factory=lambda m, e: events.RecorderFailure(m.job_id, e or "Recording failed."),
+    requeue=True,
+    raise_on_ok=False,
+)
 class RequestRecording(Command):
     job_id: str
-    demo: str
+    demo_origin: str
+    demo_identifier: str
+    demo_url: str
     player_xuid: int
     tickrate: int
     start_tick: int

@@ -8,103 +8,80 @@ import os
 import subprocess
 from distutils.dir_util import copy_tree
 from glob import glob
+from json import dumps, loads
 from shutil import rmtree
 
-import aiormq
-import aiormq.types
 import config
 from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
 from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
 from sandboxie_config import make_config
 from script_builder import make_script
+from websockets import client
+from websockets.exceptions import ConnectionClosed
 
+from messages import commands
 from shared.log import logging_config
-from shared.message import MessageError, MessageWrapper
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
 
-if config.SANDBOXED:
-    sb = Sandboxie(config.SANDBOXIE_START)
 
-    current_port = config.PORT_START
-
-    def new_port():
-        global current_port
-
-        return_port = current_port
-        current_port += 1
-        return return_port
+def count(start: int):
+    while True:
+        yield start
+        start += 1
 
 
-async def on_message(message: aiormq.channel.DeliveredMessage):
-    wrap = MessageWrapper(
-        message=message,
-        default_error="An error occurred while recording.",
-        ack_on_failure=False,
-        raise_on_message_error=True,
-        requeue_on_nack=True,
-    )
+new_port = iter(count(41920))
 
-    async with ResourceRequest(pool) as csgo, wrap as ctx:
-        await record(csgo, **ctx.data)
-        await ctx.success()
+sb = Sandboxie(config.SANDBOXIE_START)
+
+
+class RecordingError(Exception):
+    pass
 
 
 async def record(
     csgo: CSGO,
-    job_id: str,
-    matchid: int,
-    tickrate: int,
-    start_tick: int,
-    end_tick: int,
-    xuid: int,
-    fps: int,
-    video_bitrate: int,
-    audio_bitrate,
-    skips: list,
-    fragmovie: bool,
-    color_filter: bool,
-    righthand: bool,
-    crosshair_code: str,
-    use_demo_crosshair: bool,
-    **kwargs,
+    demo: str,
+    command: commands.RequestRecording,
 ):
-    demo = rf"{config.DEMO_DIR}\{matchid}.dem"
-    output = rf"{config.VIDEO_DIR}\{job_id}.mp4"
+    output = f"video/{command.job_id}.mp4"
     capture_dir = config.TEMP_DIR
-    video_filters = config.VIDEO_FILTERS if color_filter else None
+    video_filters = config.VIDEO_FILTERS if command.color_filter else None
 
     if not os.path.isfile(demo):
         raise ValueError(f"Demo {demo} does not exist.")
 
-    if end_tick < start_tick:
+    if command.end_tick < command.start_tick:
         raise ValueError("End tick must be after start tick")
 
-    log.info(f"Recording player {xuid} from tick {start_tick} to {end_tick} with skips {skips}")
+    log.info(
+        f"Recording player {command.xuid} from tick {command.start_tick} to {command.end_tick} with skips {command.skips}"
+    )
 
     unblock_string = random_string()
 
-    commands = make_script(
-        tickrate=tickrate,
-        start_tick=start_tick,
-        end_tick=end_tick,
-        skips=skips,
-        xuid=xuid,
-        fps=fps,
-        bitrate=video_bitrate,
+    cmds = make_script(
+        tickrate=command.tickrate,
+        start_tick=command.start_tick,
+        end_tick=command.end_tick,
+        skips=command.skips,
+        xuid=command.xuid,
+        fps=command.fps,
+        bitrate=command.video_bitrate,
+        fragmovie=command.fragmovie,
+        righthand=command.righthand,
+        crosshair_code=command.crosshair_code,
+        use_demo_crosshair=command.use_demo_crosshair,
         capture_dir=capture_dir,
         video_filters=video_filters,
         unblock_string=unblock_string,
-        fragmovie=fragmovie,
-        righthand=righthand,
-        crosshair_code=crosshair_code,
-        use_demo_crosshair=use_demo_crosshair,
     )
 
-    script_file = f"{config.SCRIPT_DIR}/{job_id}.xml"
-    commands.save(script_file)
+    script_file = f"{config.TEMP_DIR}/{command.job_id}.xml"
+    cmds.save(script_file)
 
     await csgo.run(f'mirv_cmd clear; mirv_cmd load "{script_file}"')
 
@@ -114,14 +91,11 @@ async def record(
     # make sure deathmsg doesn't fill up and clear lock spec
     await csgo.run(f"mirv_deathmsg lifetime 0")
 
-    try:
-        take_folder = await csgo.playdemo(
-            demo=demo,
-            unblock_string=unblock_string,
-            start_at=start_tick - (6 * tickrate),
-        )
-    except RecordingError as exc:
-        raise MessageError(exc.args[0])
+    take_folder = await csgo.playdemo(
+        demo=demo,
+        unblock_string=unblock_string,
+        start_at=command.start_tick - (6 * command.tickrate),
+    )
 
     # mux audio
     wav = glob(take_folder + r"\*.wav")[0]
@@ -137,7 +111,7 @@ async def record(
             "-c:a",
             "aac",
             "-b:a",
-            f"{audio_bitrate}k",
+            f"{command.audio_bitrate}k",
             "-y",
             output,
         ],
@@ -193,7 +167,7 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
 
     await asyncio.sleep(32.0)
 
-    port = new_port()
+    port = next(new_port)
 
     sb.run(
         *craft_hlae_args(port),
@@ -204,8 +178,7 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
 
 
 def make_csgo(port):
-    subprocess.run(craft_hlae_args(config.PORT_START))
-
+    subprocess.run(craft_hlae_args(port))
     return CSGO("localhost", port=port)
 
 
@@ -234,37 +207,55 @@ async def prepare_csgo(csgo: CSGO):
         await csgo.run(command)
         await asyncio.sleep(0.5)
 
-    log_name = csgo.box if isinstance(csgo, SandboxedCSGO) else "csgo"
 
-    def return_checker():
-        f = open(rf"{config.CSGO_LOG_DIR}\{log_name}.log", "w")
+async def start_ws(pool):
+    async def send(c: str, d: dict = None):
+        await websocket.send(dumps([c, d or {}]))
 
-        def checker(line):
-            f.write(line + "\n")
-            f.flush()
+    # retry connection forever
+    while True:
+        try:
+            websocket = await client.connect(
+                config.API_ENDPOINT, extra_headers=dict(Authorization=config.API_TOKEN)
+            )
+        except ConnectionRefusedError as exc:
+            log.warn("Timed out trying to connect...")
+            continue
 
-        return checker
+        log.info("Connected!")
 
-    csgo.checks[return_checker()] = asyncio.Event()
+        while True:
+            try:
+                await send("request")
+                request = await websocket.recv()
+            except ConnectionClosed as exc:
+                if exc.code == 1008:
+                    raise
+                log.warn("Lost connection to gateway!")
+                break
 
-
-pool = ResourcePool(on_removal=on_csgo_error)
+            command, data = loads(request)
+            cmd = commands.RequestRecording(**data)
+            async with ResourceRequest(pool) as csgo:
+                await record(csgo, cmd)
 
 
 async def main():
     global sb
 
-    logging.getLogger("aiormq").setLevel(logging.INFO)
+    logging.getLogger("websockets").setLevel(logging.INFO)
 
     # copy over csgo config files
     copy_tree("cfg", config.CSGO_DIR + "/cfg")
 
-    # empty temp dir
-    for entry in os.listdir(config.TEMP_DIR):
+    # delete temp dir
+    rmtree(config.TEMP_DIR)
+
+    # ensure data folders exist
+    for path in (config.TEMP_DIR, config.DEMO_DIR):
         try:
-            rmtree(f"{config.TEMP_DIR}/{entry}")
-            log.info("Removed %s", entry)
-        except:
+            os.makedirs(path)
+        except FileExistsError:
             pass
 
     if config.SANDBOXED:
@@ -272,16 +263,19 @@ async def main():
 
         cfg = make_config(
             user=config.SANDBOXIE_USER,
-            data_dir=config.DATA_DIR,
+            demo_dir=config.DEMO_DIR,
             temp_dir=config.TEMP_DIR,
-            log_dir=config.CSGO_LOG_DIR,
             boxes=config.BOXES,
         )
 
         with open(config.SANDBOXIE_INI, "w", encoding="utf-16") as f:
             f.write(cfg)
 
+        await asyncio.sleep(1.0)
+
         sb.reload()
+
+        await asyncio.sleep(2.0)
 
         setups = [
             make_sandboxed_csgo(sb, box=box_name, sleep=idx * 5)
@@ -290,23 +284,18 @@ async def main():
 
         csgos = await asyncio.gather(*setups)
     else:
-        csgos = [make_csgo(config.PORT_START)]
+        csgos = [make_csgo(next(new_port))]
 
     await asyncio.gather(*[prepare_csgo(csgo) for csgo in csgos])
+
+    pool = ResourcePool(on_removal=on_csgo_error)
 
     for csgo in csgos:
         pool.add(csgo)
         csgo.set_connection_lost_callback(pool.on_removal)
 
-    mq = await aiormq.connect(config.RABBITMQ_HOST)
-    chan = await mq.channel()
-
-    await chan.basic_qos(prefetch_count=len(config.BOXES) if config.SANDBOXED else 1)
-
-    # await chan.queue_declare(config.RECORDER_QUEUE)
-    await chan.basic_consume(
-        queue=config.RECORDER_QUEUE, consumer_callback=on_message, no_ack=False
-    )
+    for _ in csgos:
+        asyncio.create_task(start_ws(pool))
 
     log.info("Ready to record!")
 
