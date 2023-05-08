@@ -89,8 +89,6 @@ class Demo(Entity):
 
         self.score = data["score"]
 
-        self.ready()
-
 
 class Recording(Entity):
     def __init__(self, recording_type: RecordingType, player_xuid: int, round_id: int = None):
@@ -128,24 +126,17 @@ class Job(Entity):
         self.upload_token = token
         return token
 
-    def set_completed(self):
-        self.state = JobState.SUCCESS
-
     def set_demo(self, demo: Demo):
         self.demo = demo
 
-        if demo.is_ready() and self.state is JobState.WAITING:
-            self.demo_ready()
+        if demo.is_up_to_date() and self.state is JobState.WAITING:
+            self.selecting()
         elif demo.state is DemoState.PROCESSING:
-            self.demo_processing()
+            self.add_event(events.JobWaiting(self.id))
 
-    def demo_ready(self):
+    def selecting(self):
         self.state = JobState.SELECTING
         self.add_event(events.JobSelecting(self.id))
-
-    def demo_processing(self):
-        self.state = JobState.WAITING
-        self.add_event(events.JobWaiting(self.id, self.inter_payload))
 
     def aborted(self):
         self.state = JobState.ABORTED
@@ -160,6 +151,9 @@ class Job(Entity):
 
     def uploading(self):
         self.state = JobState.UPLOADING
+
+    def success(self):
+        self.state = JobState.SUCCESS
 
 
 class User(Entity):

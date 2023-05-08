@@ -17,7 +17,7 @@ import config
 from messages import events
 from messages.broker import Broker, MessageError
 from messages.bus import MessageBus
-from messages.commands import RequestDemoParse
+from messages.commands import RequestDemoParse, RequestPresignedUrl
 from messages.deco import handler
 from shared.const import DEMOPARSE_VERSION
 from shared.log import logging_config
@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 executor = ProcessPoolExecutor(max_workers=3)
 session = aiohttp.ClientSession()
-loop = None
+upload_events = dict()
 
 if os.name == "nt":
     splitter = "\r\n"
@@ -152,6 +152,10 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
 
     log.info(end())
 
+    event = asyncio.Event()
+    key = (origin, identifier)
+    upload_events[key] = event
+
     await publish(
         events.DemoParsed(
             origin=origin,
@@ -165,7 +169,15 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
     await upload_demo(origin, identifier)
     log.info(end())
 
+    event.set()
+    upload_events.pop(key, None)
+
     os.remove(archive_path)
+
+
+@handler(RequestPresignedUrl)
+async def request_presigned_url(command: RequestPresignedUrl, get_url):
+    pass
 
 
 async def main():

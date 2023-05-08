@@ -39,7 +39,6 @@ class JobSelecting(Event):
 @dataclass(frozen=True, repr=False)
 class JobWaiting(Event):
     job_id: UUID
-    job_inter: bytes
 
 
 @dataclass(frozen=True)
@@ -67,6 +66,14 @@ class DemoParsed(Event):
     data: str
     version: int
 
+@dataclass(frozen=True, repr=config.DUMP_EVENTS)
+@consume()
+@publish()
+class DemoUploaded(Event):
+    origin: str
+    identifier: str
+    data: str
+    version: int
 
 @dataclass(frozen=True)
 @consume()

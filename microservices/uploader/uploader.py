@@ -10,9 +10,9 @@ import logging
 import aiormq
 import config
 import disnake
+import sanic
 
 from shared.log import logging_config
-from shared.message import MessageWrapper
 
 CHUNK_SIZE = 4 * 1024 * 1024
 

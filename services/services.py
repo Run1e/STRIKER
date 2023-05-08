@@ -132,7 +132,8 @@ async def abort_job(command: commands.AbortJob, uow: SqlUnitOfWork):
 @listener(events.JobWaiting)
 async def job_waiting(event: events.JobWaiting, uow: SqlUnitOfWork):
     async with uow:
-        uow.add_message(dto.JobDemoProcessing(event.job_id, event.job_inter))
+        inter = await uow.jobs.get_inter(event.job_id)
+        uow.add_message(dto.JobDemoProcessing(event.job_id, inter))
 
 
 @listener(events.JobSelecting)
@@ -154,7 +155,7 @@ async def demo_ready(event: events.DemoReady, uow: SqlUnitOfWork):
         jobs = await uow.jobs.waiting_for_demo(demo_id=event.demo_id)
 
         for job in jobs:
-            job.demo_ready()
+            job.selecting()
 
         await uow.commit()
 
@@ -178,29 +179,20 @@ async def job_failure(event: events.JobFailed, uow: SqlUnitOfWork):
 
 @listener(events.DemoParsed)
 async def demoparse_success(event: events.DemoParsed, uow: SqlUnitOfWork, publish):
-    if event.version != DEMOPARSE_VERSION:
-        await demoparse_success_out_of_date(event, uow, publish)
-    else:
-        await demoparse_success_up_to_date(event, uow)
-
-
-async def demoparse_success_out_of_date(event: events.DemoParsed, uow: SqlUnitOfWork, publish):
     async with uow:
         demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
         if demo is None:
             return
 
-        await handle_demo_step(demo=demo, publish=publish)
-        await uow.commit()
+        if event.version != DEMOPARSE_VERSION:
+            await handle_demo_step(demo=demo, publish=publish)
+        else:
+            demo.set_demo_data(loads(event.data), event.version)
 
+            jobs = await uow.jobs.waiting_for_demo(demo.id)
+            for job in jobs:
+                job.selecting()
 
-async def demoparse_success_up_to_date(event: events.DemoParsed, uow: SqlUnitOfWork):
-    async with uow:
-        demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
-        if demo is None:
-            return
-
-        demo.set_demo_data(loads(event.data), event.version)
         await uow.commit()
 
 

@@ -45,6 +45,20 @@ class RequestDemoParse(Command):
 
 
 @dataclass(frozen=True)
+@publish(ttl=12.0, dead_event=events.DemoParseDL)
+@consume(
+    error_factory=lambda m, e: events.DemoParseFailure(
+        m.origin, m.identifier, e or "Failed processsing demo."
+    ),
+    requeue=True,
+    raise_on_ok=False,
+)
+class RequestPresignedUrl(Command):
+    origin: str
+    identifier: str
+
+
+@dataclass(frozen=True)
 class Restore(Command):
     pass
 
