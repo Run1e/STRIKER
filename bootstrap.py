@@ -21,12 +21,13 @@ async def bootstrap(
     start_bot: bool,
     restore: bool,
 ) -> MessageBus:
-
     if start_orm:
         await orm.start_orm()
 
     bus = MessageBus(
-        dependencies=dict(sharecode_resolver=await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)),
+        dependencies=dict(
+            sharecode_resolver=await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
+        ),
         uow_factory=lambda: uow_type(),
     )
 

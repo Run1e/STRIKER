@@ -78,8 +78,6 @@ class DemoStorage:
             )
 
 
-
-
 def parse_demo(demofile):
     p = run(["node", "parse/index.js", demofile], capture_output=True)
     if p.returncode != 0:

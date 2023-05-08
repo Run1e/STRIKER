@@ -28,3 +28,16 @@ class JobFailed(DTO):
 class JobDemoProcessing(DTO):
     job_id: UUID
     job_inter: bytes
+
+
+@dataclass(frozen=True, repr=False)
+class JobRecording(DTO):
+    job_id: UUID
+    job_inter: bytes
+    infront: int
+
+
+@dataclass(frozen=True, repr=False)
+class JobUploading(DTO):
+    job_id: UUID
+    job_inter: bytes

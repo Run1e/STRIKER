@@ -158,6 +158,9 @@ class Job(Entity):
     def set_recording(self):
         self.state = JobState.RECORDING
 
+    def uploading(self):
+        self.state = JobState.UPLOADING
+
 
 class User(Entity):
     modifiable_fields = (
@@ -219,7 +222,9 @@ class User(Entity):
         return d
 
 
-def calculate_bitrate(duration: float, bitrate_scalar=0.7, max_bitrate_mbit=10, max_file_size_mb=25):
+def calculate_bitrate(
+    duration: float, bitrate_scalar=0.7, max_bitrate_mbit=10, max_file_size_mb=25
+):
     max_bitrate = max_bitrate_mbit * 1024 * 1024
     max_file_size = max_file_size_mb * 8 * 1024 * 1024
     return min(max_bitrate, int((max_file_size / duration) * bitrate_scalar))

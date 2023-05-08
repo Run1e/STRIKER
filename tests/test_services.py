@@ -42,7 +42,6 @@ class FakeJobRepository(FakeRepository):
 
         return super().add(instance)
 
-
     async def get_inter(self, job_id):
         for job in self.instances.values():
             if job.id == job_id:
@@ -451,7 +450,7 @@ async def test_recorder_success():
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
 
     event = events.RecorderSuccess(job.id)
-    await services.recorder_success(uow, event)
+    await services.recorder_dl(uow, event)
 
     assert uow.commit_count == 1
     assert job.state is JobState.UPLOADING
@@ -471,7 +470,7 @@ async def test_recorder_failure():
 
     reason = "some reason"
     event = events.RecorderFailure(id=job.id, reason=reason)
-    await services.recorder_failure(uow, event)
+    await services.recorder_dl(uow, event)
 
     assert uow.commit_count == 1
 

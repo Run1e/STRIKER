@@ -288,6 +288,51 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish):
         await uow.commit()
 
 
+@listener(events.RecorderSuccess)
+async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
+    async with uow:
+        job = await uow.jobs.get(event.job_id)
+        if job is None:
+            return
+
+        job.uploading()
+        uow.add_message(dto.JobUploading(job.id, job.inter_payload))
+        await uow.commit()
+
+
+@listener(events.RecorderFailure)
+async def recorder_failure(event: events.RecorderFailure, uow: SqlUnitOfWork):
+    async with uow:
+        job = await uow.jobs.get(event.job_id)
+        if job is None:
+            return
+
+        job.failed(event.reason)
+        await uow.commit()
+
+
+@listener(events.RecorderDL)
+async def recorder_died(event: events.RecorderDL, uow: SqlUnitOfWork):
+    async with uow:
+        command: commands.RequestRecording = event.command
+        job = await uow.jobs.get(command.job_id)
+        if job is None:
+            return
+
+        job.failed(event.reason)
+        await uow.commit()
+
+
+@listener(events.RecordingQueued)
+@listener(events.RecordingStarted)
+async def recording_progression(event, uow: SqlUnitOfWork):
+    async with uow:
+        job_id = UUID(event.job_id)
+        inter_payload = await uow.jobs.get_inter(job_id)
+        infront = event.infront if isinstance(event, events.RecordingQueued) else None
+        uow.add_message(dto.JobRecording(job_id, inter_payload, infront))
+
+
 async def restore(command: commands.Restore, uow: SqlUnitOfWork):
     # restores jobs and demos that were cut off during last restart
     async with uow:

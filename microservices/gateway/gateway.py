@@ -31,7 +31,7 @@ async def ws_connection_handler(websocket: server.WebSocketServerProtocol, queue
         await websocket.close(code=1008, reason="Missing or invalid token")
 
     command: commands.RequestRecording
-    fut: asyncio.Future = None
+    future: asyncio.Future = None
 
     try:
         async for message in websocket:
@@ -39,34 +39,47 @@ async def ws_connection_handler(websocket: server.WebSocketServerProtocol, queue
 
             if action == "request":
                 log.info("Waiting for recording job to give to client...")
-                command, fut = await queue.get()
+                command, event, future = await queue.get()
                 data = asdict(command)
                 await send("record", data)
+                event.set()
 
             elif action == "success":
                 log.info("Client reported successful recording")
-                fut.set_result(events.RecorderSuccess(**data))
-                fut = None
+                future.set_result(events.RecorderSuccess(**data))
+                future = None
 
             elif action == "failure":
                 reason = data["reason"]
                 log.info("Client reported failed recording: %s", reason)
-                fut.set_exception(MessageError(reason))
-                fut = None
+                future.set_exception(MessageError(reason))
+                future = None
 
     except ConnectionClosed as exc:
-        if fut:
-            fut.set_exception(exc)
+        if future:
+            future.set_exception(exc)
 
 
 @handler(commands.RequestRecording)
 async def on_recording_request(
     command: commands.RequestRecording, broker: Broker, queue: asyncio.Queue
 ):
-    fut = asyncio.Future()
-    await queue.put((command, fut))
+    infront = queue.qsize()
+    has_getters = bool(queue._getters)
 
-    result = await fut
+    future = asyncio.Future()
+    event = asyncio.Event()
+    await queue.put((command, event, future))
+
+    # if there's stuff on the queue, or nothing is currently waiting (no getters), publish a queue event
+    if infront > 0 or not has_getters:
+        await broker.publish(events.RecordingQueued(command.job_id, infront=infront))
+
+    # wait for recording to start, and then publish started event
+    await event.wait()
+    await broker.publish(events.RecordingStarted(command.job_id))
+
+    result = await future
     await broker.publish(result)
 
 

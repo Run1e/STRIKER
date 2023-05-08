@@ -68,6 +68,9 @@ class EmbedBuilder:
     def recording(self, job_id):
         return self.build("Recording queued!", disnake.Color.orange(), job_id)
 
+    def uploading(self, job_id):
+        return self.build("Uploading", disnake.Color.orange(), job_id)
+
     def success(self, job_id):
         return self.build("Job completed, enjoy!", disnake.Color.green(), job_id)
 
@@ -157,133 +160,37 @@ class RecorderCog(commands.Cog):
         self._autocomplete_mapping = dict()  # desc_desc: demo.id
         self._autocomplete_user_mapping = dict()  # user.id: demo_desc
 
-        self.bus.add_event_listener(dto.JobSelectable, self.start_select)
+        self.bus.add_event_listener(dto.JobSelectable, self.job_selectable)
         self.bus.add_event_listener(dto.JobFailed, self.job_failed)
         self.bus.add_event_listener(dto.JobDemoProcessing, self.job_processing)
+        self.bus.add_event_listener(dto.JobRecording, self.job_recording)
+        self.bus.add_event_listener(dto.JobUploading, self.job_uploading)
 
-    @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
-    @commands.bot_has_permissions(embed_links=True)
-    async def _help(self, inter: disnake.AppCmdInter):
-        await self.bot.wait_until_ready()
-        await self._send_help_embed(inter)
-
-    @commands.Cog.listener()
-    async def on_button_click(self, inter: disnake.MessageInteraction):
-        custom_id = inter.component.custom_id
-        if custom_id == "howtouse":
-            await self._send_help_embed(inter)
-        elif custom_id == "donatebutton":
-            await self._send_donate(inter)
-
-    async def _send_help_embed(self, inter: disnake.Interaction):
-        e = self.embed.build("How to use the bot!")
-
-        e.description = (
-            "This bot can record and upload CS:GO clips from matchmaking games straight to Discord. "
-            "To do so you will need to give the bot a sharecode from one of your matchmaking matches.\n\n"
-            "The below image shows how to find and copy a matchmaking sharecode from inside CS:GO.\n\n"
-            "To record a highlight, run the `/record` command and paste the sharecode you copied.\n\n"
-            "To record another highlight from the same match, use `/demos`.\n\n"
-            "Have fun!"
-        )
-
-        e.set_image(url=config.SHARECODE_IMG_URL)
-
-        buttons = []
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="Invite the bot to another server",
-                emoji="🎉",
-                url=self.bot.craft_invite_link(),
-            )
-        )
-
-        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
-
-    async def _send_donate(self, inter: disnake.Interaction):
-        e = self.embed.build("Donate to support the project!")
-
-        e.description = (
-            "Thanks for your interest in supporting the project!\n\n"
-            "Below are all the options for donating."
-        )
-
-        buttons = []
-
-        if config.DONATE_URL is not None:
-            buttons.append(
-                disnake.ui.Button(
-                    style=disnake.ButtonStyle.url,
-                    label="Support through Ko-fi",
-                    url=config.DONATE_URL,
-                )
-            )
-
-        if config.TRADELINK_URL is not None:
-            buttons.append(
-                disnake.ui.Button(
-                    style=disnake.ButtonStyle.url,
-                    label="Send me some skins",
-                    url=config.TRADELINK_URL,
-                )
-            )
-
-        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
-
-    @commands.slash_command(
-        name="config",
-        description="Tweak the recording settings",
-        dm_permission=False,
-    )
-    @tier(2)
-    async def _config(self, inter: disnake.AppCmdInter):
-        user: User = await services.get_user(uow=SqlUnitOfWork(), user_id=inter.author.id)
-
-        view = ConfigView(
-            inter=inter,
-            user=user,
-            store_callback=self._store_config,
-            abort_callback=self._abort_config,
-            timeout=180.0,
-        )
-
-        await inter.send(embed=view.embed(), view=view, ephemeral=True)
-
-    async def _store_config(self, inter: disnake.MessageInteraction, user: User):
-        await services.store_user(uow=SqlUnitOfWork(), user=user)
-
-        e = self.embed.build("STRIKER")
-        e.description = "Configuration saved."
-
-        await inter.response.edit_message(view=None, embed=e)
-
-    async def _abort_config(self, inter: disnake.MessageInteraction):
-        e = self.embed.build("STRIKER")
-        e.description = "Configurator aborted."
-
-        await inter.response.edit_message(view=None, embed=e)
-
-    @commands.slash_command(
-        name="maintenance",
-        description="Set bot in maintenance mode",
-        dm_permission=False,
-        guild_ids=[config.STRIKER_GUILD_ID],
-    )
-    @commands.is_owner()
-    async def maintenance(self, inter: disnake.AppCmdInter, enable: bool):
+    @commands.slash_command(description="Record a CS:GO highlight", dm_permission=False)
+    @commands.bot_has_permissions(**job_perms)
+    @not_maintenance()
+    @job_limit(config.JOB_LIMIT)
+    async def record(self, inter: disnake.AppCmdInter, sharecode: str):
         await self.bot.wait_until_ready()
 
-        self.bot.maintenance = enable
-        await inter.send(
-            "Bot now in maintenance mode!" if enable else "Bot now accepting new commands!"
+        sharecode = re.sub(
+            r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )", "", sharecode.strip()
         )
 
-        if enable:
-            await self.bot.change_presence(activity=disnake.Game(name="🛠 maintenance"))
-        else:
-            await self.bot.normal_presence()
+        if not is_valid_sharecode(sharecode):
+            raise commands.UserInputError("Sorry, that's not a valid sharecode!")
+
+        await inter.response.defer(ephemeral=True)
+
+        await self.bus.dispatch(
+            cmds.CreateJob(
+                guild_id=inter.guild.id,
+                channel_id=inter.channel.id,
+                user_id=inter.user.id,
+                inter_payload=pickle.dumps(inter._payload),
+                sharecode=sharecode,
+            )
+        )
 
     @commands.slash_command(description="Record again from a previous demo", dm_permission=False)
     @commands.bot_has_permissions(**job_perms)
@@ -349,113 +256,15 @@ class RecorderCog(commands.Cog):
         # this gets all the autocompleted demo names
         return aum
 
-    @commands.slash_command(description="Record a CS:GO highlight", dm_permission=False)
-    @commands.bot_has_permissions(**job_perms)
-    @not_maintenance()
-    @job_limit(config.JOB_LIMIT)
-    async def record(self, inter: disnake.AppCmdInter, sharecode: str):
-        await self.bot.wait_until_ready()
-
-        sharecode = re.sub(
-            r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )", "", sharecode.strip()
-        )
-
-        if not is_valid_sharecode(sharecode):
-            raise commands.UserInputError("Sorry, that's not a valid sharecode!")
-
-        await inter.response.defer(ephemeral=True)
-
-        await self.bus.dispatch(
-            cmds.CreateJob(
-                guild_id=inter.guild.id,
-                channel_id=inter.channel.id,
-                user_id=inter.user.id,
-                inter_payload=pickle.dumps(inter._payload),
-                sharecode=sharecode,
-            )
-        )
-
-    @commands.slash_command(name="about", description="About the bot", dm_permission=False)
-    async def about(self, inter: disnake.AppCmdInter):
-        e = self.embed.build("STRIKER")
-
-        e.add_field(
-            name="Developer",
-            value="runie#0001",
-        )
-
-        e.add_field(
-            name="Shard count",
-            value=self.bot.shard_count,
-        )
-
-        latencies = ", ".join(str(f"{t[1]:.3f}") for t in self.bot.latencies)
-        e.add_field(name="Shard latencies", value=f"`{latencies}`")
-
-        e.add_field(
-            name="Guilds",
-            value=f"{len(self.bot.guilds):,d}",
-        )
-
-        e.add_field(name="Channels", value=f"{sum(len(g.channels) for g in self.bot.guilds):,d}")
-
-        e.add_field(
-            name="Members",
-            value=f"{sum(g.member_count for g in self.bot.guilds):,d}",
-        )
-
-        buttons = []
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="Invite the bot",
-                emoji="🎉",
-                url=self.bot.craft_invite_link(),
-            )
-        )
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="Discord",
-                emoji=":discord:1099362254731882597",
-                url=config.DISCORD_INVITE_URL,
-            )
-        )
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="GitHub",
-                emoji=":github:1099362911077544007",
-                url=config.GITHUB_URL,
-            )
-        )
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.secondary,
-                label="Donate",
-                emoji="\N{Hot Beverage}",
-                custom_id="donatebutton",
-            )
-        )
-
-        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons))
-
     # DTOs
 
     async def job_processing(self, event: dto.DTO):
         inter = make_inter(event.job_inter, self.bot)
         embed = self.embed.waiting(event.job_id)
 
-        embed.description = {
-            dto.JobDemoProcessing: "Processing demo...",
-        }.get(type(event))
+        embed.description = "Processing demo"
 
-        original_message = await inter.original_response()
-        await original_message.edit(embed=embed, content=None, components=None)
+        await inter.edit_original_response(embed=embed, content=None, components=None)
 
     async def job_failed(self, event: dto.JobFailed):
         inter = make_inter(event.job_inter, self.bot)
@@ -463,10 +272,28 @@ class RecorderCog(commands.Cog):
         embed = self.embed.failed(event.job_id)
         embed.description = event.reason
 
-        original_message = await inter.original_response()
-        await original_message.edit(embed=embed, content=None, components=None)
+        await inter.edit_original_response(embed=embed, content=None, components=None)
 
-    async def start_select(self, event: dto.JobSelectable):
+    async def job_recording(self, event: dto.JobRecording):
+        inter = make_inter(event.job_inter, self.bot)
+
+        embed = self.embed.recording(event.job_id)
+        if event.infront is None:
+            embed.description = "Recording your highlight now!"
+        else:
+            embed.description = f"#{event.infront + 1} in queue"
+
+        await inter.edit_original_response(embed=embed, content=None, components=None)
+
+    async def job_uploading(self, event: dto.JobUploading):
+        inter = make_inter(event.job_inter, self.bot)
+
+        embed = self.embed.recording(event.job_id)
+        embed.description = "Uploading highlight"
+
+        await inter.edit_original_response(embed=embed, content=None, components=None)
+
+    async def job_selectable(self, event: dto.JobSelectable):
         inter = make_inter(event.job_inter, self.bot)
 
         # also clear this users demo cache
@@ -566,6 +393,199 @@ class RecorderCog(commands.Cog):
         await self.bus.dispatch(
             cmds.Record(job_id=event.job_id, player_xuid=player.xuid, round_id=round_id, tier=tier)
         )
+
+    @commands.slash_command(
+        name="config",
+        description="Tweak the recording settings",
+        dm_permission=False,
+    )
+    @tier(2)
+    async def _config(self, inter: disnake.AppCmdInter):
+        user: User = await services.get_user(uow=SqlUnitOfWork(), user_id=inter.author.id)
+
+        view = ConfigView(
+            inter=inter,
+            user=user,
+            store_callback=self._store_config,
+            abort_callback=self._abort_config,
+            timeout=180.0,
+        )
+
+        await inter.send(embed=view.embed(), view=view, ephemeral=True)
+
+    async def _store_config(self, inter: disnake.MessageInteraction, user: User):
+        await services.store_user(uow=SqlUnitOfWork(), user=user)
+
+        e = self.embed.build("STRIKER")
+        e.description = "Configuration saved."
+
+        await inter.response.edit_message(view=None, embed=e)
+
+    async def _abort_config(self, inter: disnake.MessageInteraction):
+        e = self.embed.build("STRIKER")
+        e.description = "Configurator aborted."
+
+        await inter.response.edit_message(view=None, embed=e)
+
+    @commands.slash_command(
+        name="maintenance",
+        description="Set bot in maintenance mode",
+        dm_permission=False,
+        guild_ids=[config.STRIKER_GUILD_ID],
+    )
+    @commands.is_owner()
+    async def maintenance(self, inter: disnake.AppCmdInter, enable: bool):
+        await self.bot.wait_until_ready()
+
+        self.bot.maintenance = enable
+        await inter.send(
+            "Bot now in maintenance mode!" if enable else "Bot now accepting new commands!"
+        )
+
+        if enable:
+            await self.bot.change_presence(activity=disnake.Game(name="🛠 maintenance"))
+        else:
+            await self.bot.normal_presence()
+
+    @commands.slash_command(name="about", description="About the bot", dm_permission=False)
+    async def about(self, inter: disnake.AppCmdInter):
+        e = self.embed.build("STRIKER")
+
+        e.add_field(
+            name="Developer",
+            value="runie#0001",
+        )
+
+        e.add_field(
+            name="Shard count",
+            value=self.bot.shard_count,
+        )
+
+        latencies = ", ".join(str(f"{t[1]:.3f}") for t in self.bot.latencies)
+        e.add_field(name="Shard latencies", value=f"`{latencies}`")
+
+        e.add_field(
+            name="Guilds",
+            value=f"{len(self.bot.guilds):,d}",
+        )
+
+        e.add_field(name="Channels", value=f"{sum(len(g.channels) for g in self.bot.guilds):,d}")
+
+        e.add_field(
+            name="Members",
+            value=f"{sum(g.member_count for g in self.bot.guilds):,d}",
+        )
+
+        buttons = []
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="Invite the bot",
+                emoji="🎉",
+                url=self.bot.craft_invite_link(),
+            )
+        )
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="Discord",
+                emoji=":discord:1099362254731882597",
+                url=config.DISCORD_INVITE_URL,
+            )
+        )
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="GitHub",
+                emoji=":github:1099362911077544007",
+                url=config.GITHUB_URL,
+            )
+        )
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.secondary,
+                label="Donate",
+                emoji="\N{Hot Beverage}",
+                custom_id="donatebutton",
+            )
+        )
+
+        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons))
+
+    @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
+    @commands.bot_has_permissions(embed_links=True)
+    async def _help(self, inter: disnake.AppCmdInter):
+        await self.bot.wait_until_ready()
+        await self._send_help_embed(inter)
+
+    @commands.Cog.listener()
+    async def on_button_click(self, inter: disnake.MessageInteraction):
+        custom_id = inter.component.custom_id
+        if custom_id == "howtouse":
+            await self._send_help_embed(inter)
+        elif custom_id == "donatebutton":
+            await self._send_donate(inter)
+
+    async def _send_help_embed(self, inter: disnake.Interaction):
+        e = self.embed.build("How to use the bot!")
+
+        e.description = (
+            "This bot can record and upload CS:GO clips from matchmaking games straight to Discord. "
+            "To do so you will need to give the bot a sharecode from one of your matchmaking matches.\n\n"
+            "The below image shows how to find and copy a matchmaking sharecode from inside CS:GO.\n\n"
+            "To record a highlight, run the `/record` command and paste the sharecode you copied.\n\n"
+            "To record another highlight from the same match, use `/demos`.\n\n"
+            "Have fun!"
+        )
+
+        e.set_image(url=config.SHARECODE_IMG_URL)
+
+        buttons = []
+
+        buttons.append(
+            disnake.ui.Button(
+                style=disnake.ButtonStyle.url,
+                label="Invite the bot to another server",
+                emoji="🎉",
+                url=self.bot.craft_invite_link(),
+            )
+        )
+
+        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
+
+    async def _send_donate(self, inter: disnake.Interaction):
+        e = self.embed.build("Donate to support the project!")
+
+        e.description = (
+            "Thanks for your interest in supporting the project!\n\n"
+            "Below are all the options for donating."
+        )
+
+        buttons = []
+
+        if config.DONATE_URL is not None:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Support through Ko-fi",
+                    url=config.DONATE_URL,
+                )
+            )
+
+        if config.TRADELINK_URL is not None:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Send me some skins",
+                    url=config.TRADELINK_URL,
+                )
+            )
+
+        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
 
     # @bus.mark(events.JobUploadSuccess)
     # async def job_upload_success(self, event: events.JobUploadSuccess):

@@ -36,7 +36,7 @@ class JobSelecting(Event):
     job_id: UUID
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class JobWaiting(Event):
     job_id: UUID
     job_inter: bytes
@@ -89,6 +89,21 @@ class DemoParseDL(Event):
 @dataclass(frozen=True)
 @consume()
 @publish()
+class RecordingQueued(Event):
+    job_id: str
+    infront: int
+
+
+@dataclass(frozen=True)
+@consume()
+@publish()
+class RecordingStarted(Event):
+    job_id: str
+
+
+@dataclass(frozen=True)
+@consume()
+@publish()
 class RecorderSuccess(Event):
     job_id: str
 
@@ -105,17 +120,6 @@ class RecorderFailure(Event):
 class RecorderDL(Event):
     command: None
     reason: str
-
-
-# @dataclass(frozen=True)
-# class RecorderSuccess(Event):
-#     id: UUID
-
-
-# @dataclass(frozen=True)
-# class RecorderFailure(Event):
-#     id: UUID
-#     reason: str
 
 
 # # uploader
