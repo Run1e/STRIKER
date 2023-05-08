@@ -60,7 +60,7 @@ class JobAborted(Event):
 @dataclass(frozen=True, repr=config.DUMP_EVENTS)
 @consume()
 @publish()
-class DemoParsed(Event):
+class DemoParseSuccess(Event):
     origin: str
     identifier: str
     data: str

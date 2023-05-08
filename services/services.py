@@ -180,8 +180,8 @@ async def job_failure(event: events.JobFailed, uow: SqlUnitOfWork):
     uow.add_message(dto.JobFailed(event.job_id, inter_payload, event.reason))
 
 
-@listener(events.DemoParsed)
-async def demoparse_success(event: events.DemoParsed, uow: SqlUnitOfWork, publish):
+@listener(events.DemoParseSuccess)
+async def demoparse_success(event: events.DemoParseSuccess, uow: SqlUnitOfWork, publish):
     async with uow:
         demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
         if demo is None:
@@ -191,10 +191,7 @@ async def demoparse_success(event: events.DemoParsed, uow: SqlUnitOfWork, publis
             await handle_demo_step(demo=demo, publish=publish)
         else:
             demo.set_demo_data(loads(event.data), event.version)
-
-            jobs = await uow.jobs.waiting_for_demo(demo.id)
-            for job in jobs:
-                job.selecting()
+            demo.ready()
 
         await uow.commit()
 

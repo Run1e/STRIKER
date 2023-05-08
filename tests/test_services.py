@@ -322,7 +322,7 @@ async def test_demoparse_success():
     job.demo_id = demo.id
 
     version = 1
-    event = events.DemoParsed(
+    event = events.DemoParseSuccess(
         origin=demo.origin.name, identifier=demo.identifier, data=demo_data[0], version=version
     )
     await bus.dispatch(event)
@@ -330,7 +330,7 @@ async def test_demoparse_success():
     assert uow.committed
 
     # processing as we're still waiting for upload to complete
-    assert demo.state is DemoState.PROCESSING
+    assert demo.state is DemoState.READY
     assert isinstance(demo.data, dict)
     assert demo.data_version == version
     assert isinstance(demo.downloaded_at, datetime)
@@ -358,7 +358,7 @@ async def test_demoparse_success_outdated():
 
     version = DEMOPARSE_VERSION - 1
 
-    event = events.DemoParsed(
+    event = events.DemoParseSuccess(
         origin=demo.origin.name, identifier=demo.identifier, data=demo_data[0], version=version
     )
 

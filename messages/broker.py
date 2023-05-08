@@ -47,8 +47,9 @@ class Broker:
             elif issubclass(message_type, events.Event):
                 await self.prepare_event(message_type)
 
-        for command_type in self._can_publish:
-            await self.prepare_command(command_type, as_consumer=False)
+        if self._can_publish:
+            for command_type in self._can_publish:
+                await self.prepare_command(command_type, as_consumer=False)
 
     async def prefetch(self, prefetch_count):
         await self.channel.basic_qos(prefetch_count=prefetch_count)

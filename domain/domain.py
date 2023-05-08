@@ -63,8 +63,11 @@ class Demo(Entity):
         # I don't like how this uses an external constant at all
         return self.data_version == DEMOPARSE_VERSION
 
+    def is_selectable(self):
+        return self.has_data() and self.is_up_to_date()
+
     def is_ready(self):
-        return self.has_data() and self.is_up_to_date() and self.state is DemoState.READY
+        return self.is_selectable() and self.state is DemoState.READY
 
     def failed(self, reason):
         self.state = DemoState.FAILED
@@ -127,7 +130,7 @@ class Job(Entity):
     def set_demo(self, demo: Demo):
         self.demo = demo
 
-        if demo.is_up_to_date() and self.state is JobState.WAITING:
+        if demo.is_selectable() and self.state is JobState.WAITING:
             self.selecting()
         elif demo.state is DemoState.PROCESSING:
             self.add_event(events.JobWaiting(self.id))

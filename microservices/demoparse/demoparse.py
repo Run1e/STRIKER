@@ -30,7 +30,6 @@ log = logging.getLogger(__name__)
 
 executor = ProcessPoolExecutor(max_workers=3)
 session = aiohttp.ClientSession()
-upload_events = dict()
 
 if os.name == "nt":
     splitter = "\r\n"
@@ -63,8 +62,6 @@ class DemoStorage:
 
     async def upload_demo(self, origin, identifier):
         key = self._build_key(origin, identifier)
-
-        log.info("Uploading demo %s", key)
 
         with open(f"data/{key}", "rb") as fp:
             async with self.make_client() as client:
@@ -141,24 +138,33 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
     else:
         log.info("demo exists %s", demo_path)
 
-    log.info("parsing %s", demo_path)
-    end = timer("parsing")
+    async def parser():
+        log.info("parsing %s", demo_path)
+        end = timer("parsing")
+        result = await loop.run_in_executor(executor, parse_demo, demo_path)
+        log.info(end())
+        return result
 
-    # parse then delete demo
-    data = await loop.run_in_executor(executor, parse_demo, demo_path)
+    async def uploader():
+        log.info("uploading %s", archive_path)
+        end = timer("upload")
+        await upload_demo(origin, identifier)
+        log.info(end())
+
+    # parse and upload demo
+    async with asyncio.TaskGroup() as tg:
+        parse_task = tg.create_task(parser())
+        tg.create_task(uploader())
+
     os.remove(demo_path)
+    os.remove(archive_path)
 
+    data = parse_task.result()
     if not data:
-        raise ValueError("demofile returned no data")
-
-    log.info(end())
-
-    event = asyncio.Event()
-    key = (origin, identifier)
-    upload_events[key] = event
+        raise MessageError("Failed parsing demo.")
 
     await publish(
-        events.DemoParsed(
+        events.DemoParseSuccess(
             origin=origin,
             identifier=identifier,
             data=data.decode("utf-8"),
@@ -166,26 +172,9 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
         )
     )
 
-    end = timer("upload")
-    await upload_demo(origin, identifier)
-    log.info(end())
-
-    event.set()
-    upload_events.pop(key, None)
-
-    os.remove(archive_path)
-
 
 @handler(RequestPresignedUrl)
 async def request_presigned_url(command: RequestPresignedUrl, publish, get_url):
-    event: asyncio.Event = upload_events.pop((command.origin, command.identifier), None)
-    if event is not None:
-        try:
-            async with asyncio.timeout(16.0):
-                await event.wait()
-        except asyncio.TimeoutError:
-            return
-
     presigned_url = await get_url(command.origin, command.identifier)
     await publish(events.PresignedUrlGenerated(command.origin, command.identifier, presigned_url))
 
