@@ -1,8 +1,6 @@
-import json
 from datetime import datetime, timezone
 from typing import List
 from uuid import uuid4
-from bot.config import DEMO_URL_FORMAT
 
 from messages import events
 from shared.const import DEMOPARSE_VERSION
@@ -222,10 +220,3 @@ def calculate_bitrate(
     max_bitrate = max_bitrate_mbit * 1024 * 1024
     max_file_size = max_file_size_mb * 8 * 1024 * 1024
     return min(max_bitrate, int((max_file_size / duration) * bitrate_scalar))
-
-
-def build_demo_url(origin, identifier):
-    return DEMO_URL_FORMAT.format(
-        origin=origin.lower(),
-        identifier=identifier,
-    )

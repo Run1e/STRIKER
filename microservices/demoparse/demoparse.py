@@ -144,6 +144,7 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
     log.info("parsing %s", demo_path)
     end = timer("parsing")
 
+    # parse then delete demo
     data = await loop.run_in_executor(executor, parse_demo, demo_path)
     os.remove(demo_path)
 
@@ -176,8 +177,17 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
 
 
 @handler(RequestPresignedUrl)
-async def request_presigned_url(command: RequestPresignedUrl, get_url):
-    pass
+async def request_presigned_url(command: RequestPresignedUrl, publish, get_url):
+    event: asyncio.Event = upload_events.pop((command.origin, command.identifier), None)
+    if event is not None:
+        try:
+            async with asyncio.timeout(16.0):
+                await event.wait()
+        except asyncio.TimeoutError:
+            return
+
+    presigned_url = await get_url(command.origin, command.identifier)
+    await publish(events.PresignedUrlGenerated(command.origin, command.identifier, presigned_url))
 
 
 async def main():

@@ -2,12 +2,12 @@ import asyncio
 import logging
 
 from adapters import orm, steam
+from bot import bot, config
+from messages import commands
 from messages.broker import Broker
 from messages.bus import MessageBus
-from bot import bot, config
 from services.uow import SqlUnitOfWork
 from shared.log import logging_config
-from adapters import steam
 
 logging_config(config.DEBUG)
 
@@ -24,16 +24,24 @@ async def bootstrap(
     if start_orm:
         await orm.start_orm()
 
-    bus = MessageBus(
-        dependencies=dict(
-            sharecode_resolver=await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
-        ),
-        uow_factory=lambda: uow_type(),
+    bus = MessageBus(uow_factory=lambda: uow_type())
+
+    broker = Broker(
+        bus=bus,
+        identifier="bot",
+        publish_commands={
+            commands.RequestDemoParse,
+            commands.RequestPresignedUrl,
+            commands.RequestRecording,
+        },
     )
 
-    broker = Broker(bus, identifier="bot")
+    bus.add_dependencies(publish=broker.publish, wait_for=bus.wait_for)
 
-    bus.add_dependencies(publish=broker.publish)
+    if start_steam:
+        fetcher = await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
+        bus.add_dependencies(sharecode_resolver=fetcher)
+
     bus.register_decos()
 
     if start_bot:

@@ -330,7 +330,7 @@ async def test_demoparse_success():
     assert uow.committed
 
     # processing as we're still waiting for upload to complete
-    assert demo.state is DemoState.PROCESSING 
+    assert demo.state is DemoState.PROCESSING
     assert isinstance(demo.data, dict)
     assert demo.data_version == version
     assert isinstance(demo.downloaded_at, datetime)

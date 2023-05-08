@@ -278,9 +278,11 @@ class RecorderCog(commands.Cog):
         inter = make_inter(event.job_inter, self.bot)
 
         embed = self.embed.recording(event.job_id)
-        if event.infront is None:
+        if event.infront is None:  # gateway isn't telling us our queue position within 2.0s
+            embed.description = "Waiting for gateway response..."
+        elif event.infront == 0:  # currently recording
             embed.description = "Recording your highlight now!"
-        else:
+        else:  # queued
             embed.description = f"#{event.infront + 1} in queue"
 
         await inter.edit_original_response(embed=embed, content=None, components=None)

@@ -66,14 +66,23 @@ class DemoParsed(Event):
     data: str
     version: int
 
-@dataclass(frozen=True, repr=config.DUMP_EVENTS)
+
+@dataclass(frozen=True)
 @consume()
 @publish()
 class DemoUploaded(Event):
     origin: str
     identifier: str
-    data: str
-    version: int
+
+
+@dataclass(frozen=True)
+@consume()
+@publish()
+class PresignedUrlGenerated(Event):
+    origin: str
+    identifier: str
+    presigned_url: str
+
 
 @dataclass(frozen=True)
 @consume()
@@ -96,16 +105,9 @@ class DemoParseDL(Event):
 @dataclass(frozen=True)
 @consume()
 @publish()
-class RecordingQueued(Event):
+class RecordingProgression(Event):
     job_id: str
-    infront: int
-
-
-@dataclass(frozen=True)
-@consume()
-@publish()
-class RecordingStarted(Event):
-    job_id: str
+    infront: int | None  # > 0: queued, == 0: recording, is None: send from commands.Record handler
 
 
 @dataclass(frozen=True)

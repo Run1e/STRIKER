@@ -73,11 +73,11 @@ async def on_recording_request(
 
     # if there's stuff on the queue, or nothing is currently waiting (no getters), publish a queue event
     if infront > 0 or not has_getters:
-        await broker.publish(events.RecordingQueued(command.job_id, infront=infront))
+        await broker.publish(events.RecordingProgression(command.job_id, infront))
 
     # wait for recording to start, and then publish started event
     await event.wait()
-    await broker.publish(events.RecordingStarted(command.job_id))
+    await broker.publish(events.RecordingProgression(command.job_id, 0))
 
     result = await future
     await broker.publish(result)

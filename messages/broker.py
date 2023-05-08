@@ -16,13 +16,13 @@ class MessageError(Exception):
 
 
 class Broker:
-    def __init__(self, bus: bus.MessageBus, identifier=None) -> None:
+    def __init__(self, bus: bus.MessageBus, identifier=None, publish_commands: set = None) -> None:
         self.bus = bus
 
         self.channel: aiormq.Channel = None
         self.identifier = identifier or str(uuid4())[:8]
 
-        self._publish_setup = set()
+        self._can_publish = publish_commands
         self._identified = bool(identifier)
 
     async def start(self, url: str, prefetch_count=0):
@@ -30,18 +30,6 @@ class Broker:
         self.channel = await mq.channel()
 
         await self.prefetch(prefetch_count=prefetch_count)
-        await self.setup()
-
-    async def prefetch(self, prefetch_count):
-        await self.channel.basic_qos(prefetch_count=prefetch_count)
-
-    def message_type_to_queue_name(self, message_type):
-        if issubclass(message_type, events.Event):
-            return f"event-{message_type.__name__}-{self.identifier}"
-        elif issubclass(message_type, commands.Command):
-            return f"cmd-{message_type.__name__}"
-
-    async def setup(self):
         for exchange_name in ("command", "event", "dead"):
             await self.channel.exchange_declare(
                 exchange=exchange_name,
@@ -58,6 +46,18 @@ class Broker:
                 await self.prepare_command(message_type, as_consumer=True)
             elif issubclass(message_type, events.Event):
                 await self.prepare_event(message_type)
+
+        for command_type in self._can_publish:
+            await self.prepare_command(command_type, as_consumer=False)
+
+    async def prefetch(self, prefetch_count):
+        await self.channel.basic_qos(prefetch_count=prefetch_count)
+
+    def message_type_to_queue_name(self, message_type):
+        if issubclass(message_type, events.Event):
+            return f"event-{message_type.__name__}-{self.identifier}"
+        elif issubclass(message_type, commands.Command):
+            return f"cmd-{message_type.__name__}"
 
     async def prepare_event(self, message_type):
         routing_key = message_type.__name__
@@ -76,7 +76,7 @@ class Broker:
         await self.channel.queue_bind(queue=queue_name, exchange="event", routing_key=routing_key)
 
         # consume from the queue
-        log.info("Consuming event %s", queue_name)
+        log.info("Consuming queue (event) %s", queue_name)
         await self.channel.basic_consume(
             queue_name,
             partial(self.recv, message_type=message_type, **consume_args),
@@ -111,7 +111,7 @@ class Broker:
 
             if not as_consumer:
                 # we're publisher, so consume dead letter queue
-                log.info("Consuming dlx %s", dlx_queue_name)
+                log.info("Consuming queue (dlx) %s", dlx_queue_name)
                 await self.channel.basic_consume(
                     dlx_queue_name,
                     partial(self.recv_dead, message_type=message_type, dead_event=dead_event),
@@ -139,7 +139,7 @@ class Broker:
                 )
 
             # we're consumer, so consume the main queue
-            log.info("Consuming command %s", queue_name)
+            log.info("Consuming queue (cmd) %s", queue_name)
             await self.channel.basic_consume(
                 queue_name, partial(self.recv, message_type=message_type, **consume_args)
             )
@@ -150,7 +150,7 @@ class Broker:
         args = deco.publish_args.get(message_type, None)
         if not args:
             raise ValueError(
-                "Attempted to publish message of type %s but no publish args set up", message_type
+                "Attempting to publish message of type %s but no publish args set up", message_type
             )
 
         queue_name = message_type.__name__
@@ -158,18 +158,17 @@ class Broker:
         ttl = args["ttl"]
 
         if isinstance(message, commands.Command):
-            if message_type not in self._publish_setup:
-                await self.prepare_command(
-                    message_type=message_type,
-                    as_consumer=False,
+            if message_type not in self._can_publish:
+                raise ValueError(
+                    "Attemping to publish command of type %s but command not specified on broker creation",
+                    message_type,
                 )
-                self._publish_setup.add(message_type)
 
             exchange = "command"
         else:
             exchange = "event"
 
-        log.info("Publishing to exchange '%s': %s", exchange, message)
+        log.info("Publishing to '%s': %s", exchange, message)
 
         conf = await self.channel.basic_publish(
             body=dumps(data).encode("utf-8"),
@@ -183,9 +182,7 @@ class Broker:
         return conf
 
     async def recv_dead(self, message: aiormq.abc.DeliveredMessage, message_type, dead_event):
-        log.info(
-            "Consuming dead letter of type %s from exchange '%s'", message_type, message.exchange
-        )
+        log.info("Consuming dead letter: %s", message)
 
         command = message_type(**loads(message.body))
         event = dead_event(
@@ -205,7 +202,7 @@ class Broker:
     ):
         try:
             msg = message_type(**loads(message.body))
-            log.info("Consuming type %s on exchange '%s'", message_type, message.exchange)
+            log.info("Consuming on '%s': %s", message.exchange, msg)
             await self.bus.dispatch(msg)
         except Exception as exc:
             is_ok = isinstance(exc, MessageError)

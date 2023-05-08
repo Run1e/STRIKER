@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections import defaultdict
 from functools import partial
@@ -15,12 +16,30 @@ class MessageBus:
 
         self.command_handlers = dict()
         self.event_listeners = defaultdict(list)
+        self.checks = defaultdict(set)
 
     async def dispatch(self, message):
         if isinstance(message, commands.Command):
             await self.dispatch_command(message)
         elif isinstance(message, events.Event):
             await self.dispatch_event(message)
+
+        # are there any checks
+        message_type = type(message)
+        checks = self.checks.get(message_type, None)
+        if checks is None:
+            return
+
+        # set future and add to remove set if check succeeds
+        to_remove = set()
+        for tup in checks:
+            check, fut = tup
+            if check(message):
+                # TODO: should I check for if not fut.cancelled() here?
+                fut.set_result(message)
+                to_remove.add(tup)
+
+        self._remove_checks(message_type, to_remove)
 
     async def dispatch_command(self, command: commands.Command):
         handler = self.command_handlers.get(type(command), None)
@@ -48,6 +67,29 @@ class MessageBus:
         if needs_uow:
             for message in uow.messages:
                 await self.dispatch(message)
+
+    async def wait_for(self, message_type, check, timeout=10.0):
+        fut = asyncio.Future()
+        tup = (check, fut)
+        self.checks[message_type].add(tup)
+
+        try:
+            async with asyncio.timeout(delay=timeout):
+                return await fut
+        except asyncio.TimeoutError:
+            self._remove_checks(message_type, {tup})
+            return None
+
+    def _remove_checks(self, message_type, to_remove):
+        checks = self.checks.get(message_type, None)
+        if checks is None:
+            return
+
+        if len(to_remove) == len(checks):
+            del self.checks[message_type]
+        elif to_remove:
+            for remove_tup in to_remove:
+                checks.remove(remove_tup)
 
     def register_decos(self):
         for command, handler in deco.command_handlers.items():

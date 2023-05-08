@@ -2,11 +2,11 @@ import asyncio
 import logging
 from json import loads
 from typing import List
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from bot import sequencer
 from domain.demo_events import DemoEvents
-from domain.domain import Demo, Job, User, build_demo_url, calculate_bitrate
+from domain.domain import Demo, Job, User, calculate_bitrate
 from domain.enums import DemoGame, DemoOrigin, DemoState, JobState
 from messages import commands, dto, events
 from messages.deco import handler, listener
@@ -133,6 +133,9 @@ async def abort_job(command: commands.AbortJob, uow: SqlUnitOfWork):
 async def job_waiting(event: events.JobWaiting, uow: SqlUnitOfWork):
     async with uow:
         inter = await uow.jobs.get_inter(event.job_id)
+        if inter is None:
+            return
+
         uow.add_message(dto.JobDemoProcessing(event.job_id, inter))
 
 
@@ -224,7 +227,7 @@ async def demoparse_died(event: events.DemoParseDL, uow: SqlUnitOfWork):
 
 
 @handler(commands.Record)
-async def record(command: commands.Record, uow: SqlUnitOfWork, publish):
+async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for):
     async with uow:
         job = await uow.jobs.get(command.job_id)
         job.set_recording()
@@ -247,11 +250,11 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish):
 
         video_bitrate = calculate_bitrate(total_seconds)
 
+        job_id = str(job.id)
         data = dict(
-            job_id=str(job.id),
+            job_id=job_id,
             demo_origin=demo.origin.name,
             demo_identifier=demo.identifier,
-            demo_url=build_demo_url(demo.origin.name, demo.identifier),
             upload_token=upload_token,
             player_xuid=player.xuid,
             tickrate=demo_events.tickrate,
@@ -274,10 +277,40 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish):
         #     if user is not None:
         #         data.update(**user.update_recorder_settings())
 
-        cmd = commands.RequestRecording(**data)
-        await publish(cmd)
+        task = asyncio.create_task(
+            wait_for(
+                events.PresignedUrlGenerated,
+                check=lambda m: m.origin == demo.origin.name and m.identifier == demo.identifier,
+            )
+        )
 
+        await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier))
+        result: events.PresignedUrlGenerated | None = await task
+
+        if result is None:
+            raise ValueError("")
+
+        data["demo_url"] = result.presigned_url
+
+        task = asyncio.create_task(
+            wait_for(events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=2.5)
+        )
+
+        await publish(commands.RequestRecording(**data))
+
+        # I think this is a sensible place to put the commit
         await uow.commit()
+
+        progression: events.RecordingProgression | None = await task
+
+        if progression is None:
+            uow.add_message(events.RecordingProgression(job_id, None))
+
+
+@listener(events.PresignedUrlGenerated)
+async def presigned_url_generated(event: events.PresignedUrlGenerated):
+    # we just need to register a listener so that we consume the rabbitmq queue... kinda hacky and dumb but so am I
+    pass
 
 
 @listener(events.RecorderSuccess)
@@ -315,14 +348,16 @@ async def recorder_died(event: events.RecorderDL, uow: SqlUnitOfWork):
         await uow.commit()
 
 
-@listener(events.RecordingQueued)
-@listener(events.RecordingStarted)
+@listener(events.RecordingProgression)
 async def recording_progression(event, uow: SqlUnitOfWork):
     async with uow:
         job_id = UUID(event.job_id)
+
         inter_payload = await uow.jobs.get_inter(job_id)
-        infront = event.infront if isinstance(event, events.RecordingQueued) else None
-        uow.add_message(dto.JobRecording(job_id, inter_payload, infront))
+        if inter_payload is None:
+            return
+
+        uow.add_message(dto.JobRecording(job_id, inter_payload, event.infront))
 
 
 async def restore(command: commands.Restore, uow: SqlUnitOfWork):
