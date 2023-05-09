@@ -16,13 +16,20 @@ class MessageError(Exception):
 
 
 class Broker:
-    def __init__(self, bus: bus.MessageBus, identifier=None, publish_commands: set = None) -> None:
+    def __init__(
+        self,
+        bus: bus.MessageBus,
+        identifier=None,
+        publish_commands: set = None,
+        extra_events: set = None,
+    ) -> None:
         self.bus = bus
 
         self.channel: aiormq.Channel = None
         self.identifier = identifier or str(uuid4())[:8]
 
-        self._can_publish = publish_commands
+        self._can_publish = publish_commands or set()
+        self._extra_events = extra_events or set()
         self._identified = bool(identifier)
 
     async def start(self, url: str, prefetch_count=0):
@@ -50,6 +57,10 @@ class Broker:
         if self._can_publish:
             for command_type in self._can_publish:
                 await self.prepare_command(command_type, as_consumer=False)
+
+        if self._extra_events:
+            for event_type in self._extra_events:
+                await self.prepare_event(event_type)
 
     async def prefetch(self, prefetch_count):
         await self.channel.basic_qos(prefetch_count=prefetch_count)

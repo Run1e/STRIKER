@@ -74,7 +74,7 @@ class Record(Command):
 @dataclass(frozen=True)
 @publish(ttl=60.0 * 20, dead_event=events.RecorderDL)
 @consume(
-    error_factory=lambda m, e: events.RecorderFailure(m.job_id, e or "Recording failed."),
+    error_factory=lambda m, e: events.RecorderFailure(m.job_id, e or "Gateway timed out."),
     requeue=False,  # False because rabbitmq won't redeliver to same consumer, and we only have one
     raise_on_ok=False,
 )
@@ -83,6 +83,7 @@ class RequestRecording(Command):
     demo_origin: str
     demo_identifier: str
     demo_url: str
+    upload_url: str
     upload_token: str
     player_xuid: int
     tickrate: int
@@ -97,3 +98,11 @@ class RequestRecording(Command):
     righthand: bool
     crosshair_code: str
     use_demo_crosshair: bool
+
+
+@dataclass(frozen=True)
+@publish(ttl=32.0)
+@consume()
+class ValidateUploadArgs(Command):
+    job_id: str
+    upload_token: str

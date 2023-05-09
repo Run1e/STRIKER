@@ -4,10 +4,10 @@ from json import loads
 from typing import List
 from uuid import UUID
 
-from bot import sequencer
+from domain import sequencer
 from domain.demo_events import DemoEvents
 from domain.domain import Demo, Job, User, calculate_bitrate
-from domain.enums import DemoGame, DemoOrigin, DemoState, JobState
+from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import commands, dto, events
 from messages.deco import handler, listener
 from services import views
@@ -224,22 +224,28 @@ async def demoparse_died(event: events.DemoParseDL, uow: SqlUnitOfWork):
 
 
 @handler(commands.Record)
-async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for):
+async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for, video_upload_url):
     async with uow:
         job = await uow.jobs.get(command.job_id)
-        job.set_recording()
+        job.recording()
+
+        job.recording_type = RecordingType.PLAYER_ROUND
+        job.recording_data = dict(player_xuid=command.player_xuid, round_id=command.round_id)
 
         demo = job.demo
-
         upload_token = job.generate_upload_token()
 
         demo_events = DemoEvents.from_demo(demo)
         demo_events.parse()
 
+        # get all player kills
         player = demo_events.get_player_by_xuid(command.player_xuid)
-
         all_kills = demo_events.get_player_kills(player)
         kills = all_kills[command.round_id]
+
+        # get the kills info to make video title
+        info = demo_events.kills_info(command.round_id, kills)
+        job.video_title = " ".join([info[0], player.name, info[1]])
 
         start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(
             demo_events.tickrate, kills
@@ -248,10 +254,12 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         video_bitrate = calculate_bitrate(total_seconds)
 
         job_id = str(job.id)
+
         data = dict(
             job_id=job_id,
             demo_origin=demo.origin.name,
             demo_identifier=demo.identifier,
+            upload_url=video_upload_url,
             upload_token=upload_token,
             player_xuid=player.xuid,
             tickrate=demo_events.tickrate,
@@ -278,6 +286,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             wait_for(
                 events.PresignedUrlGenerated,
                 check=lambda m: m.origin == demo.origin.name and m.identifier == demo.identifier,
+                timeout=5.0,
             )
         )
 
@@ -285,12 +294,12 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         result: events.PresignedUrlGenerated | None = await task
 
         if result is None:
-            raise ValueError("")
+            raise ValueError("")  # TODO: real exception
 
         data["demo_url"] = result.presigned_url
 
         task = asyncio.create_task(
-            wait_for(events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=2.5)
+            wait_for(events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=1.5)
         )
 
         await publish(commands.RequestRecording(**data))
@@ -357,6 +366,26 @@ async def recording_progression(event, uow: SqlUnitOfWork):
         uow.add_message(dto.JobRecording(job_id, inter_payload, event.infront))
 
 
+@handler(commands.ValidateUploadArgs)
+async def validate_upload_args(command: commands.ValidateUploadArgs, uow: SqlUnitOfWork, publish):
+    async with uow:
+        job = await uow.jobs.get(UUID(command.job_id))
+        if job is None:
+            return
+
+        # TODO: add auth
+
+        job.state = JobState.UPLOADING
+        await publish(
+            events.UploadArgsValidated(
+                command.job_id,
+                video_title=job.video_title,
+                channel_id=job.channel_id,
+                user_id=job.user_id,
+            )
+        )
+
+
 async def restore(command: commands.Restore, uow: SqlUnitOfWork):
     # restores jobs and demos that were cut off during last restart
     async with uow:
@@ -412,42 +441,6 @@ async def get_user(uow: SqlUnitOfWork, user_id: int) -> User:
 async def store_user(uow: SqlUnitOfWork, user: User):
     async with uow:
         uow.users.add(user)
-        await uow.commit()
-
-
-# @bus.listen(events.RecorderSuccess)
-async def recorder_success(uow: SqlUnitOfWork, event: events.RecorderSuccess):
-    async with uow:
-        job = await uow.jobs.get(event.id)
-
-        if job is None:
-            raise ValueError(f"Recorder success references job that does not exist: {event.id}")
-
-        job.state = JobState.UPLOADING
-        demo = job.demo
-        recording = job.recording
-
-        try:
-            demo.parse()
-
-            player = demo.get_player_by_xuid(recording.player_xuid)
-            round_id = recording.round_id
-            kills = demo.get_player_kills_round(player, round_id)
-
-            info = demo.kills_info(recording.round_id, kills)
-            file_name = " ".join([info[0], player.name, info[1]])
-        except Exception:
-            # the above is not *that* important
-            # if anything in there fails, just revert to the job id
-            file_name = str(job.id)
-
-        # await broker.uploader.send(
-        #     id=job.id,
-        #     user_id=job.user_id,
-        #     channel_id=job.channel_id,
-        #     file_name=file_name,
-        # )
-
         await uow.commit()
 
 

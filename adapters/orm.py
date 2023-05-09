@@ -4,10 +4,9 @@ from uuid import uuid4
 import sqlalchemy as sa
 import sqlalchemy.ext.asyncio as aio
 import sqlalchemy.orm as orm
-from sqlalchemy import event
 from bot import config
 from domain.enums import DemoGame, DemoState, JobState, RecordingType, DemoOrigin
-from domain.domain import Demo, Job, Recording, User
+from domain.domain import Demo, Job, User
 from sqlalchemy.dialects import postgresql as pg
 
 log = logging.getLogger(__name__)
@@ -44,16 +43,10 @@ job_table = sa.Table(
     sa.Column("started_at", sa.DateTime(timezone=True)),
     sa.Column("inter_payload", sa.LargeBinary),
     sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-    sa.Column("recording_id", sa.ForeignKey("recording.id"), nullable=True),
-)
-
-recording_table = sa.Table(
-    "recording",
-    meta,
-    sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-    sa.Column("recording_type", pg.ENUM(RecordingType), unique=False, nullable=False),
-    sa.Column("player_xuid", sa.BigInteger, nullable=False),
-    sa.Column("round_id", sa.Integer, nullable=True),
+    sa.Column("upload_token", sa.TEXT, nullable=True),
+    sa.Column("video_title", sa.TEXT, nullable=True),
+    sa.Column("recording_type", pg.ENUM(RecordingType), nullable=True),
+    sa.Column("recording_data", sa.JSON, nullable=True),
 )
 
 user_table = sa.Table(
@@ -78,14 +71,6 @@ engine: aio.AsyncEngine = aio.create_async_engine(
 Session = orm.sessionmaker(
     engine, autocommit=False, expire_on_commit=False, class_=aio.AsyncSession
 )
-
-
-# @event.listens_for(Job, "load")
-# @event.listens_for(Demo, "load")
-# @event.listens_for(User, "load")
-# @event.listens_for(Recording, "load")
-# def model_load(instance, _):
-#     instance.event = []
 
 
 async def start_orm():
@@ -115,11 +100,8 @@ async def start_orm():
         job_table,
         properties=dict(
             demo=orm.relationship(Demo, lazy="joined"),
-            recording=orm.relationship(Recording, lazy="joined"),
         ),
     )
-
-    registry.map_imperatively(Recording, recording_table)
 
     registry.map_imperatively(User, user_table)
 

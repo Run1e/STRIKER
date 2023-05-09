@@ -1,6 +1,5 @@
 import asyncio
 from collections import deque
-from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from json import loads
 from unittest.mock import ANY, AsyncMock
@@ -8,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, Recording, RecordingType
+from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import bus as eventbus
 from messages import commands, events
 from services import services
@@ -444,9 +443,9 @@ async def test_recorder_success():
     )
 
     job.demo = demo
-    job.recording = Recording(
-        RecordingType.PLAYER_ROUND, player_xuid=76561198044195953, round_id=10
-    )
+    # job.recording = Recording(
+    #     RecordingType.PLAYER_ROUND, player_xuid=76561198044195953, round_id=10
+    # )
 
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
 

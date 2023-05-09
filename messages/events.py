@@ -131,6 +131,19 @@ class RecorderDL(Event):
     reason: str
 
 
+# uploader
+
+
+@dataclass(frozen=True)
+@publish()
+@consume()
+class UploadArgsValidated(Event):
+    job_id: str
+    video_title: str
+    channel_id: int
+    user_id: int
+
+
 # # uploader
 # @dataclass(frozen=True)
 # class UploaderSuccess(Event):

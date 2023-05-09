@@ -41,7 +41,8 @@ def count(start: int):
 
 
 new_port = iter(count(41920))
-CHUNK_SIZE = 4 * 1024 * 1024
+# CHUNK_SIZE = 4 * 1024 * 1024
+CHUNK_SIZE = 64 * 1024
 
 sb = Sandboxie(config.SANDBOXIE_START)
 
@@ -55,7 +56,7 @@ async def record(
     demo: str,
     command: commands.RequestRecording,
 ):
-    output = f"video/{command.job_id}.mp4"
+    output = f"{config.TEMP_DIR}/{command.job_id}.mp4"
     capture_dir = config.TEMP_DIR
     video_filters = config.VIDEO_FILTERS if command.color_filter else None
 
@@ -127,6 +128,8 @@ async def record(
     )
 
     rmtree(take_folder)
+
+    return output
 
 
 def craft_hlae_args(port):
@@ -216,6 +219,14 @@ async def prepare_csgo(csgo: CSGO):
         await asyncio.sleep(0.5)
 
 
+async def file_sender(file_name):
+    async with aiofiles.open(file_name, "rb") as f:
+        chunk = await f.read(CHUNK_SIZE)
+        while chunk:
+            yield chunk
+            chunk = await f.read(CHUNK_SIZE)
+
+
 async def handle_recording_request(
     command: commands.RequestRecording,
     session: aiohttp.ClientSession,
@@ -238,7 +249,8 @@ async def handle_recording_request(
     has_demo = os.path.isfile(demo_path)
 
     if not has_archive:
-        async with session.get(command.demo_url) as resp:
+        timeout = aiohttp.ClientTimeout(20.0)
+        async with session.get(command.demo_url, timeout=timeout) as resp:
             if resp.status == 200:
                 async with aiofiles.open(archive_path, "wb") as f:
                     while not resp.content.at_eof():
@@ -254,7 +266,18 @@ async def handle_recording_request(
             raise RecordingError("Demo corrupted.")
 
     async with ResourceRequest(pool) as csgo:
-        await record(csgo, demo_path, command)
+        video_file = await record(csgo, demo_path, command)
+
+    timeout = aiohttp.ClientTimeout(total=32.0)
+    async with aiofiles.open(video_file, "rb") as f:
+        async with session.post(
+            command.upload_url,
+            params=dict(job_id=command.job_id, upload_token=command.upload_token),
+            data=file_sender(video_file),
+            timeout=timeout,
+        ) as resp:
+            if resp.status != 200:
+                return  # TODO: handle
 
 
 async def start_ws(recording_request_handler):
@@ -280,13 +303,15 @@ async def start_ws(recording_request_handler):
                 action, data = loads(request)
 
                 if action == "record":
-                    command = commands.RequestRecording(**data)
-                    log.info("Received recording request %s", command)
-
                     try:
+                        command = commands.RequestRecording(**data)
+                        log.info("Received recording request %s", command)
                         await recording_request_handler(command)
-                    except RecordingError as exc:
-                        await send("failed", dict(reason=str(exc)))
+                    except Exception as exc:
+                        reason = (
+                            str(exc) if isinstance(exc, RecordingError) else "Recording failed :("
+                        )
+                        await send("failure", dict(job_id=command.job_id, reason=reason))
                     else:
                         await send("success", dict(job_id=command.job_id))
 

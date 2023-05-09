@@ -24,7 +24,10 @@ async def bootstrap(
     if start_orm:
         await orm.start_orm()
 
-    bus = MessageBus(uow_factory=lambda: uow_type())
+    bus = MessageBus(
+        uow_factory=lambda: uow_type(),
+        dependencies=dict(video_upload_url=config.VIDEO_UPLOAD_URL),
+    )
 
     broker = Broker(
         bus=bus,

@@ -91,16 +91,8 @@ class Demo(Entity):
         self.score = data["score"]
 
 
-class Recording(Entity):
-    def __init__(self, recording_type: RecordingType, player_xuid: int, round_id: int = None):
-        self.recording_type = recording_type
-        self.player_xuid = player_xuid
-        self.round_id = round_id
-
-
 class Job(Entity):
     demo: Demo
-    recording: Recording
 
     def __init__(
         self,
@@ -112,6 +104,9 @@ class Job(Entity):
         inter_payload: bytes,
         completed_at: datetime = None,
         upload_token: str = None,
+        video_title: str = None,
+        recording_type: RecordingType = None,
+        recording_data: dict = None,
     ):
         self.state = state
         self.guild_id = guild_id
@@ -121,6 +116,9 @@ class Job(Entity):
         self.inter_payload = inter_payload
         self.completed_at = completed_at
         self.upload_token = upload_token
+        self.video_title = video_title
+        self.recording_type = recording_type
+        self.recording_data = recording_data
 
     def generate_upload_token(self):
         token = "".join(str(uuid4()).split("-"))
@@ -147,7 +145,7 @@ class Job(Entity):
         self.state = JobState.FAILED
         self.add_event(events.JobFailed(self.id, reason))
 
-    def set_recording(self):
+    def recording(self):
         self.state = JobState.RECORDING
 
     def uploading(self):
