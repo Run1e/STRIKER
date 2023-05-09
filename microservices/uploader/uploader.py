@@ -15,6 +15,7 @@ from messages import commands, events
 from messages.broker import Broker
 from messages.bus import MessageBus
 from shared.log import logging_config
+from shared.utils import timer
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -36,7 +37,8 @@ broker = Broker(
 
 
 async def upload(request: web.Request) -> web.Response:
-    # await request.receive_body()
+
+    await request.read()
 
     args = request.query
 
@@ -56,11 +58,12 @@ async def upload(request: web.Request) -> web.Response:
     if validated is None:
         return web.Response(status=500)
 
+    log.info("Uploading job %s", job_id)
+
     channel_id = validated.channel_id
     user_id = validated.user_id
     video_title = validated.video_title
 
-    log.info("Uploading job %s", job_id)
     channel = await client.fetch_channel(channel_id)
 
     buttons = list()
@@ -112,7 +115,7 @@ async def upload(request: web.Request) -> web.Response:
         components=disnake.ui.ActionRow(*buttons),
     )
 
-    print("what")
+    return web.Response(status=200)
 
 
 async def main():
@@ -126,6 +129,6 @@ async def main():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
-    app = web.Application()
+    app = web.Application(client_max_size=30 * 1024 * 1024)
     app.add_routes([web.post("/upload", upload)])
     web.run_app(app, host="0.0.0.0", port=9000, loop=loop)

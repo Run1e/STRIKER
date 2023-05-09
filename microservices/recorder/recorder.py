@@ -41,8 +41,7 @@ def count(start: int):
 
 
 new_port = iter(count(41920))
-# CHUNK_SIZE = 4 * 1024 * 1024
-CHUNK_SIZE = 64 * 1024
+CHUNK_SIZE = 1024 * 1024
 
 sb = Sandboxie(config.SANDBOXIE_START)
 
@@ -219,7 +218,7 @@ async def prepare_csgo(csgo: CSGO):
         await asyncio.sleep(0.5)
 
 
-async def file_sender(file_name):
+async def file_reader(file_name):
     async with aiofiles.open(file_name, "rb") as f:
         chunk = await f.read(CHUNK_SIZE)
         while chunk:
@@ -273,7 +272,7 @@ async def handle_recording_request(
         async with session.post(
             command.upload_url,
             params=dict(job_id=command.job_id, upload_token=command.upload_token),
-            data=file_sender(video_file),
+            data=file_reader(video_file),
             timeout=timeout,
         ) as resp:
             if resp.status != 200:
