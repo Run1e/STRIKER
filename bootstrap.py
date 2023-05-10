@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from adapters import orm, steam
+from adapters.faceit import FACEITApi
 from bot import bot, config
 from messages import commands
 from messages.broker import Broker
@@ -18,6 +19,7 @@ async def bootstrap(
     uow_type,
     start_orm: bool,
     start_steam: bool,
+    start_faceit: bool,
     start_bot: bool,
     restore: bool,
 ) -> MessageBus:
@@ -44,6 +46,10 @@ async def bootstrap(
     if start_steam:
         fetcher = await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
         bus.add_dependencies(sharecode_resolver=fetcher)
+
+    if start_faceit:
+        faceit_api = FACEITApi(api_key=config.FACEIT_API_KEY)
+        bus.add_dependencies(faceit=faceit_api)
 
     bus.register_decos()
 
@@ -73,6 +79,7 @@ def main():
         uow_type=SqlUnitOfWork,
         start_orm=True,
         start_steam=True,
+        start_faceit=True,
         start_bot=True,
         restore=True,
     )

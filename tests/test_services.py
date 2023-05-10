@@ -6,8 +6,10 @@ from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
+from domain.demo_events import DemoEvents
 
-from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
+from domain.domain import (DemoGame, DemoOrigin, DemoState, JobState,
+                           RecordingType)
 from messages import bus as eventbus
 from messages import commands, events
 from services import services
@@ -191,6 +193,23 @@ async def test_new_job_demo_id_can_record(new_job_junk):
     assert job.state is JobState.SELECTING
 
     # TODO: could also check frontend call here
+
+
+@pytest.mark.asyncio
+async def test_job_with_deleted_demo(new_job_junk):
+    demo = new_demo(
+        state=DemoState.DELETED,
+        add_matchinfo=True,
+        add_data=True,
+    )
+
+    uow = FakeUnitOfWork(demos=[demo])
+    publish = AsyncMock()
+    sharecode_resolver = AsyncMock()
+    bus = await create_bus(uow, dict(publish=publish, sharecode_resolver=sharecode_resolver))
+
+    with pytest.raises(services.ServiceError):
+        await bus.dispatch(commands.CreateJob(demo_id=demo.id, **new_job_junk))
 
 
 @pytest.mark.asyncio
@@ -404,14 +423,10 @@ async def test_demoparse_failure():
 @pytest.mark.asyncio
 async def test_record():
     demo = new_demo(
-        state=DemoState.SUCCESS,
-        queued=True,
-        sharecode="sharecode",
-        has_matchinfo=True,
-        data=loads(demo_data[0]),
+        state=DemoState.READY,
+        add_matchinfo=True,
+        add_data=True,
     )
-
-    demo.parse()
 
     round_id = 10
 
@@ -421,8 +436,10 @@ async def test_record():
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
     bus = await create_bus(uow)
 
-    job.demo_id = demo.id
-    player = demo.get_player_by_id(6)
+    demo_events = DemoEvents.from_demo(demo)
+    demo_events.parse()
+
+    player = demo_events.get_player_by_id(6)
 
     await bus.dispatch(
         commands.Record(job_id=job.id, player_xuid=player.xuid, round_id=round_id, tier=0)

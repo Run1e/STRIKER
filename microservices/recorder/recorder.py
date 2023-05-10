@@ -12,6 +12,7 @@ from functools import partial
 from glob import glob
 from json import dumps, loads
 from shutil import rmtree
+from urllib import parse
 
 import aiofiles
 import aiohttp
@@ -241,7 +242,8 @@ async def handle_recording_request(
         except FileExistsError:
             pass
 
-    archive_path = f"{archive_dir}/{command.demo_identifier}.dem.bz2"
+    archive_name = os.path.basename(parse.urlparse(command.demo_url).path)
+    archive_path = f"{archive_dir}/{archive_name}"
     demo_path = f"{demo_dir}/{command.demo_identifier}.dem"
 
     has_archive = os.path.isfile(archive_path)
@@ -255,7 +257,7 @@ async def handle_recording_request(
                     while not resp.content.at_eof():
                         await f.write(await resp.content.read(CHUNK_SIZE))
             else:
-                pass  # TODO: handle
+                raise RecordingError("Failed fetching demo archive.")
 
     if not has_archive or not has_demo:
         try:
@@ -276,7 +278,7 @@ async def handle_recording_request(
             timeout=timeout,
         ) as resp:
             if resp.status != 200:
-                return  # TODO: handle
+                raise RecordingError("Failed uploading video.")
 
 
 async def start_ws(recording_request_handler):
@@ -380,13 +382,7 @@ async def main():
 
     for _ in csgos:
         asyncio.create_task(
-            start_ws(
-                partial(
-                    handle_recording_request,
-                    session=aiohttp.ClientSession(),
-                    pool=pool,
-                )
-            )
+            start_ws(partial(handle_recording_request, session=aiohttp.ClientSession(), pool=pool))
         )
 
     log.info("Ready to record!")

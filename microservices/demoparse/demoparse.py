@@ -6,7 +6,6 @@ sys.path.append("../..")
 import asyncio
 import logging
 import os
-from bz2 import BZ2Decompressor
 from concurrent.futures import ProcessPoolExecutor
 from subprocess import run
 
@@ -37,6 +36,14 @@ else:
     splitter = "\n"
 
 
+# eehhh kinda idiotic solution but whatever for now
+def origin_to_ext(origin):
+    return dict(
+        VALVE="bz2",
+        FACEIT="gz",
+    ).get(origin)
+
+
 class DemoStorage:
     def __init__(self, bucket, endpoint_url, region_name, keyID, applicationKey) -> None:
         self.bucket = bucket
@@ -58,7 +65,7 @@ class DemoStorage:
 
     @staticmethod
     def _build_key(origin, identifier):
-        return f"{origin.lower()}/{identifier}.dem.bz2"
+        return f"{origin.lower()}/{identifier}.dem.{origin_to_ext(origin)}"
 
     async def upload_demo(self, origin, identifier):
         key = self._build_key(origin, identifier)
@@ -71,7 +78,8 @@ class DemoStorage:
         async with self.make_client() as client:
             return await client.generate_presigned_url(
                 "get_object",
-                Params=dict(Bucket=self.bucket, Key=self._build_key(origin, identifier)),
+                Params={"Bucket": self.bucket, "Key": self._build_key(origin, identifier)},
+                ExpiresIn=3600,  # an hour
             )
 
 
@@ -98,7 +106,8 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
 
     log.info("Processing origin %s identifier %s url %s", origin, identifier, download_url)
 
-    archive_path = f"{folder}/{identifier}.dem.bz2"
+    ext = origin_to_ext(origin)
+    archive_path = f"{folder}/{identifier}.dem.{ext}"
     demo_path = f"{folder}/{identifier}.dem"
 
     # if archive and demo does not exist, download the archive

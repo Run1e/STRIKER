@@ -166,19 +166,34 @@ class RecorderCog(commands.Cog):
         self.bus.add_event_listener(dto.JobRecording, self.job_recording)
         self.bus.add_event_listener(dto.JobUploading, self.job_uploading)
 
-    @commands.slash_command(description="Record a CS:GO highlight", dm_permission=False)
+    @commands.slash_command(
+        description="Record a matchmaking or FACEIT highlight", dm_permission=False
+    )
     @commands.bot_has_permissions(**job_perms)
     @not_maintenance()
     @job_limit(config.JOB_LIMIT)
-    async def record(self, inter: disnake.AppCmdInter, sharecode: str):
+    async def record(self, inter: disnake.AppCmdInter, sharecode_or_url: str):
         await self.bot.wait_until_ready()
 
-        sharecode = re.sub(
-            r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )", "", sharecode.strip()
+        demo_dict = dict()
+
+        # https://stackoverflow.com/questions/11384589/what-is-the-correct-regex-for-matching-values-generated-by-uuid-uuid4-hex
+        faceit_match = re.match(
+            r"^https:\/\/www.faceit.com\/\w{2}\/csgo\/room\/(\d-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})(\/scoreboard)?$",
+            sharecode_or_url,
         )
 
-        if not is_valid_sharecode(sharecode):
-            raise commands.UserInputError("Sorry, that's not a valid sharecode!")
+        if faceit_match:
+            demo_dict = dict(origin="FACEIT", identifier=faceit_match.group(1))
+        else:
+            sharecode = re.sub(
+                r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )", "", sharecode_or_url.strip()
+            )
+
+            if not is_valid_sharecode(sharecode):
+                raise commands.UserInputError("Sorry, that's not a valid sharecode or FACEIT room URL.")
+
+            demo_dict = dict(origin="VALVE", sharecode=sharecode)
 
         await inter.response.defer(ephemeral=True)
 
@@ -188,7 +203,7 @@ class RecorderCog(commands.Cog):
                 channel_id=inter.channel.id,
                 user_id=inter.user.id,
                 inter_payload=pickle.dumps(inter._payload),
-                sharecode=sharecode,
+                **demo_dict,
             )
         )
 

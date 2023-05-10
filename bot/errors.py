@@ -1,6 +1,8 @@
 import disnake
 from disnake.ext import commands
 
+from services.services import ServiceError
+
 
 class BotAccountRequired(commands.CheckFailure):
     pass
@@ -25,6 +27,7 @@ class ErrorHandler(commands.Cog):
         desc = "Some undefined error occurred, sorry about that!"
 
         is_ok = True
+
         if isinstance(exc, commands.UserInputError):
             desc = str(exc)
         elif isinstance(exc, commands.BotMissingPermissions):
@@ -34,6 +37,8 @@ class ErrorHandler(commands.Cog):
             if not perms.read_messages:
                 desc += "\n\nAre you sure the bot has access to this channel?"
         elif isinstance(exc, commands.CheckFailure):
+            desc = str(exc)
+        elif isinstance(exc, ServiceError):
             desc = str(exc)
         elif type(exc) is commands.CommandError:
             desc = str(exc)

@@ -4,10 +4,12 @@ from json import loads
 from typing import List
 from uuid import UUID
 
+from adapters.faceit import FACEITApi
 from domain import sequencer
 from domain.demo_events import DemoEvents
 from domain.domain import Demo, Job, User, calculate_bitrate
-from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
+from domain.enums import (DemoGame, DemoOrigin, DemoState, JobState,
+                          RecordingType)
 from messages import commands, dto, events
 from messages.deco import handler, listener
 from services import views
@@ -29,6 +31,7 @@ async def create_job(
     uow: SqlUnitOfWork,
     publish,
     sharecode_resolver,
+    faceit: FACEITApi,
 ):
     async with DEMO_LOCK:
         async with uow:
@@ -36,41 +39,55 @@ async def create_job(
 
             if command.demo_id is not None:
                 demo = await uow.demos.get(command.demo_id)
+            else:
+                if command.sharecode is not None:
+                    # see if demo already exists
+                    demo = await uow.demos.from_sharecode(command.sharecode)
 
-            elif command.sharecode is not None:
-                # see if demo already exists
-                demo = await uow.demos.from_sharecode(command.sharecode)
+                    if demo is None:
+                        matchid, matchtime, url = await sharecode_resolver(command.sharecode)
 
-                if demo is None:
-                    matchid, matchtime, url = await sharecode_resolver(command.sharecode)
+                        new_demo = True
+                        demo = Demo(
+                            game=DemoGame.CSGO,
+                            origin=DemoOrigin.VALVE,
+                            state=DemoState.PROCESSING,
+                            sharecode=command.sharecode,
+                            identifier=str(matchid),  # hacky
+                            time=matchtime,
+                            download_url=url,
+                        )
 
-                    new_demo = True
-                    demo = Demo(
-                        game=DemoGame.CSGO,
-                        origin=DemoOrigin.VALVE,
-                        state=DemoState.PROCESSING,
-                        sharecode=command.sharecode,
-                        identifier=str(matchid),  # hacky
-                        time=matchtime,
-                        download_url=url,
-                    )
+                        uow.demos.add(demo)
 
-                    uow.demos.add(demo)
+                elif command.origin is "FACEIT":
+                    origin = DemoOrigin.FACEIT
+                    demo = await uow.demos.from_identifier(origin, command.identifier)
 
-                    # gives the new demo an autoincremented id
-                    # which is needed in handle_demo_step
-                    await uow.flush()
+                    if demo is None:
+                        data = await faceit.match(command.identifier)
+                        url = data["demo_url"][0]
 
-                    log.info(
-                        "Demo with sharecode %s created with id %s", command.sharecode, demo.id
-                    )
+                        new_demo = True
+                        demo = Demo(
+                            game=DemoGame.CSGO,
+                            origin=origin,
+                            state=DemoState.PROCESSING,
+                            identifier=command.identifier,
+                            download_url=url,
+                        )
+
+                        uow.demos.add(demo)
+
+            if not new_demo and demo.state is DemoState.DELETED:
+                raise ServiceError("Demo has been deleted.")
 
             job = Job(
                 state=JobState.WAITING,
                 guild_id=command.guild_id,
                 channel_id=command.channel_id,
-                user_id=command.user_id,
                 started_at=utcnow(),
+                user_id=command.user_id,
                 inter_payload=command.inter_payload,
             )
 

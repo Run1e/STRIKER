@@ -15,6 +15,8 @@ class CreateJob(Command):
     channel_id: int
     user_id: int
     inter_payload: bytes
+    origin: str = None
+    identifier: str = None
     sharecode: str = None
     demo_id: int = None
 

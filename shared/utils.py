@@ -1,3 +1,4 @@
+import gzip
 from bz2 import BZ2Decompressor
 from datetime import datetime, timezone
 from time import monotonic
@@ -22,16 +23,35 @@ class DemoCorrupted(Exception):
     pass
 
 
-def decompress(archive, file):
+def decompress(archive: str, file: str):
+    if archive.endswith("gz"):
+        f = decompress_gz
+    elif archive.endswith("bz2"):
+        f = decompress_bz2
+
+    f(archive, file)
+
+
+def decompress_bz2(archive, file, block_size=64 * 1024):
+    decompressor = BZ2Decompressor()
     with open(file, "wb") as new_file, open(archive, "rb") as file:
-        decompressor = BZ2Decompressor()
-        for data in iter(lambda: file.read(1024 * 1024), b""):
+        for data in iter(lambda: file.read(block_size), b""):
             try:
                 chunk = decompressor.decompress(data)
             except OSError as exc:
                 raise DemoCorrupted("Demo corrupted.") from exc
 
             new_file.write(chunk)
+
+
+def decompress_gz(archive, file, block_size=64 * 1024):
+    with gzip.open(archive, 'rb') as s_file, open(file, 'wb') as d_file:
+        while True:
+            block = s_file.read(block_size)
+            if not block:
+                break
+            else:
+                d_file.write(block)
 
 
 class MISSING:

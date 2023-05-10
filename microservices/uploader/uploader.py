@@ -62,7 +62,9 @@ async def upload(request: web.Request) -> web.Response:
 
     channel_id = validated.channel_id
     user_id = validated.user_id
-    video_title = validated.video_title
+
+    # strip backticks because of how we display this string
+    video_title = validated.video_title.replace("`", "")
 
     channel = await client.fetch_channel(channel_id)
 
