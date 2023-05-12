@@ -22,12 +22,7 @@ async def get_user_demo_formats(user_id: int, uow: SqlUnitOfWork):
         rows = result.all()
 
         def formatter(row):
-            if row.time is None:
-                time_str = ""
-            else:
-                ordinal = {1: "st", 2: "nd", 3: "rd"}.get(row.time.day % 10, "th")
-                time_str = row.time.strftime(f" %d{ordinal} %b %Y at %I:%M")
-
+            time_str = row.time.strftime(f" %Y/%m/%d at %I:%M") if row.time else ""
             score_str = "-".join(str(val) for val in row.score)
             return f"[{row.origin}] {row.map} {score_str}{time_str}"
 
