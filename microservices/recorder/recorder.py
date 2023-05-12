@@ -92,13 +92,14 @@ async def record(
     script_file = f"{config.TEMP_DIR}/{command.job_id}.xml"
     cmds.save(script_file)
 
-    await csgo.run(f'mirv_cmd clear; mirv_cmd load "{script_file}"')
+    preplay_commands = (
+        "mirv_cmd clear",
+        f'mirv_cmd load "{script_file}"',
+        "mirv_deathmsg lifetime 0",
+        # f"mirv_pov {command.player_entityid}",
+    )
 
-    # change res
-    await csgo.set_resolution(1280, 852)
-
-    # make sure deathmsg doesn't fill up and clear lock spec
-    await csgo.run(f"mirv_deathmsg lifetime 0")
+    await csgo.run(";".join(preplay_commands))
 
     take_folder = await csgo.playdemo(
         demo=demo,
@@ -269,16 +270,20 @@ async def handle_recording_request(
     async with ResourceRequest(pool) as csgo:
         video_file = await record(csgo, demo_path, command)
 
-    timeout = aiohttp.ClientTimeout(total=32.0)
     async with aiofiles.open(video_file, "rb") as f:
-        async with session.post(
-            command.upload_url,
-            params=dict(job_id=command.job_id, upload_token=command.upload_token),
-            data=file_reader(video_file),
-            timeout=timeout,
-        ) as resp:
-            if resp.status != 200:
-                raise RecordingError("Failed uploading video.")
+        try:
+            async with session.post(
+                url=command.upload_url,
+                params=dict(job_id=command.job_id),
+                headers={"Authorization": config.API_TOKEN},
+                data=file_reader(video_file),
+                timeout=aiohttp.ClientTimeout(total=32.0),
+            ) as resp:
+                log.info("Upload for job %s status %s", command.job_id, resp.status)
+                if resp.status == 500:
+                    raise RecordingError("Uploader service failed.")
+        except asyncio.TimeoutError:
+            raise RecordingError("Upload timed out.")
 
 
 async def start_ws(recording_request_handler):

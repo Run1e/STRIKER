@@ -1,6 +1,6 @@
 # top-level module include hack for shared :|
-from io import BytesIO
 import sys
+from io import BytesIO
 
 sys.path.append("../..")
 
@@ -22,49 +22,28 @@ CHUNK_SIZE = 4 * 1024 * 1024
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
 
-
+tokens = set()
 client = disnake.AutoShardedClient(intents=disnake.Intents.none())
 bus = MessageBus()
 broker = Broker(
     bus=bus,
     publish_commands={
-        commands.ValidateUploadArgs,
+        commands.ValidateUpload,
     },
-    extra_events={
-        events.UploadArgsValidated,
+    consume_events={
+        events.UploadValidated,
     },
 )
 
 
-async def upload(request: web.Request) -> web.Response:
-
-    await request.read()
-
-    args = request.query
-
-    job_id = args.get("job_id")
-    upload_token = args.get("upload_token")
-
-    if job_id is None or upload_token is None:
-        return web.Response(status=400)
-
-    task = asyncio.create_task(
-        bus.wait_for(events.UploadArgsValidated, check=lambda e: e.job_id == job_id, timeout=20.0)
-    )
-
-    await broker.publish(commands.ValidateUploadArgs(job_id, upload_token))
-
-    validated: events.UploadArgsValidated = await task
-    if validated is None:
-        return web.Response(status=500)
-
+async def validated_upload(job_id: str, values: events.UploadValidated, binary_data: bytes):
     log.info("Uploading job %s", job_id)
 
-    channel_id = validated.channel_id
-    user_id = validated.user_id
+    channel_id = values.channel_id
+    user_id = values.user_id
 
     # strip backticks because of how we display this string
-    video_title = validated.video_title.replace("`", "")
+    video_title = values.video_title.replace("`", "")
 
     channel = await client.fetch_channel(channel_id)
 
@@ -108,7 +87,7 @@ async def upload(request: web.Request) -> web.Response:
         )
     )
 
-    b = BytesIO(await request.read())
+    b = BytesIO(binary_data)
 
     await channel.send(
         content=f"<@{user_id}> `{video_title}`",
@@ -117,6 +96,37 @@ async def upload(request: web.Request) -> web.Response:
         components=disnake.ui.ActionRow(*buttons),
     )
 
+
+async def upload(request: web.Request) -> web.Response:
+    args = request.query
+
+    job_id = args.get("job_id")
+    token = request.headers.get("Authorization")
+
+    if job_id is None:
+        return web.Response(status=400)
+    if token is None:
+        return web.Response(status=401)
+
+    task = asyncio.create_task(
+        bus.wait_for(events.UploadValidated, check=lambda e: e.job_id == job_id, timeout=32.0)
+    )
+
+    await broker.publish(commands.ValidateUpload(job_id, token))
+
+    validated: events.UploadValidated = await task
+
+    if validated is None:
+        await broker.publish(events.UploaderFailure(job_id, reason="Unable to upload."))
+        return web.Response(status=503)
+
+    if not validated.authorized:
+        await broker.publish(events.UploaderFailure(job_id, reason="Upload failed."))
+        return web.Response(status=401)
+
+    await validated_upload(job_id, validated, await request.read())
+
+    await broker.publish(events.UploaderSuccess(job_id))
     return web.Response(status=200)
 
 

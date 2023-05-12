@@ -43,7 +43,6 @@ job_table = sa.Table(
     sa.Column("started_at", sa.DateTime(timezone=True)),
     sa.Column("inter_payload", sa.LargeBinary),
     sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-    sa.Column("upload_token", sa.TEXT, nullable=True),
     sa.Column("video_title", sa.TEXT, nullable=True),
     sa.Column("recording_type", pg.ENUM(RecordingType), nullable=True),
     sa.Column("recording_data", sa.JSON, nullable=True),

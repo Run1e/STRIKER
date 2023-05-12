@@ -137,20 +137,24 @@ class RecorderDL(Event):
 @dataclass(frozen=True)
 @publish()
 @consume()
-class UploadArgsValidated(Event):
+class UploaderSuccess(Event):
     job_id: str
-    video_title: str
-    channel_id: int
-    user_id: int
 
 
-# # uploader
-# @dataclass(frozen=True)
-# class UploaderSuccess(Event):
-#     id: UUID
+@dataclass(frozen=True)
+@publish()
+@consume()
+class UploaderFailure(Event):
+    job_id: str
+    reason: str
 
 
-# @dataclass(frozen=True)
-# class UploaderFailure(Event):
-#     id: UUID
-#     reason: str
+@dataclass(frozen=True)
+@publish()
+@consume()
+class UploadValidated(Event):
+    job_id: str
+    authorized: bool
+    video_title: str = None
+    channel_id: int = None
+    user_id: int = None

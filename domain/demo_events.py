@@ -2,7 +2,6 @@ from collections import Counter, defaultdict, namedtuple
 from copy import deepcopy
 from typing import List
 
-
 Player = namedtuple("Player", "xuid name userid fakeplayer")
 Death = namedtuple("Death", "tick victim attacker pos weapon")
 
@@ -162,12 +161,12 @@ class DemoEvents:
         data["xuid"] = (xuid[1] << 32) + xuid[0]  # I truly hate javascript
 
         player = Player(**data)
-        actual_user = self.get_player_by_xuid(player.xuid)
+        actual_player = self.get_player_by_xuid(player.xuid)
 
-        if actual_user is None:
+        if actual_player is None:
             self._players[player.userid] = player
         else:
-            self._id_mapper[player.userid] = actual_user.userid
+            self._id_mapper[player.userid] = actual_player.userid
 
     def _add_death(self, rnd, data):
         victim_id = data.pop("victim")

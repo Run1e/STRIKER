@@ -51,15 +51,6 @@ def make_script(
     padding = 4 * tickrate
     c.tick(start_tick - padding)
 
-    # exec movie config and block death messages
-    c.delta(tickrate)
-    c.run(f"spec_lock_to_accountid {xuid}", f"mirv_deathmsg highLightId x{xuid}", "exec recorder")
-
-    c.delta(tickrate * 0.5)
-
-    # set the capture dir
-    c.run(f'mirv_streams record name "{capture_dir}"')
-
     # https://write.corbpie.com/ffmpeg-preset-comparison-x264-2019-encode-speed-and-file-size/
     ffmpeg_opt = [
         "-c:v libx264",
@@ -74,38 +65,32 @@ def make_script(
     ffmpeg_opt.append("-y")
     ffmpeg_opt.append(r'"{AFX_STREAM_PATH}\video.mp4"')
 
-    # set the ffmpeg options
-    c.run(
+    commands = (
+        "exec recorder",
+        f"mirv_deathmsg highLightId x{xuid}",
+        f'mirv_streams record name "{capture_dir}"',
         'mirv_streams settings edit ff options "{opt}"'.format(
             opt=" ".join(ffmpeg_opt).replace('"', "{QUOTE}")
-        )
-    )
-
-    # spec the correct player, clear death message blocks and highlight the correct players' death messages
-    c.delta(tickrate * 0.5)
-    # ; demo_timescale 0.5')
-    c.run(f"spec_lock_to_accountid {xuid}", "spec_mode 4", "mirv_deathmsg lifetime 999")
-
-    c.delta(tickrate * 0.25)
-    c.run(
+        ),
         f"cl_righthand {1 if righthand else 0}",
         f"cl_draw_only_deathnotices {1 if fragmovie else 0}",
         f"apply_crosshair_code {crosshair_code}",
-    )
-
-    c.delta(tickrate * 0.25)
-    c.run(f"cl_show_observer_crosshair {2 if use_demo_crosshair else 0}")
-
-    # record!
-    c.tick(start_tick)
-    c.run(
-        f"spec_lock_to_accountid {xuid}",
+        f"cl_show_observer_crosshair {2 if use_demo_crosshair else 0}",
         f"host_framerate {fps}",
         "host_timescale 0",
         "mirv_snd_timescale 1",
         "volume 0.5",
-        "mirv_streams record start",
+        "mirv_deathmsg lifetime 999",
+        f"spec_lock_to_accountid {xuid}",
     )
+
+    for command in commands:
+        c.run(command)
+        c.delta(8)
+
+    # record!
+    c.tick(start_tick)
+    c.run("mirv_streams record start")
 
     for start, end in skips:
         c.tick(start)
@@ -113,7 +98,7 @@ def make_script(
 
     # stop recording!
     c.tick(end_tick)
-    c.run(f"mirv_streams record end", "host_framerate 0", f"echo {unblock_string}")
+    c.run(f"mirv_streams record end", "host_framerate 60", f"echo {unblock_string}")
 
     # quit
     c.delta(tickrate * 0.5)

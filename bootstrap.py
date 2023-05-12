@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from adapters import orm, steam
-from adapters.faceit import FACEITApi
+from adapters.faceit import FACEITAPI
 from bot import bot, config
 from messages import commands
 from messages.broker import Broker
@@ -28,7 +28,7 @@ async def bootstrap(
 
     bus = MessageBus(
         uow_factory=lambda: uow_type(),
-        dependencies=dict(video_upload_url=config.VIDEO_UPLOAD_URL),
+        dependencies=dict(video_upload_url=config.VIDEO_UPLOAD_URL, node_tokens=config.NODE_TOKENS),
     )
 
     broker = Broker(
@@ -41,25 +41,35 @@ async def bootstrap(
         },
     )
 
+    gather = asyncio.Event()
+    waiters = list()
+
     bus.add_dependencies(publish=broker.publish, wait_for=bus.wait_for)
 
     if start_steam:
-        fetcher = await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
+        fetcher, steam_waiter = await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
         bus.add_dependencies(sharecode_resolver=fetcher)
+        waiters.append(steam_waiter)
+    else:
+        fetcher = None
 
     if start_faceit:
-        faceit_api = FACEITApi(api_key=config.FACEIT_API_KEY)
+        faceit_api = FACEITAPI(api_key=config.FACEIT_API_KEY)
         bus.add_dependencies(faceit=faceit_api)
+    else:
+        faceit_api = None
 
     bus.register_decos()
 
     if start_bot:
-        bot_instance = bot.start_bot(bus)
-        await bot_instance.wait_until_ready()
+        bot_instance = bot.start_bot(bus, gather)
+        waiters.append(bot_instance.wait_until_ready())
+
+    await asyncio.gather(*waiters)
+    await broker.start(config.RABBITMQ_HOST)
+    gather.set()
 
     log.info("Ready to bot!")
-
-    await broker.start(config.RABBITMQ_HOST)
 
     # this restarts any jobs that were in selectland
     # within the last 12 (at the time of writing, anyway)

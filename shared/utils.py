@@ -45,7 +45,7 @@ def decompress_bz2(archive, file, block_size=64 * 1024):
 
 
 def decompress_gz(archive, file, block_size=64 * 1024):
-    with gzip.open(archive, 'rb') as s_file, open(file, 'wb') as d_file:
+    with gzip.open(archive, "rb") as s_file, open(file, "wb") as d_file:
         while True:
             block = s_file.read(block_size)
             if not block:

@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from .events import Event
-from domain.enums import JobState
 from domain.demo_events import DemoEvents
 
 
@@ -18,6 +17,12 @@ class JobSelectable(DTO):
 
 
 @dataclass(frozen=True, repr=False)
+class JobSuccess(DTO):
+    job_id: UUID
+    job_inter: bytes
+
+
+@dataclass(frozen=True, repr=False)
 class JobFailed(DTO):
     job_id: UUID
     job_inter: bytes
@@ -25,7 +30,7 @@ class JobFailed(DTO):
 
 
 @dataclass(frozen=True, repr=False)
-class JobDemoProcessing(DTO):
+class JobWaiting(DTO):
     job_id: UUID
     job_inter: bytes
 

@@ -165,8 +165,10 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
         parse_task = tg.create_task(parser())
         tg.create_task(uploader())
 
-    os.remove(demo_path)
-    os.remove(archive_path)
+    if not config.DEBUG:
+        # only remove when in prod...
+        os.remove(demo_path)
+        os.remove(archive_path)
 
     data = parse_task.result()
     if not data:

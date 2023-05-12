@@ -34,6 +34,8 @@ demoFile.gameEvents.on('player_team', e => {
   if (warmupOver) return;
 
   const player = demoFile.entities.getByUserId(e.userid);
+  if (!player) return;
+
   if (player.isFakePlayer) return;
 
   var team = e.team;
@@ -124,6 +126,19 @@ demoFile.on('end', e => {
       r['teams'][k] = Array.from(v).sort((a, b) => a - b);
     }
   });
+
+  // r['entity_map'] = new Map();
+
+  // // fill entityids
+  // r['stringtables'].forEach(m => {
+  //   if (m['table'] == 'userinfo') {
+  //     var player = demoFile.entities.getByUserId(m['userid']);
+  //     if (player) {
+  //       r['entity_map'][m['userid']] = player.index;
+  //     }
+  //   }
+  // })
+
   console.log(JSON.stringify(r, null, space = 0));
 })
 

@@ -4,12 +4,11 @@ from json import loads
 from typing import List
 from uuid import UUID
 
-from adapters.faceit import FACEITApi
+from adapters.faceit import FACEITAPI, HTTPException, NotFound
 from domain import sequencer
 from domain.demo_events import DemoEvents
 from domain.domain import Demo, Job, User, calculate_bitrate
-from domain.enums import (DemoGame, DemoOrigin, DemoState, JobState,
-                          RecordingType)
+from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import commands, dto, events
 from messages.deco import handler, listener
 from services import views
@@ -31,7 +30,7 @@ async def create_job(
     uow: SqlUnitOfWork,
     publish,
     sharecode_resolver,
-    faceit: FACEITApi,
+    faceit: FACEITAPI,
 ):
     async with DEMO_LOCK:
         async with uow:
@@ -65,7 +64,13 @@ async def create_job(
                     demo = await uow.demos.from_identifier(origin, command.identifier)
 
                     if demo is None:
-                        data = await faceit.match(command.identifier)
+                        try:
+                            data = await faceit.match(command.identifier)
+                        except NotFound:
+                            raise ServiceError("Could not find that FACEIT match.")
+                        except HTTPException:
+                            raise ServiceError("FACEIT API did not respond in time.")
+
                         url = data["demo_url"][0]
 
                         new_demo = True
@@ -94,6 +99,7 @@ async def create_job(
             uow.jobs.add(job)
 
             # force id for job
+            # not sure this is needed anymore?
             await uow.flush()
 
             job.set_demo(demo)
@@ -153,7 +159,7 @@ async def job_waiting(event: events.JobWaiting, uow: SqlUnitOfWork):
         if inter is None:
             return
 
-        uow.add_message(dto.JobDemoProcessing(event.job_id, inter))
+        uow.add_message(dto.JobWaiting(event.job_id, inter))
 
 
 @listener(events.JobSelecting)
@@ -193,7 +199,7 @@ async def demo_failure(event: events.DemoFailure, uow: SqlUnitOfWork):
 
 @listener(events.JobFailed)
 async def job_failure(event: events.JobFailed, uow: SqlUnitOfWork):
-    inter_payload = await views.get_job_inter(event.job_id, uow)
+    inter_payload = await views.job_inter(event.job_id, uow)
     uow.add_message(dto.JobFailed(event.job_id, inter_payload, event.reason))
 
 
@@ -250,7 +256,6 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         job.recording_data = dict(player_xuid=command.player_xuid, round_id=command.round_id)
 
         demo = job.demo
-        upload_token = job.generate_upload_token()
 
         demo_events = DemoEvents.from_demo(demo)
         demo_events.parse()
@@ -277,8 +282,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             demo_origin=demo.origin.name,
             demo_identifier=demo.identifier,
             upload_url=video_upload_url,
-            upload_token=upload_token,
-            player_xuid=player.xuid,
+            player_xuid=command.player_xuid,
             tickrate=demo_events.tickrate,
             start_tick=start_tick,
             end_tick=end_tick,
@@ -294,10 +298,10 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             use_demo_crosshair=False,
         )
 
-        # if command.tier > 0:
-        #     user = await uow.users.get_user(job.user_id)
-        #     if user is not None:
-        #         data.update(**user.update_recorder_settings())
+        if command.tier > 0:
+            user = await uow.users.get_user(job.user_id)
+            if user is not None:
+                data.update(**user.update_recorder_settings())
 
         task = asyncio.create_task(
             wait_for(
@@ -344,7 +348,7 @@ async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
             return
 
         job.uploading()
-        uow.add_message(dto.JobUploading(job.id, job.inter_payload))
+        # uow.add_message(dto.JobUploading(job.id, job.inter_payload))
         await uow.commit()
 
 
@@ -372,7 +376,7 @@ async def recorder_died(event: events.RecorderDL, uow: SqlUnitOfWork):
 
 
 @listener(events.RecordingProgression)
-async def recording_progression(event, uow: SqlUnitOfWork):
+async def recording_progression(event: events.RecordingProgression, uow: SqlUnitOfWork):
     async with uow:
         job_id = UUID(event.job_id)
 
@@ -383,24 +387,54 @@ async def recording_progression(event, uow: SqlUnitOfWork):
         uow.add_message(dto.JobRecording(job_id, inter_payload, event.infront))
 
 
-@handler(commands.ValidateUploadArgs)
-async def validate_upload_args(command: commands.ValidateUploadArgs, uow: SqlUnitOfWork, publish):
+@listener(events.UploaderSuccess)
+async def uploader_success(event: events.UploaderSuccess, uow: SqlUnitOfWork):
+    async with uow:
+        job = await uow.jobs.get(UUID(event.job_id))
+        if job is None:
+            return
+
+        job.success()
+        uow.add_message(dto.JobSuccess(job.id, job.inter_payload))
+        await uow.commit()
+
+
+@listener(events.UploaderFailure)
+async def upload_failure(event: events.UploaderFailure, uow: SqlUnitOfWork):
+    async with uow:
+        job = await uow.jobs.get(UUID(event.job_id))
+        if job is None:
+            return
+
+        job.failed(event.reason)
+        await uow.commit()
+
+
+@handler(commands.ValidateUpload)
+async def validate_upload(
+    command: commands.ValidateUpload, uow: SqlUnitOfWork, publish, node_tokens
+):
     async with uow:
         job = await uow.jobs.get(UUID(command.job_id))
         if job is None:
             return
 
-        # TODO: add auth
-
-        job.state = JobState.UPLOADING
-        await publish(
-            events.UploadArgsValidated(
-                command.job_id,
+        if command.token in node_tokens:
+            e = events.UploadValidated(
+                job_id=command.job_id,
+                authorized=True,
                 video_title=job.video_title,
                 channel_id=job.channel_id,
                 user_id=job.user_id,
             )
-        )
+
+        else:
+            e = events.UploadValidated(
+                job_id=command.job_id,
+                authorized=False,
+            )
+
+        await publish(e)
 
 
 async def restore(command: commands.Restore, uow: SqlUnitOfWork):
@@ -411,35 +445,6 @@ async def restore(command: commands.Restore, uow: SqlUnitOfWork):
             uow.add_message(events.JobReadyForSelect(job))
 
         await uow.commit()
-
-
-async def get_user_demos(uow: SqlUnitOfWork, user_id: int) -> List[Demo]:
-    async with uow:
-        demos = await uow.demos.user_associated(user_id)
-
-    return demos
-
-
-async def get_jobs_waiting_for_demo(uow: SqlUnitOfWork, demo_id: int):
-    async with uow:
-        return await uow.jobs.waiting_for_demo(demo_id=demo_id)
-
-
-async def get_job(uow: SqlUnitOfWork, job_id: UUID):
-    async with uow:
-        return await uow.jobs.get(job_id)
-
-
-async def abort_job(uow: SqlUnitOfWork, job: Job):
-    async with uow:
-        uow.jobs.add(job)
-        job.state = JobState.ABORTED
-        await uow.commit()
-
-
-async def user_recording_count(uow: SqlUnitOfWork, user_id: int):
-    async with uow:
-        return await uow.jobs.recording_count(user_id)
 
 
 async def get_user(uow: SqlUnitOfWork, user_id: int) -> User:
@@ -459,42 +464,3 @@ async def store_user(uow: SqlUnitOfWork, user: User):
     async with uow:
         uow.users.add(user)
         await uow.commit()
-
-
-# @bus.listen(events.RecorderFailure)
-async def recorder_failure(uow: SqlUnitOfWork, event: events.RecorderFailure):
-    async with uow:
-        job = await uow.jobs.get(event.id)
-        if job is None:
-            raise ValueError(f"Recorder failure references job that does not exist: {event.id}")
-
-        job.state = JobState.FAILED
-
-        uow.add_message(events.JobRecordingFailed(job=job, reason=event.reason))
-        await uow.commit()
-
-
-# # @bus.listen(events.UploaderSuccess)
-# async def uploader_success(uow: SqlUnitOfWork, event: events.UploaderSuccess):
-#     async with uow:
-#         job = await uow.jobs.get(event.id)
-#         if job is None:
-#             raise ValueError(f"Upload success references job that does not exist: {event.id}")
-
-#         job.state = JobState.SUCCESS
-
-#         uow.add_message(events.JobUploadSuccess(job))
-#         await uow.commit()
-
-
-# # @bus.listen(events.UploaderFailure)
-# async def uploader_failure(uow: SqlUnitOfWork, event: events.UploaderFailure):
-#     async with uow:
-#         job = await uow.jobs.get(event.id)
-#         if job is None:
-#             raise ValueError(f"Upload failure references job that does not exist: {event.id}")
-
-#         job.state = JobState.FAILED
-
-#         uow.add_message(events.JobUploadFailed(job, reason=event.reason))
-#         await uow.commit()

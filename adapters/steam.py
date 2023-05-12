@@ -19,13 +19,10 @@ async def get_match_fetcher(refresh_token):
     client._state.update_backpack = dummy
 
     asyncio.create_task(client.login(refresh_token=refresh_token))
-    await client.wait_for_gc_ready()
-
-    log.info(f"Logged in as {client.user!r}")
 
     async def fetcher(sharecode):
         v = decode(sharecode)
         match = await client.fetch_match(**v)
         return match.id, match.created_at, match.rounds[-1].map
 
-    return fetcher
+    return fetcher, client.wait_for_gc_ready()

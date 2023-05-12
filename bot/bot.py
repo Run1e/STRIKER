@@ -12,9 +12,10 @@ log = logging.getLogger(__name__)
 
 
 class Bot(commands.AutoShardedInteractionBot):
-    def __init__(self, bus, *args, **kwargs):
+    def __init__(self, bus, gather, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bus: MessageBus = bus
+        self.gather = gather
 
         self.maintenance = False
         self.invite_permissions = disnake.Permissions(274878286912)
@@ -44,7 +45,7 @@ class Bot(commands.AutoShardedInteractionBot):
         )
 
 
-def start_bot(bus: MessageBus):
+def start_bot(bus: MessageBus, gather: asyncio.Event):
     log.info("Initializing bot")
 
     logging.getLogger("disnake").setLevel(logging.INFO)
@@ -70,7 +71,7 @@ def start_bot(bus: MessageBus):
     if config.TEST_GUILDS:
         bot_kwargs["test_guilds"] = config.TEST_GUILDS
 
-    bot = Bot(bus=bus, **bot_kwargs)
+    bot = Bot(bus=bus, gather=gather, **bot_kwargs)
 
     for name in EXTENSIONS:
         log.info("Loading extension %s", name)

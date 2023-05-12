@@ -5,18 +5,17 @@ import re
 from functools import partial
 
 import disnake
-from disnake.ext import commands, tasks
+from disnake.ext import commands
 from rapidfuzz import fuzz, process
 from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
 from domain.demo_events import Player
-from domain.domain import Job, User
-from domain.enums import JobState
+from domain.domain import User
 from messages import commands as cmds
 from messages import dto
 from messages.bus import MessageBus
-from services import services
+from services import services, views
 from services.uow import SqlUnitOfWork
 from shared.utils import TimedDict
 
@@ -60,7 +59,7 @@ class EmbedBuilder:
         return e
 
     def waiting(self, job_id):
-        return self.build("Processing demo", disnake.Color.orange(), job_id)
+        return self.build("Preparing demo", disnake.Color.orange(), job_id)
 
     def selecting(self, job_id):
         return self.build("Select what you want to record", disnake.Color.blurple(), job_id)
@@ -92,7 +91,7 @@ def not_maintenance():
 
 
 async def job_limit_checker(inter: disnake.AppCmdInter, limit: int):
-    job_count = await services.user_recording_count(uow=SqlUnitOfWork(), user_id=inter.author.id)
+    job_count = await views.user_recording_count(user_id=inter.author.id, uow=SqlUnitOfWork())
 
     if job_count < limit:
         return True
@@ -130,14 +129,17 @@ async def tier_checker(inter: disnake.AppCmdInter, required_tier: int):
 
     if actual_level == 0:
         raise SponsorRequired(
-            f"A [Patreon subscription]({config.PATREON_LINK}) is required to run this command.\n\n"
+            f"A [Patreon subscription]({config.PATREON_URL}) is required to run this command.\n\n"
             "If you're already a Patron, "
             "make sure your Discord account is linked to your Patreon account "
             f"and that you've joined the [STRIKER Community Discord]({config.DISCORD_INVITE_URL})."
         )
 
     if actual_level < required_tier:
-        raise SponsorRequired(f"This command requires a Tier {required_tier} Patreon subscription.")
+        tier_name = config.PATREON_TIER_NAMES[actual_level]
+        raise SponsorRequired(
+            f"This command requires a Tier {required_tier} '{tier_name}' [Patreon subscription]({config.PATREON_URL})."
+        )
 
     return True
 
@@ -151,20 +153,24 @@ class RecorderCog(commands.Cog):
     def __init__(self, bot):
         self.bot: commands.InteractionBot = bot
         self.bus: MessageBus = bot.bus
-        self.job_tasks = dict()  # Job.id -> (task, cancellable)
 
         self.embed = EmbedBuilder(bot)
 
-        # holds values for 10 seconds between get and sets
-        self._demo_cache = TimedDict(10.0)  # user.id: List[Demo]
-        self._autocomplete_mapping = dict()  # desc_desc: demo.id
-        self._autocomplete_user_mapping = dict()  # user.id: demo_desc
+        self._demo_view_cache = TimedDict(10.0)
 
         self.bus.add_event_listener(dto.JobSelectable, self.job_selectable)
         self.bus.add_event_listener(dto.JobFailed, self.job_failed)
-        self.bus.add_event_listener(dto.JobDemoProcessing, self.job_processing)
+        self.bus.add_event_listener(dto.JobWaiting, self.job_processing)
         self.bus.add_event_listener(dto.JobRecording, self.job_recording)
-        self.bus.add_event_listener(dto.JobUploading, self.job_uploading)
+        self.bus.add_event_listener(dto.JobSuccess, self.job_success)
+
+    async def cog_slash_command_check(self, inter: disnake.Interaction):
+        if not self.bot.is_ready() or not self.bot.gather.is_set():
+            raise commands.CheckFailure(
+                "Bot is currently booting up. Please wait a bit then try again."
+            )
+
+        return True
 
     @commands.slash_command(
         description="Record a matchmaking or FACEIT highlight", dm_permission=False
@@ -173,8 +179,6 @@ class RecorderCog(commands.Cog):
     @not_maintenance()
     @job_limit(config.JOB_LIMIT)
     async def record(self, inter: disnake.AppCmdInter, sharecode_or_url: str):
-        await self.bot.wait_until_ready()
-
         demo_dict = dict()
 
         # https://stackoverflow.com/questions/11384589/what-is-the-correct-regex-for-matching-values-generated-by-uuid-uuid4-hex
@@ -187,11 +191,15 @@ class RecorderCog(commands.Cog):
             demo_dict = dict(origin="FACEIT", identifier=faceit_match.group(1))
         else:
             sharecode = re.sub(
-                r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )", "", sharecode_or_url.strip()
+                r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )",
+                "",
+                sharecode_or_url.strip(),
             )
 
             if not is_valid_sharecode(sharecode):
-                raise commands.UserInputError("Sorry, that's not a valid sharecode or FACEIT room URL.")
+                raise commands.UserInputError(  # todo: add thing showing what is allowed
+                    "Sorry, that's not a valid sharecode or faceit url."
+                )
 
             demo_dict = dict(origin="VALVE", sharecode=sharecode)
 
@@ -212,72 +220,72 @@ class RecorderCog(commands.Cog):
     @not_maintenance()
     @job_limit(config.JOB_LIMIT)
     async def demos(self, inter: disnake.AppCmdInter, search: str):
-        await self.bot.wait_until_ready()
-
-        aum = self._autocomplete_user_mapping[inter.author.id]
-        fuzzed = process.extract(
-            query=search,
-            choices=aum,
-            scorer=fuzz.ratio,
-            processor=None,
-            limit=1,
+        not_found_exc = commands.CommandError(
+            "Your search query did not match any demos available."
         )
 
-        if fuzzed is None:
-            raise commands.CommandError("Demo not found, please try again.")
+        found = await self._search_demos(inter.author.id, search, limit=1)
 
-        demo_id = self._autocomplete_mapping.get(fuzzed[0][0], None)
+        if not found:
+            raise not_found_exc
+
+        found_desc = found[0]
+        found_demo_id = None
+        for demo_id, demo_desc in self._demo_view_cache.get(inter.author.id).items():
+            if demo_desc == found_desc:
+                found_demo_id = demo_id
+
+        if found_demo_id is None:
+            raise not_found_exc
 
         await inter.response.defer(ephemeral=True)
 
-        await services.create_job(
-            uow=SqlUnitOfWork(),
-            guild_id=inter.guild.id,
-            channel_id=inter.channel.id,
-            user_id=inter.user.id,
-            inter_payload=pickle.dumps(inter._payload),
-            demo_id=demo_id,
+        await self.bus.dispatch(
+            cmds.CreateJob(
+                guild_id=inter.guild.id,
+                channel_id=inter.channel.id,
+                user_id=inter.user.id,
+                inter_payload=pickle.dumps(inter._payload),
+                demo_id=found_demo_id,
+            )
         )
+
+    async def _search_demos(self, user_id: int, search: str, limit: int = 5):
+        demos = self._demo_view_cache.get(user_id, None)
+
+        if demos is None:
+            demos = await views.get_user_demo_formats(user_id, SqlUnitOfWork())
+            self._demo_view_cache[user_id] = demos
+
+        choices = list(demos.values())
+
+        if not choices:
+            return ["No demos available! Use /record to add one!"]
+
+        if not search:
+            return choices[:limit]
+
+        fuzzed = process.extract(
+            query=search,
+            choices=choices,
+            scorer=fuzz.ratio,
+            processor=None,
+            limit=limit,
+        )
+
+        return list(t[0] for t in fuzzed)
 
     @demos.autocomplete("search")
     async def demos_autocomplete(self, inter: disnake.AppCmdInter, search: str):
-        demos = self._demo_cache.get(inter.author.id, None)
-
-        if demos is None:
-            aum = []
-            self._autocomplete_user_mapping[inter.author.id] = aum
-            demos = await services.get_user_demos(uow=SqlUnitOfWork(), user_id=inter.author.id)
-            self._demo_cache[inter.author.id] = demos
-            for demo in demos:
-                fmt = demo.format()
-                self._autocomplete_mapping[fmt] = demo.id
-                aum.append(fmt)
-
-        else:
-            aum = self._autocomplete_user_mapping[inter.author.id]
-
-        if search:
-            fuzzed = process.extract(
-                query=search,
-                choices=aum,
-                scorer=fuzz.ratio,
-                processor=None,
-                limit=8,
-            )
-
-            aum = [v[0] for v in fuzzed]
-
-        # TODO: fix this it ain't right
-        # this gets all the autocompleted demo names
-        return aum
+        return await self._search_demos(inter.author.id, search, limit=5)
 
     # DTOs
 
     async def job_processing(self, event: dto.DTO):
         inter = make_inter(event.job_inter, self.bot)
-        embed = self.embed.waiting(event.job_id)
 
-        embed.description = "Processing demo"
+        embed = self.embed.waiting(event.job_id)
+        embed.description = f"{config.SPINNER} Please wait..."
 
         await inter.edit_original_response(embed=embed, content=None, components=None)
 
@@ -293,20 +301,20 @@ class RecorderCog(commands.Cog):
         inter = make_inter(event.job_inter, self.bot)
 
         embed = self.embed.recording(event.job_id)
-        if event.infront is None:  # gateway isn't telling us our queue position within 2.0s
+        if event.infront is None:  # gateway nonresponsive or no getters in gateway
             embed.description = "Waiting for gateway..."
         elif event.infront == 0:  # currently recording
-            embed.description = "Recording your highlight now!"
+            embed.description = f"{config.SPINNER} Recording your highlight now!"
         else:  # queued
-            embed.description = f"#{event.infront + 1} in queue"
+            embed.description = f"{config.SPINNER} #{event.infront} in queue..."
 
         await inter.edit_original_response(embed=embed, content=None, components=None)
 
-    async def job_uploading(self, event: dto.JobUploading):
+    async def job_success(self, event: dto.JobSuccess):
         inter = make_inter(event.job_inter, self.bot)
 
-        embed = self.embed.recording(event.job_id)
-        embed.description = "Recording successful! Uploading now..."
+        embed = self.embed.success(event.job_id)
+        embed.description = "Uploaded! Enjoy the clip!"
 
         await inter.edit_original_response(embed=embed, content=None, components=None)
 
@@ -314,8 +322,8 @@ class RecorderCog(commands.Cog):
         inter = make_inter(event.job_inter, self.bot)
 
         # also clear this users demo cache
-        if inter.author.id in self._demo_cache:
-            del self._demo_cache[inter.author.id]
+        if inter.author.id in self._demo_view_cache:
+            del self._demo_view_cache[inter.author.id]
 
         await self.select_player(event, inter)
 
@@ -452,8 +460,6 @@ class RecorderCog(commands.Cog):
     )
     @commands.is_owner()
     async def maintenance(self, inter: disnake.AppCmdInter, enable: bool):
-        await self.bot.wait_until_ready()
-
         self.bot.maintenance = enable
         await inter.send(
             "Bot now in maintenance mode!" if enable else "Bot now accepting new commands!"
@@ -536,7 +542,6 @@ class RecorderCog(commands.Cog):
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True)
     async def _help(self, inter: disnake.AppCmdInter):
-        await self.bot.wait_until_ready()
         await self._send_help_embed(inter)
 
     @commands.Cog.listener()
@@ -603,27 +608,6 @@ class RecorderCog(commands.Cog):
             )
 
         await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
-
-    # @bus.mark(events.JobUploadSuccess)
-    # async def job_upload_success(self, event: events.JobUploadSuccess):
-    #     job: Job = event.job
-    #     inter = job.make_inter(self.bot)
-
-    #     try:
-    #         message = await inter.original_message()
-    #     except disnake.HTTPException:
-    #         return
-
-    #     embed = job.embed(self.bot)
-    #     embed.description = (
-    #         "If you want to record another highlight from a previously used demo, "
-    #         "use the `/demos` command and select the demo from the list."
-    #     )
-
-    #     try:
-    #         await message.edit(content=None, embed=embed, view=None)
-    #     except:
-    #         pass
 
 
 def setup(bot: commands.InteractionBot):

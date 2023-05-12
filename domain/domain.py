@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from typing import List
-from uuid import uuid4
 
 from messages import events
 from shared.const import DEMOPARSE_VERSION
@@ -103,7 +102,6 @@ class Job(Entity):
         started_at: datetime,
         inter_payload: bytes,
         completed_at: datetime = None,
-        upload_token: str = None,
         video_title: str = None,
         recording_type: RecordingType = None,
         recording_data: dict = None,
@@ -115,15 +113,9 @@ class Job(Entity):
         self.started_at = started_at
         self.inter_payload = inter_payload
         self.completed_at = completed_at
-        self.upload_token = upload_token
         self.video_title = video_title
         self.recording_type = recording_type
         self.recording_data = recording_data
-
-    def generate_upload_token(self):
-        token = "".join(str(uuid4()).split("-"))
-        self.upload_token = token
-        return token
 
     def set_demo(self, demo: Demo):
         self.demo = demo
@@ -139,7 +131,7 @@ class Job(Entity):
 
     def aborted(self):
         self.state = JobState.ABORTED
-        self.add_event(events.JobAborted(self.id))
+        # self.add_event(events.JobAborted(self.id))
 
     def failed(self, reason: str):
         self.state = JobState.FAILED
@@ -216,7 +208,10 @@ class User(Entity):
 
 
 def calculate_bitrate(
-    duration: float, bitrate_scalar=0.7, max_bitrate_mbit=10, max_file_size_mb=25
+    duration: float,
+    bitrate_scalar=0.7,
+    max_bitrate_mbit=10,
+    max_file_size_mb=25,
 ):
     max_bitrate = max_bitrate_mbit * 1024 * 1024
     max_file_size = max_file_size_mb * 8 * 1024 * 1024

@@ -4,27 +4,33 @@ import aiohttp
 class HTTPException(Exception):
     pass
 
-class Unauthorized(Exception):
-    pass
 
-class Forbidden(Exception):
-    pass
-
-
-class NotFound(Exception):
+class Unauthorized(HTTPException):
     pass
 
 
-class FACEITApi:
+class Forbidden(HTTPException):
+    pass
+
+
+class NotFound(HTTPException):
+    pass
+
+
+class FACEITAPI:
     def __init__(self, api_key, timeout=6.0) -> None:
         self.api_key = api_key
         self._client = aiohttp.ClientSession(
             headers={"Authorization": f"Bearer {api_key}"},
         )
-        self._timeout = aiohttp.ClientTimeout(total=timeout)
+        self._timeout = timeout
 
     async def request(self, method, path):
-        async with self._client.request(method, f"https://open.faceit.com/data/v4/{path}") as resp:
+        async with self._client.request(
+            method=method,
+            url=f"https://open.faceit.com/data/v4/{path}",
+            timeout=aiohttp.ClientTimeout(total=self._timeout),
+        ) as resp:
             status = resp.status
             if status == 200:
                 return await resp.json()

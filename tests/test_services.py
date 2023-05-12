@@ -8,8 +8,7 @@ from uuid import uuid4
 import pytest
 from domain.demo_events import DemoEvents
 
-from domain.domain import (DemoGame, DemoOrigin, DemoState, JobState,
-                           RecordingType)
+from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import bus as eventbus
 from messages import commands, events
 from services import services
@@ -152,9 +151,12 @@ async def test_new_job_sharecode(new_job_junk):
 
     uow = FakeUnitOfWork()
     publish = AsyncMock()
+    faceit = AsyncMock()
     sharecode_resolver = AsyncMock(return_value=(matchid, matchtime, url))
 
-    bus = await create_bus(uow, dict(publish=publish, sharecode_resolver=sharecode_resolver))
+    bus = await create_bus(
+        uow, dict(publish=publish, sharecode_resolver=sharecode_resolver, faceit=faceit)
+    )
 
     await bus.dispatch(commands.CreateJob(sharecode=sharecode, **new_job_junk))
 
@@ -181,7 +183,10 @@ async def test_new_job_demo_id_can_record(new_job_junk):
     uow = FakeUnitOfWork(demos=[demo])
     publish = AsyncMock()
     sharecode_resolver = AsyncMock()
-    bus = await create_bus(uow, dict(publish=publish, sharecode_resolver=sharecode_resolver))
+    faceit = AsyncMock()
+    bus = await create_bus(
+        uow, dict(publish=publish, sharecode_resolver=sharecode_resolver, faceit=faceit)
+    )
 
     await bus.dispatch(commands.CreateJob(demo_id=demo.id, **new_job_junk))
 
@@ -206,7 +211,10 @@ async def test_job_with_deleted_demo(new_job_junk):
     uow = FakeUnitOfWork(demos=[demo])
     publish = AsyncMock()
     sharecode_resolver = AsyncMock()
-    bus = await create_bus(uow, dict(publish=publish, sharecode_resolver=sharecode_resolver))
+    faceit = AsyncMock()
+    bus = await create_bus(
+        uow, dict(publish=publish, sharecode_resolver=sharecode_resolver, faceit=faceit)
+    )
 
     with pytest.raises(services.ServiceError):
         await bus.dispatch(commands.CreateJob(demo_id=demo.id, **new_job_junk))
@@ -224,7 +232,10 @@ async def test_new_job_do_not_request_again(new_job_junk):
     uow = FakeUnitOfWork(demos=[demo])
     publish = AsyncMock()
     sharecode_resolver = AsyncMock()
-    bus = await create_bus(uow, dict(publish=publish, sharecode_resolver=sharecode_resolver))
+    faceit = AsyncMock()
+    bus = await create_bus(
+        uow, dict(publish=publish, sharecode_resolver=sharecode_resolver, faceit=faceit)
+    )
 
     await bus.dispatch(commands.CreateJob(demo_id=demo.id, **new_job_junk))
 
@@ -253,7 +264,10 @@ async def test_new_job_demo_id_not_up_to_date(new_job_junk):
     uow = FakeUnitOfWork(demos=[demo])
     publish = AsyncMock()
     sharecode_resolver = AsyncMock()
-    bus = await create_bus(uow, dict(publish=publish, sharecode_resolver=sharecode_resolver))
+    faceit = AsyncMock()
+    bus = await create_bus(
+        uow, dict(publish=publish, sharecode_resolver=sharecode_resolver, faceit=faceit)
+    )
 
     await bus.dispatch(commands.CreateJob(demo_id=demo.id, **new_job_junk))
 
@@ -283,7 +297,10 @@ async def test_new_job_demo_id_no_matchinfo(new_job_junk):
     uow = FakeUnitOfWork(demos=[demo])
     publish = AsyncMock()
     sharecode_resolver = AsyncMock()
-    bus = await create_bus(uow, dict(publish=publish, sharecode_resolver=sharecode_resolver))
+    faceit = AsyncMock()
+    bus = await create_bus(
+        uow, dict(publish=publish, sharecode_resolver=sharecode_resolver, faceit=faceit)
+    )
 
     await bus.dispatch(commands.CreateJob(demo_id=demo.id, **new_job_junk))
 

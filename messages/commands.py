@@ -86,7 +86,6 @@ class RequestRecording(Command):
     demo_identifier: str
     demo_url: str
     upload_url: str
-    upload_token: str
     player_xuid: int
     tickrate: int
     start_tick: int
@@ -105,6 +104,6 @@ class RequestRecording(Command):
 @dataclass(frozen=True)
 @publish(ttl=32.0)
 @consume()
-class ValidateUploadArgs(Command):
+class ValidateUpload(Command):
     job_id: str
-    upload_token: str
+    token: str

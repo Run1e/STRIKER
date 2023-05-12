@@ -38,8 +38,10 @@ class ErrorHandler(commands.Cog):
                 desc += "\n\nAre you sure the bot has access to this channel?"
         elif isinstance(exc, commands.CheckFailure):
             desc = str(exc)
-        elif isinstance(exc, ServiceError):
-            desc = str(exc)
+        elif isinstance(exc, commands.CommandInvokeError) and isinstance(
+            exc.original, ServiceError
+        ):
+            desc = str(exc.original)
         elif type(exc) is commands.CommandError:
             desc = str(exc)
         else:

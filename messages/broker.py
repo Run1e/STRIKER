@@ -19,17 +19,17 @@ class Broker:
     def __init__(
         self,
         bus: bus.MessageBus,
-        identifier=None,
-        publish_commands: set = None,
-        extra_events: set = None,
+        identifier: str = None,
+        publish_commands: set = None,  # mainly to set up dlx queue for published commands
+        consume_events: set = None,  # set up consumers for events we're .wait_for'ing
     ) -> None:
         self.bus = bus
 
         self.channel: aiormq.Channel = None
         self.identifier = identifier or str(uuid4())[:8]
 
-        self._can_publish = publish_commands or set()
-        self._extra_events = extra_events or set()
+        self._publish_commands = publish_commands or set()
+        self._consume_events = consume_events or set()
         self._identified = bool(identifier)
 
     async def start(self, url: str, prefetch_count=0):
@@ -54,12 +54,12 @@ class Broker:
             elif issubclass(message_type, events.Event):
                 await self.prepare_event(message_type)
 
-        if self._can_publish:
-            for command_type in self._can_publish:
+        if self._publish_commands:
+            for command_type in self._publish_commands:
                 await self.prepare_command(command_type, as_consumer=False)
 
-        if self._extra_events:
-            for event_type in self._extra_events:
+        if self._consume_events:
+            for event_type in self._consume_events:
                 await self.prepare_event(event_type)
 
     async def prefetch(self, prefetch_count):
@@ -75,8 +75,6 @@ class Broker:
         routing_key = message_type.__name__
         queue_name = self.message_type_to_queue_name(message_type)
 
-        consume_args = deco.consume_args.get(message_type, None)
-
         await self.channel.queue_declare(
             queue=queue_name,
             durable=self._identified,
@@ -90,8 +88,8 @@ class Broker:
         # consume from the queue
         log.info("Consuming queue (event) %s", queue_name)
         await self.channel.basic_consume(
-            queue_name,
-            partial(self.recv, message_type=message_type, **consume_args),
+            queue=queue_name,
+            consumer_callback=partial(self.recv_event, message_type=message_type),
         )
 
     async def prepare_command(self, message_type, as_consumer: bool):
@@ -99,8 +97,8 @@ class Broker:
         queue_name = self.message_type_to_queue_name(message_type)
         dlx_queue_name = f"dead-{routing_key}"
         queue_args = dict()
-
         publish_args = deco.publish_args.get(message_type, None)
+
         dead_event = publish_args["dead_event"]
 
         if dead_event:
@@ -125,8 +123,10 @@ class Broker:
                 # we're publisher, so consume dead letter queue
                 log.info("Consuming queue (dlx) %s", dlx_queue_name)
                 await self.channel.basic_consume(
-                    dlx_queue_name,
-                    partial(self.recv_dead, message_type=message_type, dead_event=dead_event),
+                    queue=dlx_queue_name,
+                    consumer_callback=partial(
+                        self.recv_dead, message_type=message_type, dead_event=dead_event
+                    ),
                 )
 
         # create the message queue
@@ -153,7 +153,10 @@ class Broker:
             # we're consumer, so consume the main queue
             log.info("Consuming queue (cmd) %s", queue_name)
             await self.channel.basic_consume(
-                queue_name, partial(self.recv, message_type=message_type, **consume_args)
+                queue=queue_name,
+                consumer_callback=partial(
+                    self.recv_command, message_type=message_type, **consume_args
+                ),
             )
 
     async def publish(self, message):
@@ -170,7 +173,7 @@ class Broker:
         ttl = args["ttl"]
 
         if isinstance(message, commands.Command):
-            if message_type not in self._can_publish:
+            if message_type not in self._publish_commands:
                 raise ValueError(
                     "Attemping to publish command of type %s but command not specified on broker creation",
                     message_type,
@@ -193,18 +196,14 @@ class Broker:
 
         return conf
 
-    async def recv_dead(self, message: aiormq.abc.DeliveredMessage, message_type, dead_event):
-        log.info("Consuming dead letter: %s", message)
-
-        command = message_type(**loads(message.body))
-        event = dead_event(
-            command=command, reason=message.header.properties.headers["x-first-death-reason"]
-        )
-
-        await self.bus.dispatch(event)
+    async def recv_event(self, message: aiormq.abc.DeliveredMessage, message_type):
+        log.info("Consuming event of type %s", message_type)
         await self.ack(message)
 
-    async def recv(
+        msg = message_type(**loads(message.body))
+        await self.bus.dispatch(msg)
+
+    async def recv_command(
         self,
         message: aiormq.abc.DeliveredMessage,
         message_type,
@@ -212,25 +211,47 @@ class Broker:
         requeue: bool,
         raise_on_ok: bool,
     ):
+        log.info("Consuming command of type %s", message_type)
+
         try:
             msg = message_type(**loads(message.body))
-            log.info("Consuming on '%s': %s", message.exchange, msg)
             await self.bus.dispatch(msg)
         except Exception as exc:
+            # MessageError is used to specify an error reason for the DTO, usually anyway
             is_ok = isinstance(exc, MessageError)
 
+            # if this command is set up to requeue, only do it once (before it's redelivered)
             if requeue and not message.redelivered:
                 await self.nack(message, requeue=True)
+
+            # if we're unable to requeue...
             else:
+                # publish an error event if an error factory is set up
                 if error_factory:
                     await self.publish(error_factory(msg, str(exc) if is_ok else None))
+
+                # and ack the command
                 await self.ack(message)
 
+            # this is not a MessageError, or if it is and we want to raise on those, do so
             if not is_ok or raise_on_ok:
                 raise exc
 
+        # if the command handler didn't except, ack the message
         else:
             await self.ack(message)
+
+    async def recv_dead(self, message: aiormq.abc.DeliveredMessage, message_type, dead_event):
+        log.info("Consuming dead letter of type %s", message_type)
+
+        command = message_type(**loads(message.body))
+        event = dead_event(
+            command=command, reason=message.header.properties.headers["x-first-death-reason"]
+        )
+
+        # immediately ack
+        await self.ack(message)
+        await self.bus.dispatch(event)
 
     async def ack(self, message: aiormq.abc.DeliveredMessage):
         await self.channel.basic_ack(message.delivery.delivery_tag)
