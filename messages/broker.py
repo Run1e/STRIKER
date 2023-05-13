@@ -24,6 +24,7 @@ class Broker:
         consume_events: set = None,  # set up consumers for events we're .wait_for'ing
     ) -> None:
         self.bus = bus
+        self.bus.add_dependencies(publish=self.publish)
 
         self.channel: aiormq.Channel = None
         self.identifier = identifier or str(uuid4())[:8]

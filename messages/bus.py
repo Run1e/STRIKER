@@ -14,6 +14,8 @@ class MessageBus:
         self.dependencies = dependencies or dict()
         self.uow_factory = uow_factory
 
+        self.dependencies["wait_for"] = self.wait_for
+
         self.command_handlers = dict()
         self.event_listeners = defaultdict(list)
         self.checks = defaultdict(set)

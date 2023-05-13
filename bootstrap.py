@@ -44,8 +44,6 @@ async def bootstrap(
     gather = asyncio.Event()
     waiters = list()
 
-    bus.add_dependencies(publish=broker.publish, wait_for=bus.wait_for)
-
     if start_steam:
         fetcher, steam_waiter = await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
         bus.add_dependencies(sharecode_resolver=fetcher)
@@ -55,7 +53,7 @@ async def bootstrap(
 
     if start_faceit:
         faceit_api = FACEITAPI(api_key=config.FACEIT_API_KEY)
-        bus.add_dependencies(faceit=faceit_api)
+        bus.add_dependencies(faceit_resolver=faceit_api.match)
     else:
         faceit_api = None
 

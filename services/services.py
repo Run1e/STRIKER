@@ -30,7 +30,7 @@ async def create_job(
     uow: SqlUnitOfWork,
     publish,
     sharecode_resolver,
-    faceit: FACEITAPI,
+    faceit_resolver,
 ):
     async with DEMO_LOCK:
         async with uow:
@@ -65,7 +65,7 @@ async def create_job(
 
                     if demo is None:
                         try:
-                            data = await faceit.match(command.identifier)
+                            data = await faceit_resolver(command.identifier)
                         except NotFound:
                             raise ServiceError("Could not find that FACEIT match.")
                         except HTTPException:
