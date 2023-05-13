@@ -9,8 +9,8 @@ import pytest
 
 from domain.demo_events import DemoEvents
 from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
-from messages import bus as eventbus
-from messages import commands, events
+from messages.bus import MessageBus
+from messages import commands, dto, events
 from services import services
 from shared.const import DEMOPARSE_VERSION
 from tests.testutils import *
@@ -139,7 +139,7 @@ from messages.bus import MessageBus
 async def create_bus(uow: FakeUnitOfWork, dependencies=None) -> MessageBus:
     deps = dict(
         video_upload_url="not an url",
-        node_tokens={'token'},
+        node_tokens={"token"},
         publish=AsyncMock(),
         sharecode_resolver=AsyncMock(),
         faceit_resolver=AsyncMock(),
@@ -147,9 +147,9 @@ async def create_bus(uow: FakeUnitOfWork, dependencies=None) -> MessageBus:
 
     deps.update(dependencies or dict())
 
-    messagebus = eventbus.MessageBus(dependencies=deps, uow_factory=lambda: uow)
-    messagebus.register_decos()
-    return messagebus, deps
+    bus = MessageBus(dependencies=deps, uow_factory=lambda: uow)
+    bus.register_decos()
+    return bus, deps
 
 
 @pytest.mark.asyncio
@@ -429,8 +429,16 @@ async def test_record():
     job = create_job(state=JobState.SELECTING)
     job.demo = demo
 
+    async def publish(command):
+        if isinstance(command, commands.RequestPresignedUrl):
+            await bus.dispatch(
+                events.PresignedUrlGenerated(
+                    command.origin, command.identifier, presigned_url="not a url"
+                )
+            )
+
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
-    bus, deps = await create_bus(uow)
+    bus, deps = await create_bus(uow, dict(publish=publish))
 
     demo_events = DemoEvents.from_demo(demo)
     demo_events.parse()
@@ -442,37 +450,29 @@ async def test_record():
     )
 
     assert job.state is JobState.RECORDING
+    assert job.recording_type is RecordingType.PLAYER_ROUND
+    assert job.recording_data == {"player_xuid": player.xuid, "round_id": round_id}
+    assert job.video_title == "R10 runie 1k (1tk) ak47"
 
 
 @pytest.mark.asyncio
 async def test_recorder_success():
     job = create_job(state=JobState.RECORDING)
     demo = new_demo(
-        state=DemoState.SUCCESS,
-        queued=False,
-        sharecode="sharecode",
-        has_matchinfo=True,
-        data=loads(demo_data[0]),
+        state=DemoState.READY,
+        add_data=True,
+        add_matchinfo=True,
     )
 
     job.demo = demo
-    # job.recording = Recording(
-    #     RecordingType.PLAYER_ROUND, player_xuid=76561198044195953, round_id=10
-    # )
 
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
+    bus, deps = await create_bus(uow)
 
-    event = events.RecorderSuccess(job.id)
-    await services.recorder_dl(uow, event)
+    await bus.dispatch(events.RecorderSuccess(str(job.id)))
 
-    assert uow.commit_count == 1
+    assert uow.committed
     assert job.state is JobState.UPLOADING
-    # uploader_send.assert_awaited_once_with(
-    #     id=job.id,
-    #     user_id=job.user_id,
-    #     channel_id=job.channel_id,
-    #     file_name=ANY,
-    # )
 
 
 @pytest.mark.asyncio
@@ -480,20 +480,14 @@ async def test_recorder_failure():
     job = create_job(state=JobState.WAITING)
 
     uow = FakeUnitOfWork(jobs=[job])
+    bus, deps = await create_bus(uow)
 
     reason = "some reason"
-    event = events.RecorderFailure(id=job.id, reason=reason)
-    await services.recorder_dl(uow, event)
+    await bus.dispatch(events.RecorderFailure(job_id=str(job.id), reason=reason))
 
-    assert uow.commit_count == 1
-
+    assert uow.committed
     assert job.state is JobState.FAILED
-
-    assert len(uow.messages) == 1
-    dispatch_event = uow.messages[0]
-    assert isinstance(dispatch_event, events.JobRecordingFailed)
-    assert dispatch_event.job is job
-    assert dispatch_event.reason == reason
+    assert isinstance(uow.messages[-1], dto.JobFailed)
 
 
 @pytest.mark.asyncio
@@ -501,14 +495,12 @@ async def test_uploader_success():
     job = create_job(state=JobState.UPLOADING)
 
     uow = FakeUnitOfWork(jobs=[job])
+    bus, deps = await create_bus(uow)
 
-    event = events.UploaderSuccess(id=job.id)
-    await services.uploader_success(uow, event)
+    await bus.dispatch(events.UploaderSuccess(job_id=str(job.id)))
 
-    assert uow.commit_count == 1
-    assert len(uow.messages) == 1
-    assert isinstance(uow.messages[0], events.JobUploadSuccess)
-    assert uow.messages[0].job is job
+    assert job.state is JobState.SUCCESS
+    assert isinstance(uow.messages[-1], dto.JobSuccess)
 
 
 @pytest.mark.asyncio
@@ -516,111 +508,42 @@ async def test_uploader_failure():
     job = create_job(state=JobState.UPLOADING)
 
     uow = FakeUnitOfWork(jobs=[job])
+    bus, desp = await create_bus(uow)
 
     reason = "oof"
-    event = events.UploaderFailure(id=job.id, reason=reason)
-    await services.uploader_failure(uow, event)
+    await bus.dispatch(events.UploaderFailure(job_id=str(job.id), reason=reason))
 
-    assert uow.commit_count == 1
-    assert len(uow.messages) == 1
-    assert isinstance(uow.messages[0], events.JobUploadFailed)
-    assert uow.messages[0].job is job
-    assert uow.messages[0].reason == reason
+    assert job.state is JobState.FAILED
+    assert isinstance(uow.messages[-1], dto.JobFailed)
 
 
 @pytest.mark.asyncio
 async def test_abort_job(demo_job):
     uow = FakeUnitOfWork(jobs=[demo_job])
+    bus, deps = await create_bus(uow)
 
-    await services.abort_job(uow, demo_job)
+    await bus.dispatch(commands.AbortJob(demo_job.id))
 
-    assert uow.commit_count == 1
+    assert uow.committed
     assert demo_job.state is JobState.ABORTED
 
 
 @pytest.mark.asyncio
 async def test_restore_restart_jobs():
     demo = new_demo(
-        state=DemoState.SUCCESS,
-        queued=False,
-        sharecode="sharecode",
-        has_matchinfo=True,
-        data=loads(demo_data[0]),
+        state=DemoState.READY,
+        add_data=True,
+        add_matchinfo=True,
     )
-
-    demo.parse()
 
     job = create_job(state=JobState.SELECTING)
     job.demo = demo
+
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
+    bus, deps = await create_bus(uow)
+
     job.demo_id = demo.id
 
-    command = commands.Restore()
-    await services.restore(command=command, uow=uow)
+    await bus.dispatch(commands.Restore())
 
-    event = uow.messages[0]
-    assert isinstance(event, events.JobReadyForSelect)
-    assert event.job is job
-
-
-@pytest.mark.asyncio
-async def test_restore_unqueued_demos_matchinfo():
-    demo = new_demo(
-        state=DemoState.MATCH,
-        queued=False,
-        sharecode="sharecode",
-        has_matchinfo=False,
-    )
-
-    uow = FakeUnitOfWork(demos=[demo])
-
-    command = commands.Restore()
-    await services.restore(command=command, uow=uow)
-
-    # matchinfo_send.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_restore_unqueued_demos_demoparse():
-    demo = new_demo(
-        state=DemoState.PARSE,
-        queued=False,
-        sharecode="sharecode",
-        has_matchinfo=True,
-    )
-
-    uow = FakeUnitOfWork(demos=[demo])
-
-    command = commands.Restore()
-    await services.restore(command=command, uow=uow)
-
-    # demoparse_send.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_restore_queued_demos():
-    demo_one = new_demo(
-        state=DemoState.MATCH, queued=False, sharecode="sharecode", has_matchinfo=False
-    )
-
-    demo_two = new_demo(
-        state=DemoState.PARSE,
-        queued=False,
-        sharecode="sharecode",
-        has_matchinfo=True,
-    )
-
-    demo_three = new_demo(
-        state=DemoState.PARSE,
-        queued=True,
-        sharecode="sharecode",
-        has_matchinfo=True,
-    )
-
-    uow = FakeUnitOfWork(demos=[demo_one, demo_two, demo_three])
-
-    command = commands.Restore()
-    await services.restore(command=command, uow=uow)
-
-    # matchinfo_send.assert_awaited_once()
-    # demoparse_send.assert_awaited_once()
+    assert isinstance(uow.messages[-1], dto.JobSelectable)

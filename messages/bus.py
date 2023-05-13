@@ -70,17 +70,21 @@ class MessageBus:
             for message in uow.messages:
                 await self.dispatch(message)
 
-    async def wait_for(self, message_type, check, timeout=10.0):
+    def wait_for(self, message_type, check, timeout=10.0):
         fut = asyncio.Future()
         tup = (check, fut)
         self.checks[message_type].add(tup)
 
-        try:
-            async with asyncio.timeout(delay=timeout):
-                return await fut
-        except asyncio.TimeoutError:
-            self._remove_checks(message_type, {tup})
-            return None
+        async def waiter():
+            try:
+                async with asyncio.timeout(delay=timeout):
+                    return await fut
+            except asyncio.TimeoutError:
+                return None
+            finally:
+                self._remove_checks(message_type, {tup})
+
+        return waiter()
 
     def _remove_checks(self, message_type, to_remove):
         checks = self.checks.get(message_type, None)

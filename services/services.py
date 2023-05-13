@@ -59,7 +59,7 @@ async def create_job(
 
                         uow.demos.add(demo)
 
-                elif command.origin is "FACEIT":
+                elif command.origin == "FACEIT":
                     origin = DemoOrigin.FACEIT
                     demo = await uow.demos.from_identifier(origin, command.identifier)
 
@@ -343,7 +343,7 @@ async def presigned_url_generated(event: events.PresignedUrlGenerated):
 @listener(events.RecorderSuccess)
 async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
     async with uow:
-        job = await uow.jobs.get(event.job_id)
+        job = await uow.jobs.get(UUID(event.job_id))
         if job is None:
             return
 
@@ -355,7 +355,7 @@ async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
 @listener(events.RecorderFailure)
 async def recorder_failure(event: events.RecorderFailure, uow: SqlUnitOfWork):
     async with uow:
-        job = await uow.jobs.get(event.job_id)
+        job = await uow.jobs.get(UUID(event.job_id))
         if job is None:
             return
 
@@ -437,12 +437,13 @@ async def validate_upload(
         await publish(e)
 
 
+@handler(commands.Restore)
 async def restore(command: commands.Restore, uow: SqlUnitOfWork):
     # restores jobs and demos that were cut off during last restart
     async with uow:
         jobs = await uow.jobs.get_restart()
         for job in jobs:
-            uow.add_message(events.JobReadyForSelect(job))
+            job.selecting()
 
         await uow.commit()
 
