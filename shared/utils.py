@@ -1,6 +1,7 @@
 import gzip
 from bz2 import BZ2Decompressor
 from datetime import datetime, timezone
+from pathlib import Path
 from time import monotonic
 
 
@@ -23,10 +24,10 @@ class DemoCorrupted(Exception):
     pass
 
 
-def decompress(archive: str, file: str):
-    if archive.endswith("gz"):
+def decompress(archive: Path, file: Path):
+    if archive.suffix == ".gz":
         f = decompress_gz
-    elif archive.endswith("bz2"):
+    elif archive.suffix == ".bz2":
         f = decompress_bz2
 
     f(archive, file)

@@ -8,8 +8,8 @@ import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from distutils.dir_util import copy_tree
-from glob import glob
 from json import dumps, loads
+from pathlib import Path
 from shutil import rmtree
 from urllib import parse
 
@@ -52,14 +52,14 @@ class RecordingError(Exception):
 
 async def record(
     csgo: CSGO,
-    demo: str,
+    demo: Path,
     command: commands.RequestRecording,
 ):
-    output = f"{config.TEMP_DIR}/{command.job_id}.mp4"
+    output = config.TEMP_DIR / f"{command.job_id}.mp4"
     capture_dir = config.TEMP_DIR
     video_filters = config.VIDEO_FILTERS if command.color_filter else None
 
-    if not os.path.isfile(demo):
+    if not demo.is_file():
         raise ValueError(f"Demo {demo} does not exist.")
 
     if command.end_tick < command.start_tick:
@@ -88,7 +88,7 @@ async def record(
         unblock_string=unblock_string,
     )
 
-    script_file = f"{config.TEMP_DIR}/{command.job_id}.xml"
+    script_file = config.TEMP_DIR / f"{command.job_id}.xml"
     cmds.save(script_file)
 
     preplay_commands = (
@@ -106,13 +106,17 @@ async def record(
         start_at=command.start_tick - (6 * command.tickrate),
     )
 
+    log.info("Muxing in folder %s", take_folder)
+
+    take_folder = config.TEMP_DIR / take_folder
+
     # mux audio
-    wav = glob(take_folder + r"\*.wav")[0]
+    wav = list(take_folder.glob("*.wav"))[0]
     subprocess.run(
         [
             config.FFMPEG_BIN,
             "-i",
-            take_folder + r"\normal\video.mp4",
+            take_folder / "normal/video.mp4",
             "-i",
             wav,
             "-c:v",
@@ -166,13 +170,10 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
 
     sb.run(
         config.STEAM_BIN,
-        # '-nocache',
         "-nofriendsui",
         "-silent",
         "-offline",
-        # '-login',
-        # config.STEAM_USER,
-        # config.STEAM_PASS,
+        "-clearbeta",
         box=box,
     )
 
@@ -189,7 +190,8 @@ async def make_sandboxed_csgo(sb: Sandboxie, box: str, sleep) -> CSGO:
 
 
 def make_csgo(port):
-    subprocess.run(craft_hlae_args(port))
+    args = craft_hlae_args(port)
+    subprocess.run(args)
     return CSGO("localhost", port=port)
 
 
@@ -232,8 +234,9 @@ async def handle_recording_request(
     session: aiohttp.ClientSession,
     pool: ResourcePool,
 ):
-    demo_dir = f"{config.TEMP_DIR}/{command.demo_origin.lower()}"
-    archive_dir = f"{config.DEMO_DIR}/{command.demo_origin.lower()}"
+    origin_lower = command.demo_origin.lower()
+    demo_dir = config.TEMP_DIR / origin_lower
+    archive_dir = config.TEMP_DIR / origin_lower
 
     # ensure this demos origin type has a folder
     for _dir in (demo_dir, archive_dir):
@@ -243,15 +246,16 @@ async def handle_recording_request(
             pass
 
     archive_name = os.path.basename(parse.urlparse(command.demo_url).path)
-    archive_path = f"{archive_dir}/{archive_name}"
-    demo_path = f"{demo_dir}/{command.demo_identifier}.dem"
 
-    has_archive = os.path.isfile(archive_path)
-    has_demo = os.path.isfile(demo_path)
+    archive_path = archive_dir / archive_name
+    demo_path = demo_dir / f"{command.demo_identifier}.dem"
+
+    has_archive = archive_path.is_dir()
+    has_demo = demo_path.is_file()
 
     if not has_archive:
-        timeout = aiohttp.ClientTimeout(20.0)
-        async with session.get(command.demo_url, timeout=timeout) as resp:
+        log.info("Downloading archive...")
+        async with session.get(url=command.demo_url, timeout=aiohttp.ClientTimeout(20.0)) as resp:
             if resp.status == 200:
                 async with aiofiles.open(archive_path, "wb") as f:
                     while not resp.content.at_eof():
@@ -260,14 +264,19 @@ async def handle_recording_request(
                 raise RecordingError("Failed fetching demo archive.")
 
     if not has_archive or not has_demo:
+        log.info("Decompressing archive...")
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(executor, decompress, archive_path, demo_path)
         except DemoCorrupted:
             raise RecordingError("Demo corrupted.")
 
+    log.info("Getting CSGO instance and starting recording...")
     async with ResourceRequest(pool) as csgo:
+        log.info("Got CSGO instance: %s", csgo)
         video_file = await record(csgo, demo_path, command)
+
+    log.info("Uploading to uploader service...")
 
     try:
         async with session.post(
@@ -309,7 +318,8 @@ class GatewayClient:
             try:
                 await handle_recording_request(command, self.session, self.pool)
             except Exception as exc:
-                reason = str(exc) if isinstance(exc, RecordingError) else "Recording failed :("
+                log.exception(exc)
+                reason = str(exc) if isinstance(exc, RecordingError) else "Recording failed."
                 await self.send("failure", dict(job_id=command.job_id, reason=reason))
             else:
                 await self.send("success", dict(job_id=command.job_id))
@@ -367,7 +377,7 @@ class GatewayClient:
 
                     await self.send("request", dict())
                     message = await websocket.recv()
-                    
+
                     data = loads(message)
                     command = commands.RequestRecording(**data)
                     future.set_result(command)
@@ -388,7 +398,7 @@ async def main():
     # logging.getLogger("websockets").setLevel(logging.INFO)
 
     # copy over csgo config files
-    copy_tree("cfg", config.CSGO_DIR + "/cfg")
+    copy_tree("cfg", str(config.CSGO_DIR / "cfg"))
 
     # delete temp dir
     try:
@@ -442,7 +452,6 @@ async def main():
     g = GatewayClient(pool)
 
     await g.connect(config.API_ENDPOINT)
-
 
     log.info("Ready to record!")
 

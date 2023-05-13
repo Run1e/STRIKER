@@ -117,10 +117,10 @@ class GatewayServer:
 
     def remove_future(self, job_id):
         future = self.futures.pop(job_id, None)
-
         if not future:
             return
 
+        # can leave a dangling key but I'm over it
         for futures in self.client_futures.values():
             if future in futures:
                 futures.remove(future)
@@ -188,7 +188,9 @@ class GatewayServer:
         except asyncio.CancelledError:
             # client most likely died, set a failure event
             # which might requeue depending on the value of retry
-            event = events.RecorderFailure(command.job_id, "Recording node disconnected while recording.")
+            event = events.RecorderFailure(
+                command.job_id, "Recording node disconnected while recording."
+            )
 
         # remove future
         self.remove_future(command.job_id)

@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 from subprocess import run
 
 import aioboto3
+import aiofiles
 import aiohttp
 import config
 
@@ -65,12 +66,13 @@ class DemoStorage:
 
     @staticmethod
     def _build_key(origin, identifier):
-        return f"{origin.lower()}/{identifier}.dem.{origin_to_ext(origin)}"
+        return f"{origin.lower()}_{identifier}.dem.{origin_to_ext(origin)}"
 
     async def upload_demo(self, origin, identifier):
         key = self._build_key(origin, identifier)
 
-        with open(f"data/{key}", "rb") as fp:
+        # this shit just has to be sync smh
+        with open(config.DATA_FOLDER / key, "rb") as fp:
             async with self.make_client() as client:
                 await client.upload_fileobj(fp, self.bucket, key)
 
@@ -99,19 +101,18 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
     identifier = command.identifier
     download_url = command.download_url
 
-    folder = f"data/{origin.lower()}"
-
-    if not os.path.isdir(folder):
-        os.makedirs(folder)
+    if not config.DATA_FOLDER.is_dir():
+        os.makedirs(config.DATA_FOLDER)
 
     log.info("Processing origin %s identifier %s url %s", origin, identifier, download_url)
 
     ext = origin_to_ext(origin)
-    archive_path = f"{folder}/{identifier}.dem.{ext}"
-    demo_path = f"{folder}/{identifier}.dem"
+
+    demo_path = config.DATA_FOLDER / f"{origin.lower()}_{identifier}.dem"
+    archive_path = config.DATA_FOLDER / f"{origin.lower()}_{identifier}.dem.{ext}"
 
     # if archive and demo does not exist, download the archive
-    if not os.path.isfile(archive_path):
+    if not archive_path.is_file():
         log.info("downloading %s", archive_path)
 
         end = timer("download")
@@ -127,14 +128,14 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
                 raise MessageError("Unable to download demo.")
 
             # write to file
-            with open(archive_path, "wb") as f:
-                f.write(await resp.read())
+            async with aiofiles.open(archive_path, "wb") as f:
+                await f.write(await resp.read())
 
         log.info(end())
     else:
         log.info("archive exists %s", archive_path)
 
-    if not os.path.isfile(demo_path):
+    if not demo_path.is_file():
         log.info("extracting %s", demo_path)
         end = timer("extraction")
 
