@@ -148,7 +148,7 @@ class CSGO:
                 output.append(line)
             return False
 
-        task = asyncio.create_task(self.wait_for(check=aggregator, timeout=8.0))
+        task = asyncio.create_task(self.wait_for(check=aggregator, timeout=10.0))
 
         await self.send_commands([f"echo {start_token}", command, f"echo {end_token}"])
         await task

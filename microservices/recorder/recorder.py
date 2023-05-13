@@ -106,6 +106,8 @@ async def record(
         start_at=command.start_tick - (6 * command.tickrate),
     )
 
+    delete_file(script_file)
+
     log.info("Muxing in folder %s", take_folder)
 
     take_folder = config.TEMP_DIR / take_folder
@@ -229,47 +231,52 @@ async def file_reader(file_name):
             chunk = await f.read(CHUNK_SIZE)
 
 
+def delete_file(path: Path):
+    if path.is_file():
+        try:
+            os.remove(path)
+        except:
+            pass
+
+
 async def handle_recording_request(
     command: commands.RequestRecording,
     session: aiohttp.ClientSession,
     pool: ResourcePool,
 ):
     origin_lower = command.demo_origin.lower()
-    demo_dir = config.TEMP_DIR / origin_lower
-    archive_dir = config.TEMP_DIR / origin_lower
-
-    # ensure this demos origin type has a folder
-    for _dir in (demo_dir, archive_dir):
-        try:
-            os.makedirs(_dir)
-        except FileExistsError:
-            pass
+    archive_dir = config.DEMO_DIR / origin_lower
+    os.makedirs(archive_dir, exist_ok=True)
 
     archive_name = os.path.basename(parse.urlparse(command.demo_url).path)
-
     archive_path = archive_dir / archive_name
-    demo_path = demo_dir / f"{command.demo_identifier}.dem"
+    temp_archive_path = config.TEMP_DIR / f"{command.job_id}.dem.{archive_path.suffix}"
+    demo_path = config.TEMP_DIR / f"{command.job_id}.dem"
 
-    has_archive = archive_path.is_dir()
-    has_demo = demo_path.is_file()
-
-    if not has_archive:
+    if not archive_path.is_file():
         log.info("Downloading archive...")
         async with session.get(url=command.demo_url, timeout=aiohttp.ClientTimeout(20.0)) as resp:
             if resp.status == 200:
-                async with aiofiles.open(archive_path, "wb") as f:
+                async with aiofiles.open(temp_archive_path, "wb") as f:
                     while not resp.content.at_eof():
                         await f.write(await resp.content.read(CHUNK_SIZE))
             else:
                 raise RecordingError("Failed fetching demo archive.")
 
-    if not has_archive or not has_demo:
-        log.info("Decompressing archive...")
-        try:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(executor, decompress, archive_path, demo_path)
-        except DemoCorrupted:
-            raise RecordingError("Demo corrupted.")
+            if not archive_path.is_file():
+                try:
+                    os.rename(temp_archive_path, archive_path)
+                except FileExistsError:  # this exc is fine since we're on windows
+                    log.info("Failed renaming archive?")
+                    pass
+
+    # decompress temp archive to temp demo file
+    log.info("Decompressing archive...")
+    try:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(executor, decompress, archive_path, demo_path)
+    except DemoCorrupted:
+        raise RecordingError("Demo corrupted.")
 
     log.info("Getting CSGO instance and starting recording...")
     async with ResourceRequest(pool) as csgo:
@@ -289,8 +296,13 @@ async def handle_recording_request(
             log.info("Upload for job %s status %s", command.job_id, resp.status)
             if resp.status == 500:
                 raise RecordingError("Uploader service failed.")
+
     except asyncio.TimeoutError:
         raise RecordingError("Upload timed out.")
+
+    # delete stuff that is now junk...
+    for path in (demo_path, temp_archive_path, video_file):
+        delete_file(path)
 
 
 class GatewayClient:
