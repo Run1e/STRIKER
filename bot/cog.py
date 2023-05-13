@@ -394,7 +394,6 @@ class RecorderCog(commands.Cog):
         )
 
         embed = await view.set_half(True)
-
         await inter.response.edit_message(content=None, embed=embed, view=view)
 
     async def record_highlight(

@@ -8,7 +8,6 @@ import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from distutils.dir_util import copy_tree
-from functools import partial
 from glob import glob
 from json import dumps, loads
 from shutil import rmtree
@@ -270,62 +269,117 @@ async def handle_recording_request(
     async with ResourceRequest(pool) as csgo:
         video_file = await record(csgo, demo_path, command)
 
-    async with aiofiles.open(video_file, "rb") as f:
-        try:
-            async with session.post(
-                url=command.upload_url,
-                params=dict(job_id=command.job_id),
-                headers={"Authorization": config.API_TOKEN},
-                data=file_reader(video_file),
-                timeout=aiohttp.ClientTimeout(total=32.0),
-            ) as resp:
-                log.info("Upload for job %s status %s", command.job_id, resp.status)
-                if resp.status == 500:
-                    raise RecordingError("Uploader service failed.")
-        except asyncio.TimeoutError:
-            raise RecordingError("Upload timed out.")
+    try:
+        async with session.post(
+            url=command.upload_url,
+            params=dict(job_id=command.job_id),
+            headers={"Authorization": config.API_TOKEN},
+            data=file_reader(video_file),
+            timeout=aiohttp.ClientTimeout(total=32.0),
+        ) as resp:
+            log.info("Upload for job %s status %s", command.job_id, resp.status)
+            if resp.status == 500:
+                raise RecordingError("Uploader service failed.")
+    except asyncio.TimeoutError:
+        raise RecordingError("Upload timed out.")
 
 
-async def start_ws(recording_request_handler):
-    async def send(c: str, d: dict = None):
-        await websocket.send(dumps([c, d or {}]))
+class GatewayClient:
+    def __init__(self, pool: ResourcePool) -> None:
+        self.pool = pool
+        self.session = aiohttp.ClientSession()
 
-    # retry connection forever
-    while True:
-        try:
-            websocket = await client.connect(
-                config.API_ENDPOINT, extra_headers=dict(Authorization=config.API_TOKEN)
-            )
-        except ConnectionRefusedError as exc:
-            log.warn("Timed out trying to connect...")
-            continue
+        self.queue = asyncio.Queue()
 
-        log.info("Connected!")
+        self.websocket = None
+        self.connected_event = asyncio.Event()
+
+        self.job_ids = set()
+
+    async def looper(self):
+        while True:
+            future = asyncio.Future()
+            await self.queue.put(future)
+
+            command: commands.RequestRecording = await future
+            log.info("Received recording request %s", command)
+
+            self.job_ids.add(command.job_id)
+
+            try:
+                await handle_recording_request(command, self.session, self.pool)
+            except Exception as exc:
+                reason = str(exc) if isinstance(exc, RecordingError) else "Recording failed :("
+                await self.send("failure", dict(job_id=command.job_id, reason=reason))
+            else:
+                await self.send("success", dict(job_id=command.job_id))
+            finally:
+                self.job_ids.remove(command.job_id)
+
+    async def send(self, *data):
+        if not self.connected_event.is_set():
+            await self.connected_event.wait()
+
+        await self.websocket.send(dumps(data))
+
+    async def connect(self, endpoint):
+        for _ in self.pool:
+            asyncio.create_task(self.looper())
 
         while True:
+            self.connected_event.clear()
+
             try:
-                await send("request")
-                request = await websocket.recv()
-                action, data = loads(request)
+                websocket = await client.connect(
+                    endpoint, extra_headers=dict(Authorization=config.API_TOKEN)
+                )
+            except ConnectionRefusedError as exc:
+                log.warn("Timed out trying to connect...")
+                continue
 
-                if action == "record":
-                    try:
-                        command = commands.RequestRecording(**data)
-                        log.info("Received recording request %s", command)
-                        await recording_request_handler(command)
-                    except Exception as exc:
-                        reason = (
-                            str(exc) if isinstance(exc, RecordingError) else "Recording failed :("
-                        )
-                        await send("failure", dict(job_id=command.job_id, reason=reason))
+            log.info("Connected!")
+
+            self.websocket = websocket
+            self.connected_event.set()
+
+            # tell the gateway which job id's we're currently working on
+            await websocket.send(dumps(list(self.job_ids)))
+
+            try:
+                while True:
+                    getter = asyncio.create_task(self.queue.get())
+                    waiter = asyncio.create_task(websocket.wait_closed())
+
+                    finished, _ = await asyncio.wait(
+                        [getter, waiter], return_when=asyncio.FIRST_COMPLETED
+                    )
+
+                    if waiter in finished:
+                        # websocket closed, cancel getter
+                        getter.cancel()
+                        # and this should raise ConnectionClosed
+                        await websocket.ensure_open()
                     else:
-                        await send("success", dict(job_id=command.job_id))
+                        # getter finished first, cancel waiter
+                        waiter.cancel()
 
+                    future = getter.result()
+
+                    await self.send("request", dict())
+                    message = await websocket.recv()
+                    
+                    data = loads(message)
+                    command = commands.RequestRecording(**data)
+                    future.set_result(command)
             except ConnectionClosed as exc:
                 if exc.code == 1008:
                     raise  # invalid auth
                 log.warn("Lost connection to gateway!")
-                break  # retry
+
+            # requeue the current future if we .get()'d it and then failed
+            if not future.done():
+                log.info("Putting current future back in queue...")
+                await self.queue.put(future)
 
 
 async def main():
@@ -385,10 +439,10 @@ async def main():
         pool.add(csgo)
         csgo.set_connection_lost_callback(pool.on_removal)
 
-    for _ in csgos:
-        asyncio.create_task(
-            start_ws(partial(handle_recording_request, session=aiohttp.ClientSession(), pool=pool))
-        )
+    g = GatewayClient(pool)
+
+    await g.connect(config.API_ENDPOINT)
+
 
     log.info("Ready to record!")
 

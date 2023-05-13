@@ -16,6 +16,12 @@ class ResourcePool:
 
         self._removed = set()
 
+    def __iter__(self):
+        yield from self.queue
+
+    def __len__(self):
+        return len(self.queue)
+
     def add(self, resource):
         should_set = not self.queue
         self.queue.append(resource)
