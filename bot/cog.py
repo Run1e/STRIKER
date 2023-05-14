@@ -200,7 +200,11 @@ class RecorderCog(commands.Cog):
 
             if not is_valid_sharecode(sharecode):
                 raise commands.UserInputError(  # todo: add thing showing what is allowed
-                    "Sorry, that's not a valid sharecode or faceit url."
+                    "Sorry, that's not a valid sharecode or FACEIT url.\n\n"
+                    "You can give the bot matchmaking sharecodes:\n"
+                    "`steam://rungame/730/76561202255233023/+csgo_download_match%20CSGO-3VocL-obGr4-SjkBU-DjHhz-KWtrD`\n\n"
+                    "Or FACEIT links:\n"
+                    "`https://www.faceit.com/en/csgo/room/1-9fa1db69-5f1a-4ea3-a37c-3ab84fbd416a`"
                 )
 
             demo_dict = dict(origin="VALVE", sharecode=sharecode)
@@ -557,11 +561,13 @@ class RecorderCog(commands.Cog):
         e = self.embed.build("How to use the bot!")
 
         e.description = (
-            "This bot can record and upload CS:GO clips from matchmaking games straight to Discord. "
-            "To do so you will need to give the bot a sharecode from one of your matchmaking matches.\n\n"
+            "This bot can record and upload CS:GO clips from matchmaking and FACEIT games straight to Discord. "
+            "To do so you will need to give the bot a sharecode from one of your matchmaking matches, or a FACEIT room link.\n\n"
             "The below image shows how to find and copy a matchmaking sharecode from inside CS:GO.\n\n"
             "To record a highlight, run the `/record` command and paste the sharecode you copied.\n\n"
             "To record another highlight from the same match, use `/demos`.\n\n"
+            "To record FACEIT matches, give `/record` a link like:\n"
+            "`https://www.faceit.com/en/csgo/room/1-9fa1db69-5f1a-4ea3-a37c-3ab84fbd416a`\n\n"
             "Have fun!"
         )
 

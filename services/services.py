@@ -311,7 +311,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         result: events.PresignedUrlGenerated | None = await task
 
         if result is None:
-            raise ValueError("")  # TODO: real exception
+            raise ServiceError("Unable to get archive link from demo parser.")
 
         data["demo_url"] = result.presigned_url
 
