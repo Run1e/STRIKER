@@ -2,19 +2,19 @@ DEBUG = False
 DROP_TABLES = False
 DUMP_EVENTS = False
 
-DB_BIND = 'postgresql+asyncpg://user:pass@host:5432/database'
+DB_BIND = "postgresql+asyncpg://user:pass@host:5432/database"
 BOT_TOKEN = ""
 FACEIT_API_KEY = ""
 STEAM_REFRESH_TOKEN = ""
 STRIKER_GUILD_ID = int()
 TEST_GUILDS = [STRIKER_GUILD_ID]
 
-RABBITMQ_HOST = 'amqp://user:pass@host:5672'
+RABBITMQ_HOST = "amqp://user:pass@host:5672"
 VIDEO_UPLOAD_URL = ""
 
 JOB_LIMIT = 1
 
-NODE_TOKENS = {"token"}
+TOKENS = {"token"}
 
 CT_COIN = ""
 T_COIN = ""

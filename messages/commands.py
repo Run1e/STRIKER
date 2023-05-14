@@ -104,9 +104,15 @@ class RequestRecording(Command):
 @dataclass(frozen=True)
 @publish(ttl=32.0)
 @consume()
-class ValidateUpload(Command):
+class RequestTokens(Command):
+    pass
+
+
+@dataclass(frozen=True, repr=False)
+@publish(ttl=32.0)
+@consume()
+class RequestUploadData(Command):
     job_id: str
-    token: str
 
 
 @dataclass(frozen=True)

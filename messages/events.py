@@ -149,12 +149,18 @@ class UploaderFailure(Event):
     reason: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
+@publish(ttl=32.0)
+@consume()
+class Tokens(Event):
+    tokens: list
+
+
+@dataclass(frozen=True, repr=False)
 @publish()
 @consume()
-class UploadValidated(Event):
-    job_id: str
-    authorized: bool
+class UploadData(Event):
+    job_id: str = None
     video_title: str = None
-    channel_id: int = None
     user_id: int = None
+    channel_id: int = None

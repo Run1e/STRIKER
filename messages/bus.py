@@ -70,7 +70,10 @@ class MessageBus:
             for message in uow.messages:
                 await self.dispatch(message)
 
-    def wait_for(self, message_type, check, timeout=10.0):
+    def wait_for(self, message_type, check=None, timeout=10.0):
+        if check is None:
+            check = lambda m: True
+
         fut = asyncio.Future()
         tup = (check, fut)
         self.checks[message_type].add(tup)

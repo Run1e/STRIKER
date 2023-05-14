@@ -4,7 +4,7 @@ import logging
 from adapters import orm, steam
 from adapters.faceit import FACEITAPI
 from bot import bot, config
-from messages import commands
+from messages import commands, events
 from messages.broker import Broker
 from messages.bus import MessageBus
 from services.uow import SqlUnitOfWork
@@ -28,7 +28,7 @@ async def bootstrap(
 
     bus = MessageBus(
         uow_factory=lambda: uow_type(),
-        dependencies=dict(video_upload_url=config.VIDEO_UPLOAD_URL, node_tokens=config.NODE_TOKENS),
+        dependencies=dict(video_upload_url=config.VIDEO_UPLOAD_URL, tokens=config.TOKENS),
     )
 
     broker = Broker(
@@ -38,6 +38,9 @@ async def bootstrap(
             commands.RequestDemoParse,
             commands.RequestPresignedUrl,
             commands.RequestRecording,
+        },
+        consume_events={
+            events.PresignedUrlGenerated,
         },
     )
 
@@ -72,8 +75,8 @@ async def bootstrap(
     # this restarts any jobs that were in selectland
     # within the last 12 (at the time of writing, anyway)
     # minutes last we restarted
-    # if restore:
-    #     await messagebus.dispatch(commands.Restore())
+    if restore:
+        await bus.dispatch(commands.Restore())
 
     return bus
 
@@ -86,7 +89,7 @@ def main():
     coro = bootstrap(
         uow_type=SqlUnitOfWork,
         start_orm=True,
-        start_steam=False,
+        start_steam=True,
         start_faceit=True,
         start_bot=True,
         restore=True,

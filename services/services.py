@@ -8,8 +8,7 @@ from adapters.faceit import FACEITAPI, HTTPException, NotFound
 from domain import sequencer
 from domain.demo_events import DemoEvents
 from domain.domain import Demo, Job, UserSettings, calculate_bitrate
-from domain.enums import (DemoGame, DemoOrigin, DemoState, JobState,
-                          RecordingType)
+from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import commands, dto, events
 from messages.deco import handler, listener
 from services import views
@@ -291,18 +290,14 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             fps=60,
             video_bitrate=video_bitrate,
             audio_bitrate=192,
-            # user controlled
-            fragmovie=False,
-            color_filter=True,
-            righthand=True,
-            crosshair_code="CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE",
-            use_demo_crosshair=False,
+            **UserSettings.toggleable_values,
+            **UserSettings.text_values,
         )
 
         if command.tier > 0:
             user = await uow.users.get_user(job.user_id)
             if user is not None:
-                data.update(**user.update_recorder_settings())
+                data.update(**user.unfilled())
 
         task = asyncio.create_task(
             wait_for(
@@ -333,12 +328,6 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
 
         if progression is None:
             uow.add_message(events.RecordingProgression(job_id, None))
-
-
-@listener(events.PresignedUrlGenerated)
-async def presigned_url_generated(event: events.PresignedUrlGenerated):
-    # we just need to register a listener so that we consume the rabbitmq queue... kinda hacky and dumb but so am I
-    pass
 
 
 @listener(events.RecorderSuccess)
@@ -411,29 +400,24 @@ async def upload_failure(event: events.UploaderFailure, uow: SqlUnitOfWork):
         await uow.commit()
 
 
-@handler(commands.ValidateUpload)
-async def validate_upload(
-    command: commands.ValidateUpload, uow: SqlUnitOfWork, publish, node_tokens
-):
+@handler(commands.RequestTokens)
+async def request_tokens(command: commands.RequestTokens, publish, tokens):
+    await publish(events.Tokens(list(tokens)))
+
+
+@handler(commands.RequestUploadData)
+async def validate_upload(command: commands.RequestUploadData, uow: SqlUnitOfWork, publish):
     async with uow:
         job = await uow.jobs.get(UUID(command.job_id))
         if job is None:
             return
 
-        if command.token in node_tokens:
-            e = events.UploadValidated(
-                job_id=command.job_id,
-                authorized=True,
-                video_title=job.video_title,
-                channel_id=job.channel_id,
-                user_id=job.user_id,
-            )
-
-        else:
-            e = events.UploadValidated(
-                job_id=command.job_id,
-                authorized=False,
-            )
+        e = events.UploadData(
+            job_id=command.job_id,
+            video_title=job.video_title,
+            channel_id=job.channel_id,
+            user_id=job.user_id,
+        )
 
         await publish(e)
 

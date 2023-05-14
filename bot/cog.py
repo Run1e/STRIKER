@@ -58,26 +58,28 @@ class EmbedBuilder:
             e.set_footer(text=f"ID: {job_id}")
         return e
 
-    def waiting(self, job_id):
-        return self.build("Preparing demo", disnake.Color.orange(), job_id)
+    def waiting(self, job_id: str = None, title: str = None):
+        return self.build(title or "Preparing demo", disnake.Color.orange(), job_id)
 
-    def selecting(self, job_id):
-        return self.build("Select what you want to record", disnake.Color.blurple(), job_id)
+    def selecting(self, job_id: str = None, title: str = None):
+        return self.build(
+            title or "Select what you want to record", disnake.Color.blurple(), job_id
+        )
 
-    def recording(self, job_id):
-        return self.build("Recording queued!", disnake.Color.orange(), job_id)
+    def recording(self, job_id: str = None, title: str = None):
+        return self.build(title or "Recording queued!", disnake.Color.orange(), job_id)
 
-    def uploading(self, job_id):
-        return self.build("Uploading", disnake.Color.orange(), job_id)
+    def uploading(self, job_id: str = None, title: str = None):
+        return self.build(title or "Uploading", disnake.Color.orange(), job_id)
 
-    def success(self, job_id):
-        return self.build("Job completed, enjoy!", disnake.Color.green(), job_id)
+    def success(self, job_id: str = None, title: str = None):
+        return self.build(title or "Job completed, enjoy!", disnake.Color.green(), job_id)
 
-    def failed(self, job_id):
-        return self.build("Oops!", disnake.Color.red(), job_id)
+    def failed(self, job_id: str = None, title: str = None):
+        return self.build(title or "Oops!", disnake.Color.red(), job_id)
 
-    def aborted(self, job_id):
-        return self.build("Job aborted", disnake.Color.red(), job_id)
+    def aborted(self, job_id: str = None, title: str = None):
+        return self.build(title or "Job aborted", disnake.Color.red(), job_id)
 
 
 def not_maintenance():
@@ -440,13 +442,13 @@ class RecorderCog(commands.Cog):
     async def _store_config(self, inter: disnake.MessageInteraction, updates):
         await self.bus.dispatch(cmds.UpdateUser(inter.author.id, updates))
 
-        e = self.embed.build("STRIKER Patreon Configurator")
+        e = self.embed.success(title="STRIKER Patreon Configurator")
         e.description = "Configuration saved."
 
         await inter.response.edit_message(view=None, embed=e)
 
     async def _abort_config(self, inter: disnake.MessageInteraction):
-        e = self.embed.build("STRIKER Patreon Configurator")
+        e = self.embed.failed(title="STRIKER Patreon Configurator")
         e.description = "Configurator aborted."
 
         await inter.response.edit_message(view=None, embed=e)

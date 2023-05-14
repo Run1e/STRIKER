@@ -189,6 +189,15 @@ class UserSettings(Entity):
             for k, v in {**self.toggleable_values, **self.text_values}.items()
         }
 
+    def unfilled(self):
+        d = dict()
+        for k in {**self.toggleable_values, **self.text_values}.keys():
+            v = getattr(self, k)
+            if v is not None:
+                d[k] = v
+
+        return d
+
 
 def calculate_bitrate(
     duration: float,

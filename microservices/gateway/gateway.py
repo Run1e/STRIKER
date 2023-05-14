@@ -1,15 +1,18 @@
-from collections import defaultdict
 import sys
 
 sys.path.append("../..")
 
 import asyncio
+import http
 import logging
+from collections import defaultdict
 from dataclasses import asdict
+from functools import partial
 from json import dumps, loads
 
 import config
 from websockets import server
+from websockets.datastructures import Headers
 from websockets.exceptions import ConnectionClosed
 
 from messages import commands, events
@@ -205,6 +208,20 @@ class GatewayServer:
                 await self.broker.publish(event)
 
 
+async def process_request(path: str, request_headers: Headers, tokens: set):
+    if path != "/gateway":
+        return http.HTTPStatus.NOT_FOUND, [], b""
+
+    token = request_headers.get("Authorization")
+
+    if token is None or token not in tokens:
+        return http.HTTPStatus.UNAUTHORIZED, [], b""
+        ot
+
+    # continue websocket handshake
+    return None
+
+
 async def main():
     logging.getLogger("aiormq").setLevel(logging.INFO)
     # logging.getLogger("websockets").setLevel(logging.INFO)
@@ -212,14 +229,27 @@ async def main():
     waiter = asyncio.Event()
 
     bus = MessageBus()
-    broker = Broker(bus)
+    broker = Broker(bus, publish_commands={commands.RequestTokens}, consume_events={events.Tokens})
     g = GatewayServer(bus, broker, waiter)
     await broker.start(config.RABBITMQ_HOST, prefetch_count=0)
+
+    token_waiter = bus.wait_for(events.Tokens)
+    await broker.publish(commands.RequestTokens())
+    event: events.Tokens | None = await token_waiter
+
+    if event is None:
+        log.info("Did not receive tokens in time. Closing in 5 seconds.")
+        await asyncio.sleep(5.0)
+        quit()
+
+    tokens = set(event.tokens)
+    log.info("Token count: %s", len(tokens))
 
     await server.serve(
         ws_handler=g.new_connection,
         host="localhost",
         port=9191,
+        process_request=partial(process_request, tokens=tokens),
     )
 
     # the broker was fetching events faster than the clients could connect

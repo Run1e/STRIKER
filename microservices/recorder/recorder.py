@@ -81,7 +81,8 @@ async def record(
         bitrate=command.video_bitrate,
         fragmovie=command.fragmovie,
         righthand=command.righthand,
-        crosshair_code=command.crosshair_code,
+        # is this really the right place to set this default?
+        crosshair_code=command.crosshair_code or "CSGO-CRGTh-TOq2d-nhbkC-doNM6-tzioE",
         use_demo_crosshair=command.use_demo_crosshair,
         capture_dir=capture_dir,
         video_filters=video_filters,
