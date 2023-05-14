@@ -107,3 +107,9 @@ class RequestRecording(Command):
 class ValidateUpload(Command):
     job_id: str
     token: str
+
+
+@dataclass(frozen=True)
+class UpdateUser(Command):
+    user_id: int
+    data: dict

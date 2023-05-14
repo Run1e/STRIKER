@@ -7,8 +7,9 @@ from uuid import UUID
 from adapters.faceit import FACEITAPI, HTTPException, NotFound
 from domain import sequencer
 from domain.demo_events import DemoEvents
-from domain.domain import Demo, Job, User, calculate_bitrate
-from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
+from domain.domain import Demo, Job, UserSettings, calculate_bitrate
+from domain.enums import (DemoGame, DemoOrigin, DemoState, JobState,
+                          RecordingType)
 from messages import commands, dto, events
 from messages.deco import handler, listener
 from services import views
@@ -448,20 +449,13 @@ async def restore(command: commands.Restore, uow: SqlUnitOfWork):
         await uow.commit()
 
 
-async def get_user(uow: SqlUnitOfWork, user_id: int) -> User:
+@handler(commands.UpdateUser)
+async def update_user(command: commands.UpdateUser, uow: SqlUnitOfWork):
     async with uow:
-        user = await uow.users.get_user(user_id)
-
+        user = await uow.users.get_user(command.user_id)
         if user is None:
-            user = User(user_id)
+            user = UserSettings(command.user_id)
+            uow.users.add(user)
 
-        uow.users.add(user)
-        await uow.commit()
-
-    return user
-
-
-async def store_user(uow: SqlUnitOfWork, user: User):
-    async with uow:
-        uow.users.add(user)
+        user.update(**command.data)
         await uow.commit()

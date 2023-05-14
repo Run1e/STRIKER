@@ -86,7 +86,7 @@ def main():
     coro = bootstrap(
         uow_type=SqlUnitOfWork,
         start_orm=True,
-        start_steam=True,
+        start_steam=False,
         start_faceit=True,
         start_bot=True,
         restore=True,

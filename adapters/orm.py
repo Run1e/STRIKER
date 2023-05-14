@@ -6,7 +6,7 @@ import sqlalchemy.ext.asyncio as aio
 import sqlalchemy.orm as orm
 from bot import config
 from domain.enums import DemoGame, DemoState, JobState, RecordingType, DemoOrigin
-from domain.domain import Demo, Job, User
+from domain.domain import Demo, Job, UserSettings
 from sqlalchemy.dialects import postgresql as pg
 
 log = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ job_table = sa.Table(
 )
 
 user_table = sa.Table(
-    "striker_user",  # a dumb name really but "user" has ns collision in pg
+    "user_settings",  # a dumb name really but "user" has ns collision in pg
     meta,
     sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
     sa.Column("user_id", sa.BigInteger, nullable=False),
@@ -102,7 +102,7 @@ async def start_orm():
         ),
     )
 
-    registry.map_imperatively(User, user_table)
+    registry.map_imperatively(UserSettings, user_table)
 
     async with engine.begin() as conn:
         if config.DROP_TABLES:

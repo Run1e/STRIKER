@@ -11,7 +11,7 @@ from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
 from domain.demo_events import Player
-from domain.domain import User
+from domain.domain import UserSettings
 from messages import commands as cmds
 from messages import dto
 from messages.bus import MessageBus
@@ -425,11 +425,11 @@ class RecorderCog(commands.Cog):
     )
     @tier(2)
     async def _config(self, inter: disnake.AppCmdInter):
-        user: User = await services.get_user(uow=SqlUnitOfWork(), user_id=inter.author.id)
+        user_settings = await views.get_user_settings(inter.author.id, uow=SqlUnitOfWork())
 
         view = ConfigView(
             inter=inter,
-            user=user,
+            user_settings=user_settings,
             store_callback=self._store_config,
             abort_callback=self._abort_config,
             timeout=180.0,
@@ -437,16 +437,16 @@ class RecorderCog(commands.Cog):
 
         await inter.send(embed=view.embed(), view=view, ephemeral=True)
 
-    async def _store_config(self, inter: disnake.MessageInteraction, user: User):
-        await services.store_user(uow=SqlUnitOfWork(), user=user)
+    async def _store_config(self, inter: disnake.MessageInteraction, updates):
+        await self.bus.dispatch(cmds.UpdateUser(inter.author.id, updates))
 
-        e = self.embed.build("STRIKER")
+        e = self.embed.build("STRIKER Patreon Configurator")
         e.description = "Configuration saved."
 
         await inter.response.edit_message(view=None, embed=e)
 
     async def _abort_config(self, inter: disnake.MessageInteraction):
-        e = self.embed.build("STRIKER")
+        e = self.embed.build("STRIKER Patreon Configurator")
         e.description = "Configurator aborted."
 
         await inter.response.edit_message(view=None, embed=e)

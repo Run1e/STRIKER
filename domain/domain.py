@@ -149,14 +149,17 @@ class Job(Entity):
         self.state = JobState.SUCCESS
 
 
-class User(Entity):
-    modifiable_fields = (
-        "crosshair_code",
-        "fragmovie",
-        "color_filter",
-        "righthand",
-        "use_demo_crosshair",
-    )
+class UserSettings(Entity):
+    toggleable_values = {
+        "fragmovie": False,
+        "color_filter": True,
+        "righthand": True,
+        "use_demo_crosshair": False,
+    }
+
+    text_values = {
+        "crosshair_code": None,
+    }
 
     def __init__(
         self,
@@ -174,39 +177,17 @@ class User(Entity):
         self.righthand = righthand
         self.use_demo_crosshair = use_demo_crosshair
 
-    def get(self, key):
-        return self.all_recording_settings(False).get(key)
+    def update(self, **d):
+        for k, v in d.items():
+            if k in self.toggleable_values or k in self.text_values:
+                setattr(self, k, v)
 
-    def set(self, key, value):
-        if key in self.all_recording_settings(False):
-            setattr(self, key, value)
-        else:
-            raise ValueError
-
-    def all_recording_settings(self, only_toggleable=True):
-        default = lambda v, d: v if v is not None else d
-
-        d = dict(
-            fragmovie=default(self.fragmovie, False),
-            color_filter=default(self.color_filter, True),
-            righthand=default(self.righthand, True),
-            use_demo_crosshair=default(self.use_demo_crosshair, False),
-        )
-
-        if not only_toggleable:
-            d["crosshair_code"] = default(self.crosshair_code, "CSGO-SG5dx-aAeRk-dnoAc-TwqMh-yTSFE")
-
-        return d
-
-    def update_recorder_settings(self):
-        d = dict()
-
-        for attr in self.modifiable_fields:
-            val = getattr(self, attr)
-            if val is not None:
-                d[attr] = val
-
-        return d
+    def filled(self):
+        p = lambda a, b: b if a is None else a
+        return {
+            k: p(getattr(self, k), v)
+            for k, v in {**self.toggleable_values, **self.text_values}.items()
+        }
 
 
 def calculate_bitrate(

@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.domain import Demo, Job, User
+from domain.domain import Demo, Job, UserSettings
 from domain.enums import DemoOrigin, DemoState, JobState
 
 INTERACTION_MINUTES = 15
@@ -165,12 +165,12 @@ class DemoRepository(SqlRepository):
 
 class UserRepository(SqlRepository):
     def __init__(self, session: AsyncSession):
-        super().__init__(session, User)
+        super().__init__(session, UserSettings)
 
-    async def get(self, _id) -> User:
+    async def get(self, _id) -> UserSettings:
         return await self._get(_id)
 
-    async def get_user(self, user_id: int) -> User:
+    async def get_user(self, user_id: int) -> UserSettings:
         """Gets demo from a sharecode"""
-        stmt = select(User).where(User.user_id == user_id).limit(1)
+        stmt = select(UserSettings).where(UserSettings.user_id == user_id).limit(1)
         return await self.session.scalar(stmt)

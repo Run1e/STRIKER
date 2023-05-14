@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import text
+from domain.domain import UserSettings
 
 from services.uow import SqlUnitOfWork
 
@@ -32,3 +33,14 @@ async def get_user_demo_formats(user_id: int, uow: SqlUnitOfWork):
 async def user_recording_count(user_id: int, uow: SqlUnitOfWork):
     async with uow:
         return await uow.jobs.recording_count(user_id=user_id)
+
+
+async def get_user_settings(user_id: int, uow: SqlUnitOfWork):
+    async with uow:
+        user = await uow.users.get_user(user_id)
+        if user is None:
+            user = UserSettings(user_id)
+            uow.users.add(user)
+
+        await uow.commit()
+        return user.filled()
