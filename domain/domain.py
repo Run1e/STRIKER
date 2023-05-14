@@ -86,7 +86,6 @@ class Demo(Entity):
 
         demoheader = data["demoheader"]
         self.map = demoheader["mapname"]
-
         self.score = data["score"]
 
 

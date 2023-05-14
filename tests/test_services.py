@@ -8,9 +8,10 @@ from uuid import uuid4
 import pytest
 
 from domain.demo_events import DemoEvents
-from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
-from messages.bus import MessageBus
+from domain.domain import (DemoGame, DemoOrigin, DemoState, JobState,
+                           RecordingType)
 from messages import commands, dto, events
+from messages.bus import MessageBus
 from services import services
 from shared.const import DEMOPARSE_VERSION
 from tests.testutils import *
@@ -197,8 +198,6 @@ async def test_new_job_demo_id_can_record(new_job_junk):
 
     assert demo.is_ready()
     assert job.state is JobState.SELECTING
-
-    # TODO: could also check frontend call here
 
 
 @pytest.mark.asyncio
@@ -456,23 +455,23 @@ async def test_record():
 
 
 @pytest.mark.asyncio
-async def test_recorder_success():
-    job = create_job(state=JobState.RECORDING)
-    demo = new_demo(
-        state=DemoState.READY,
-        add_data=True,
-        add_matchinfo=True,
-    )
+# async def test_recorder_success():
+#     job = create_job(state=JobState.RECORDING)
+#     demo = new_demo(
+#         state=DemoState.READY,
+#         add_data=True,
+#         add_matchinfo=True,
+#     )
 
-    job.demo = demo
+#     job.demo = demo
 
-    uow = FakeUnitOfWork(jobs=[job], demos=[demo])
-    bus, deps = await create_bus(uow)
+#     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
+#     bus, deps = await create_bus(uow)
 
-    await bus.dispatch(events.RecorderSuccess(str(job.id)))
+#     await bus.dispatch(events.RecorderSuccess(str(job.id)))
 
-    assert uow.committed
-    assert job.state is JobState.UPLOADING
+#     assert uow.committed
+#     assert job.state is JobState.UPLOADING
 
 
 @pytest.mark.asyncio

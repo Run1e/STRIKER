@@ -299,12 +299,10 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             if user is not None:
                 data.update(**user.unfilled())
 
-        task = asyncio.create_task(
-            wait_for(
-                events.PresignedUrlGenerated,
-                check=lambda m: m.origin == demo.origin.name and m.identifier == demo.identifier,
-                timeout=5.0,
-            )
+        task = wait_for(
+            events.PresignedUrlGenerated,
+            check=lambda m: m.origin == demo.origin.name and m.identifier == demo.identifier,
+            timeout=5.0,
         )
 
         await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier))
@@ -315,9 +313,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
 
         data["demo_url"] = result.presigned_url
 
-        task = asyncio.create_task(
-            wait_for(events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=1.5)
-        )
+        task = wait_for(events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=2.0)
 
         await publish(commands.RequestRecording(**data))
 
@@ -330,16 +326,16 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             uow.add_message(events.RecordingProgression(job_id, None))
 
 
-@listener(events.RecorderSuccess)
-async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
-    async with uow:
-        job = await uow.jobs.get(UUID(event.job_id))
-        if job is None:
-            return
+# @listener(events.RecorderSuccess)
+# async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
+#     async with uow:
+#         job = await uow.jobs.get(UUID(event.job_id))
+#         if job is None:
+#             return
 
-        job.uploading()
-        # uow.add_message(dto.JobUploading(job.id, job.inter_payload))
-        await uow.commit()
+#         job.uploading()
+#         # uow.add_message(dto.JobUploading(job.id, job.inter_payload))
+#         await uow.commit()
 
 
 @listener(events.RecorderFailure)

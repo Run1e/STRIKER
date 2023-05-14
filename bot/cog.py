@@ -166,6 +166,8 @@ class RecorderCog(commands.Cog):
         self.bus.add_event_listener(dto.JobRecording, self.job_recording)
         self.bus.add_event_listener(dto.JobSuccess, self.job_success)
 
+        self.bot._error_actionrow = self.make_actionrow(discord=True)
+
     async def cog_slash_command_check(self, inter: disnake.Interaction):
         if not self.bot.is_ready() or not self.bot.gather.is_set():
             raise commands.CheckFailure(
@@ -199,7 +201,7 @@ class RecorderCog(commands.Cog):
             )
 
             if not is_valid_sharecode(sharecode):
-                raise commands.UserInputError(  # todo: add thing showing what is allowed
+                raise commands.UserInputError(
                     "Sorry, that's not a valid sharecode or FACEIT url.\n\n"
                     "You can give the bot matchmaking sharecodes:\n"
                     "`steam://rungame/730/76561202255233023/+csgo_download_match%20CSGO-3VocL-obGr4-SjkBU-DjHhz-KWtrD`\n\n"
@@ -314,7 +316,17 @@ class RecorderCog(commands.Cog):
         else:  # queued
             embed.description = f"{config.SPINNER} #{event.infront} in queue..."
 
-        await inter.edit_original_response(embed=embed, content=None, components=None)
+        embed.add_field(
+            name="Get perks by becoming a Patreon member!",
+            value=(
+                "* Record FACEIT demos\n"
+                "* Change cl_righthand, remove HUD, change crosshair, and more\n"
+                "* Bot keeps your demos for an entire month"
+            ),
+        )
+
+        actionrow = self.make_actionrow(patreon=True)
+        await inter.edit_original_response(embed=embed, content=None, components=actionrow)
 
     async def job_success(self, event: dto.JobSuccess):
         inter = make_inter(event.job_inter, self.bot)
@@ -504,45 +516,8 @@ class RecorderCog(commands.Cog):
             value=f"{sum(g.member_count for g in self.bot.guilds):,d}",
         )
 
-        buttons = []
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="Invite the bot",
-                emoji="🎉",
-                url=self.bot.craft_invite_link(),
-            )
-        )
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="Discord",
-                emoji=":discord:1099362254731882597",
-                url=config.DISCORD_INVITE_URL,
-            )
-        )
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="GitHub",
-                emoji=":github:1099362911077544007",
-                url=config.GITHUB_URL,
-            )
-        )
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.secondary,
-                label="Donate",
-                emoji="\N{Hot Beverage}",
-                custom_id="donatebutton",
-            )
-        )
-
-        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons))
+        actionrow = self.make_actionrow(invite=True, discord=True, github=True, patreon=True)
+        await inter.send(embed=e, components=actionrow)
 
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
     @commands.bot_has_permissions(embed_links=True)
@@ -573,18 +548,8 @@ class RecorderCog(commands.Cog):
 
         e.set_image(url=config.SHARECODE_IMG_URL)
 
-        buttons = []
-
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="Invite the bot to another server",
-                emoji="🎉",
-                url=self.bot.craft_invite_link(),
-            )
-        )
-
-        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
+        actionrow = self.make_actionrow(invite=True, discord=True)
+        await inter.send(embed=e, components=actionrow, ephemeral=True)
 
     async def _send_donate(self, inter: disnake.Interaction):
         e = self.embed.build("Donate to support the project!")
@@ -594,9 +559,56 @@ class RecorderCog(commands.Cog):
             "Below are all the options for donating."
         )
 
+        actionrow = self.make_actionrow(patreon=True, kofi=True, tradelink=True)
+
+        await inter.send(embed=e, components=actionrow, ephemeral=True)
+
+    def make_actionrow(
+        self, invite=False, discord=False, github=False, patreon=False, kofi=False, tradelink=False
+    ):
         buttons = []
 
-        if config.DONATE_URL is not None:
+        if invite:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Invite the bot",
+                    emoji="🎉",
+                    url=self.bot.craft_invite_link(),
+                )
+            )
+
+        if discord:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Discord",
+                    emoji=":discord:1099362254731882597",
+                    url=config.DISCORD_INVITE_URL,
+                )
+            )
+
+        if github:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="GitHub",
+                    emoji=":github:1099362911077544007",
+                    url=config.GITHUB_URL,
+                )
+            )
+
+        if patreon:
+            buttons.append(
+                disnake.ui.Button(
+                    style=disnake.ButtonStyle.url,
+                    label="Patreon",
+                    emoji=config.PATREON_EMOJI,
+                    url=config.PATREON_URL,
+                )
+            )
+
+        if kofi:
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
@@ -605,7 +617,7 @@ class RecorderCog(commands.Cog):
                 )
             )
 
-        if config.TRADELINK_URL is not None:
+        if tradelink:
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
@@ -614,7 +626,7 @@ class RecorderCog(commands.Cog):
                 )
             )
 
-        await inter.send(embed=e, components=disnake.ui.ActionRow(*buttons), ephemeral=True)
+        return disnake.ui.ActionRow(*buttons)
 
 
 def setup(bot: commands.InteractionBot):

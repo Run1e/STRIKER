@@ -19,6 +19,7 @@ TOKENS = {"token"}
 CT_COIN = ""
 T_COIN = ""
 SPINNER = ""
+PATREON_EMOJI = ""
 
 SHARECODE_IMG_URL = "https://i.imgur.com/e68ERoQ.png"
 DONATE_URL = "https://ko-fi.com/strikerbot"

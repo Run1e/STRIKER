@@ -50,7 +50,8 @@ class ErrorHandler(commands.Cog):
         embed = disnake.Embed(color=disnake.Color.red())
         embed.set_author(name=title, icon_url=self.bot.user.display_avatar)
         embed.description = desc
-        kwargs = dict(content=None, view=None, embed=embed)
+        kwargs = dict(content=None, components=self.bot._error_actionrow, embed=embed)
+
 
         try:
             message = await inter.original_response()
