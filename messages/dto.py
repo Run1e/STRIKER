@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from .events import Event
-from domain.demo_events import DemoEvents
+from domain.demo_events import Match
 
 
 class DTO(Event):
@@ -13,7 +13,7 @@ class DTO(Event):
 class JobSelectable(DTO):
     job_id: UUID
     job_inter: bytes
-    demo_events: DemoEvents
+    match: Match
 
 
 @dataclass(frozen=True, repr=False)

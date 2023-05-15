@@ -1,14 +1,10 @@
 from json import loads
 from random import randint
-from unittest.mock import AsyncMock, Mock
-
 import pytest
 
 from domain.domain import Demo, DemoGame, DemoOrigin, DemoState, Job, JobState
 from shared.const import DEMOPARSE_VERSION
 from shared.utils import utcnow
-
-from .data import demo_data
 
 
 def create_job(state):
@@ -34,7 +30,7 @@ def new_demo(
     origin=DemoOrigin.VALVE,
     state=DemoState.PROCESSING,
     add_matchinfo=False,
-    add_data=False,
+    add_valve_data=False,
     **kwargs,
 ):
     if add_matchinfo:
@@ -42,8 +38,9 @@ def new_demo(
         kwargs["time"] = utcnow()
         kwargs["download_url"] = "not a real url"
 
-    if add_data:
-        kwargs["data"] = loads(demo_data[0])
+    if add_valve_data:
+        with open("tests/data/valve.json", "r") as f:
+            kwargs["data"] = loads(f.read())
         kwargs["data_version"] = DEMOPARSE_VERSION
 
     return Demo(game=game, origin=origin, state=state, **kwargs)
@@ -77,3 +74,15 @@ def record_job():
 @pytest.fixture
 def success_job():
     return create_job(JobState.SUCCESS)
+
+
+@pytest.fixture
+def valve():
+    with open("tests/data/valve.json", "r") as f:
+        return f.read()
+
+
+@pytest.fixture
+def faceit():
+    with open("tests/data/faceit.json", "r") as f:
+        return f.read()

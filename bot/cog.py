@@ -11,11 +11,10 @@ from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
 from domain.demo_events import Player
-from domain.domain import UserSettings
 from messages import commands as cmds
 from messages import dto
 from messages.bus import MessageBus
-from services import services, views
+from services import views
 from services.uow import SqlUnitOfWork
 from shared.utils import TimedDict
 
@@ -347,7 +346,7 @@ class RecorderCog(commands.Cog):
 
     async def select_player(self, event: dto.JobSelectable, inter: disnake.AppCmdInter):
         view = PlayerView(
-            demo_events=event.demo_events,
+            match=event.match,
             player_callback=partial(self.select_round, event),
             abort_callback=partial(self.abort_job, event),
             timeout_callback=partial(self.view_timeout, event),
@@ -358,9 +357,10 @@ class RecorderCog(commands.Cog):
         embed.description = "Select a player you want to record a highlight from below."
 
         data = (
-            ("Map", event.demo_events.map),
-            ("Score", event.demo_events.score_str),
-            ("Date", event.demo_events.time_str),
+            ("Source", event.match.origin),
+            ("Map", event.match.map),
+            ("Score", event.match.score_str),
+            ("Date", event.match.time_str),
         )
         data_str = tabulate(
             tabular_data=data,
@@ -400,18 +400,20 @@ class RecorderCog(commands.Cog):
     async def select_round(
         self, event: dto.JobSelectable, inter: disnake.Interaction, player: Player
     ):
+        match = event.match
+
         view = RoundView(
-            demo_events=event.demo_events,
+            match=match,
+            player=player,
             round_callback=partial(self.record_highlight, event, player),
             reselect_callback=partial(self.select_player, event),
             abort_callback=partial(self.abort_job, event),
             timeout_callback=partial(self.view_timeout, event),
             embed_factory=partial(self.embed.selecting, job_id=event.job_id),
-            player=player,
             timeout=300.0,
         )
 
-        embed = await view.set_half(True)
+        embed = view.set_half(1 if match.has_knife_round else 0)
         await inter.response.edit_message(content=None, embed=embed, view=view)
 
     async def record_highlight(
@@ -420,6 +422,7 @@ class RecorderCog(commands.Cog):
         player: Player,
         inter: disnake.AppCmdInter,
         round_id: int,
+        half: int,
     ):
         await inter.response.defer()
 
@@ -433,7 +436,13 @@ class RecorderCog(commands.Cog):
         tier = await get_tier(self.bot, inter.author.id)
 
         await self.bus.dispatch(
-            cmds.Record(job_id=event.job_id, player_xuid=player.xuid, round_id=round_id, tier=tier)
+            cmds.Record(
+                job_id=event.job_id,
+                player_xuid=player.xuid,
+                half=half,
+                round_id=round_id,
+                tier=tier,
+            )
         )
 
     @commands.slash_command(

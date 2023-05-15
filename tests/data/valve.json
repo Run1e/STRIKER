@@ -1,0 +1,2952 @@
+{
+    "convars": {
+        "mp_maxrounds": "30"
+    },
+    "stringtables": [
+        {
+            "table": "userinfo",
+            "xuid": [
+                227348005,
+                17825793
+            ],
+            "name": "Debit",
+            "userid": 3
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                1028801606,
+                17825793
+            ],
+            "name": "ZikiLin",
+            "userid": 6
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                338150618,
+                17825793
+            ],
+            "name": "Mopar",
+            "userid": 7
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                305806,
+                17825793
+            ],
+            "name": "Socrates",
+            "userid": 8
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                1117030302,
+                17825793
+            ],
+            "name": "HUGE",
+            "userid": 9
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                202940236,
+                17825793
+            ],
+            "name": "WilliamThe2nd",
+            "userid": 10
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                324246007,
+                17825793
+            ],
+            "name": "melan",
+            "userid": 11
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                384211998,
+                17825793
+            ],
+            "name": "xUniqueDrugsx",
+            "userid": 12
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                41163991,
+                17825793
+            ],
+            "name": "hKs*",
+            "userid": 13
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                26087590,
+                17825793
+            ],
+            "name": "fearxile",
+            "userid": 14
+        },
+        {
+            "table": "userinfo",
+            "xuid": [
+                26087590,
+                17825793
+            ],
+            "name": "fearxile",
+            "userid": 15
+        }
+    ],
+    "events": [
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_start",
+            "round": 1
+        },
+        {
+            "event": "player_team",
+            "userid": 4,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 5,
+            "team": 3
+        },
+        {
+            "event": "round_announce_warmup"
+        },
+        {
+            "event": "player_team",
+            "userid": 13,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 8,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 12,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 7,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 14,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 10,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 9,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 6,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 3,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 11,
+            "team": 3
+        },
+        {
+            "event": "round_start",
+            "round": 1
+        },
+        {
+            "event": "round_announce_match_start"
+        },
+        {
+            "event": "player_death",
+            "tick": 7330,
+            "attacker": 11,
+            "victim": 10,
+            "weapon": "usp_silencer",
+            "pos": [
+                391,
+                1968,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 7506,
+            "attacker": 3,
+            "victim": 11,
+            "weapon": "inferno",
+            "pos": [
+                181,
+                1649,
+                114
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 7742,
+            "attacker": 13,
+            "victim": 9,
+            "weapon": "tec9",
+            "pos": [
+                77,
+                1502,
+                175
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 7766,
+            "attacker": 6,
+            "victim": 13,
+            "weapon": "usp_silencer",
+            "pos": [
+                125,
+                550,
+                68
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 7892,
+            "attacker": 6,
+            "victim": 12,
+            "weapon": "usp_silencer",
+            "pos": [
+                69,
+                734,
+                70
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 7980,
+            "attacker": 7,
+            "victim": 6,
+            "weapon": "glock",
+            "pos": [
+                310,
+                1662,
+                122
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 8110,
+            "attacker": 3,
+            "victim": 8,
+            "weapon": "glock",
+            "pos": [
+                331,
+                1963,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 8314,
+            "attacker": 14,
+            "victim": 7,
+            "weapon": "usp_silencer",
+            "pos": [
+                89,
+                533,
+                66
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 8670,
+            "attacker": 14,
+            "victim": 3,
+            "weapon": "usp_silencer",
+            "pos": [
+                32,
+                781,
+                68
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 2
+        },
+        {
+            "event": "player_death",
+            "tick": 10881,
+            "attacker": 9,
+            "victim": 13,
+            "weapon": "mp9",
+            "pos": [
+                363,
+                1884,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 10941,
+            "attacker": 9,
+            "victim": 3,
+            "weapon": "mp9",
+            "pos": [
+                319,
+                1900,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 11257,
+            "attacker": 14,
+            "victim": 7,
+            "weapon": "mp7",
+            "pos": [
+                791,
+                549,
+                87
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 11927,
+            "attacker": 14,
+            "victim": 12,
+            "weapon": "mp7",
+            "pos": [
+                1708,
+                -351,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 11945,
+            "attacker": 6,
+            "victim": 10,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1249,
+                -212,
+                256
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 3
+        },
+        {
+            "event": "player_death",
+            "tick": 14357,
+            "attacker": 7,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                386,
+                2084,
+                177
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 14589,
+            "attacker": 6,
+            "victim": 7,
+            "weapon": "inferno",
+            "pos": [
+                498,
+                2449,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 14707,
+            "attacker": 9,
+            "victim": 3,
+            "weapon": "mp9",
+            "pos": [
+                114,
+                516,
+                66
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 14719,
+            "attacker": 9,
+            "victim": 10,
+            "weapon": "mp9",
+            "pos": [
+                114,
+                516,
+                66
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 14847,
+            "attacker": 6,
+            "victim": 12,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                550,
+                2663,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 15023,
+            "attacker": 13,
+            "victim": 14,
+            "weapon": "galilar",
+            "pos": [
+                1124,
+                -660,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 15421,
+            "attacker": 11,
+            "victim": 13,
+            "weapon": "m4a1",
+            "pos": [
+                749,
+                62,
+                96
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 4
+        },
+        {
+            "event": "player_death",
+            "tick": 17585,
+            "attacker": 11,
+            "victim": 3,
+            "weapon": "m4a1",
+            "pos": [
+                1372,
+                402,
+                127
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 18085,
+            "attacker": 12,
+            "victim": 6,
+            "weapon": "tec9",
+            "pos": [
+                1188,
+                -645,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 18119,
+            "attacker": 11,
+            "victim": 13,
+            "weapon": "m4a1",
+            "pos": [
+                1432,
+                320,
+                131
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 18185,
+            "attacker": 14,
+            "victim": 12,
+            "weapon": "m4a1",
+            "pos": [
+                1225,
+                -52,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 18787,
+            "attacker": 8,
+            "victim": 10,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                104,
+                1108,
+                83
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 19269,
+            "attacker": 11,
+            "victim": 7,
+            "weapon": "m4a1",
+            "pos": [
+                904,
+                521,
+                88
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 5
+        },
+        {
+            "event": "player_death",
+            "tick": 21376,
+            "attacker": 3,
+            "victim": 14,
+            "weapon": "awp",
+            "pos": [
+                -538,
+                872,
+                24
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 25260,
+            "attacker": 13,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                1383,
+                894,
+                144
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 25518,
+            "attacker": 9,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                291,
+                2778,
+                179
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 25546,
+            "attacker": 10,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                838,
+                2505,
+                140
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 25720,
+            "attacker": 6,
+            "victim": 10,
+            "weapon": "awp",
+            "pos": [
+                453,
+                3182,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 25808,
+            "attacker": 12,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                459,
+                2925,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 26820,
+            "attacker": 8,
+            "victim": 3,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                218,
+                1653,
+                115
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 27290,
+            "attacker": 8,
+            "victim": 12,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                837,
+                2323,
+                140
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 27424,
+            "attacker": 13,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                1166,
+                2788,
+                127
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 6
+        },
+        {
+            "event": "player_death",
+            "tick": 29484,
+            "attacker": 12,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                289,
+                644,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 29750,
+            "attacker": 7,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                204,
+                461,
+                72
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 30476,
+            "attacker": 14,
+            "victim": 13,
+            "weapon": "m4a1",
+            "pos": [
+                1227,
+                301,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 31030,
+            "attacker": 7,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                1882,
+                14,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 31036,
+            "attacker": 12,
+            "victim": 14,
+            "weapon": "ak47",
+            "pos": [
+                2165,
+                119,
+                134
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 31424,
+            "attacker": 9,
+            "victim": 12,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                2264,
+                813,
+                152
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 31610,
+            "attacker": 7,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                1985,
+                256,
+                160
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 7
+        },
+        {
+            "event": "player_death",
+            "tick": 33884,
+            "attacker": 11,
+            "victim": 3,
+            "weapon": "awp",
+            "pos": [
+                1324,
+                464,
+                125
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 34060,
+            "attacker": 7,
+            "victim": 14,
+            "weapon": "ak47",
+            "pos": [
+                119,
+                1021,
+                78
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 34084,
+            "attacker": 10,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                254,
+                1744,
+                121
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 34388,
+            "attacker": 13,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                1157,
+                434,
+                112
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 34846,
+            "attacker": 8,
+            "victim": 13,
+            "weapon": "mp9",
+            "pos": [
+                721,
+                -21,
+                89
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 35032,
+            "attacker": 8,
+            "victim": 12,
+            "weapon": "usp_silencer",
+            "pos": [
+                689,
+                -17,
+                88
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 35454,
+            "attacker": 10,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                896,
+                -207,
+                97
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 37110,
+            "attacker": 9,
+            "victim": 7,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1380,
+                114,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 38164,
+            "attacker": 10,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                2364,
+                618,
+                150
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 8
+        },
+        {
+            "event": "player_death",
+            "tick": 40402,
+            "attacker": 12,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                282,
+                1673,
+                122
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 41714,
+            "attacker": 8,
+            "victim": 12,
+            "weapon": "xm1014",
+            "pos": [
+                879,
+                2758,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 41852,
+            "attacker": 6,
+            "victim": 3,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                558,
+                2666,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 41902,
+            "attacker": 7,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                715,
+                2429,
+                135
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 41948,
+            "attacker": 8,
+            "victim": 7,
+            "weapon": "xm1014",
+            "pos": [
+                890,
+                2729,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 42572,
+            "attacker": 10,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                935,
+                2182,
+                140
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 42758,
+            "attacker": 11,
+            "victim": 10,
+            "weapon": "mp9",
+            "pos": [
+                250,
+                1752,
+                121
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 42762,
+            "attacker": 13,
+            "victim": 11,
+            "weapon": "galilar",
+            "pos": [
+                903,
+                2182,
+                140
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 43764,
+            "attacker": 14,
+            "victim": 13,
+            "weapon": "m4a1",
+            "pos": [
+                729,
+                2075,
+                136
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 9
+        },
+        {
+            "event": "player_death",
+            "tick": 45976,
+            "attacker": 9,
+            "victim": 13,
+            "weapon": "mp9",
+            "pos": [
+                355,
+                1782,
+                124
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 46802,
+            "attacker": 12,
+            "victim": 14,
+            "weapon": "tec9",
+            "pos": [
+                280,
+                665,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 46804,
+            "attacker": 6,
+            "victim": 10,
+            "weapon": "ssg08",
+            "pos": [
+                404,
+                2124,
+                131
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 47102,
+            "attacker": 8,
+            "victim": 3,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1472,
+                263,
+                133
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 47642,
+            "attacker": 7,
+            "victim": 9,
+            "weapon": "tec9",
+            "pos": [
+                281,
+                666,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 47832,
+            "attacker": 6,
+            "victim": 7,
+            "weapon": "ssg08",
+            "pos": [
+                101,
+                1160,
+                86
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 48812,
+            "attacker": 12,
+            "victim": 8,
+            "weapon": "tec9",
+            "pos": [
+                1387,
+                155,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 49728,
+            "attacker": 12,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                1834,
+                306,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 49768,
+            "attacker": 12,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                1842,
+                316,
+                160
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 10
+        },
+        {
+            "event": "player_death",
+            "tick": 51895,
+            "attacker": 12,
+            "victim": 14,
+            "weapon": "ak47",
+            "pos": [
+                290,
+                645,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 52223,
+            "attacker": 13,
+            "victim": 8,
+            "weapon": "galilar",
+            "pos": [
+                1193,
+                -640,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 53853,
+            "attacker": 9,
+            "victim": 7,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                287,
+                2790,
+                164
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 53915,
+            "attacker": 12,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                732,
+                2689,
+                132
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 53977,
+            "attacker": 10,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                736,
+                2507,
+                135
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 11
+        },
+        {
+            "event": "player_death",
+            "tick": 59318,
+            "attacker": 12,
+            "victim": 14,
+            "weapon": "ak47",
+            "pos": [
+                291,
+                645,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 59512,
+            "attacker": 12,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                285,
+                653,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 60062,
+            "attacker": 12,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                1442,
+                297,
+                131
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 60626,
+            "attacker": 3,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                801,
+                1990,
+                136
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 60846,
+            "attacker": 3,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                788,
+                1986,
+                135
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 12
+        },
+        {
+            "event": "player_death",
+            "tick": 63589,
+            "attacker": 11,
+            "victim": 3,
+            "weapon": "m4a1",
+            "pos": [
+                1468,
+                617,
+                135
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 63943,
+            "attacker": 7,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                875,
+                2429,
+                144
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 64067,
+            "attacker": 6,
+            "victim": 7,
+            "weapon": "hegrenade",
+            "pos": [
+                1139,
+                3103,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 65159,
+            "attacker": 6,
+            "victim": 10,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                425,
+                3182,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 65789,
+            "attacker": 12,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                643,
+                2446,
+                193
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 66217,
+            "attacker": 14,
+            "victim": 13,
+            "weapon": "m4a1",
+            "pos": [
+                575,
+                1932,
+                131
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 66421,
+            "attacker": 11,
+            "victim": 12,
+            "weapon": "m4a1",
+            "pos": [
+                489,
+                3398,
+                160
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 13
+        },
+        {
+            "event": "player_death",
+            "tick": 70075,
+            "attacker": 7,
+            "victim": 14,
+            "weapon": "ak47",
+            "pos": [
+                1345,
+                112,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 70169,
+            "attacker": 10,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                1534,
+                108,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 70623,
+            "attacker": 8,
+            "victim": 12,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1961,
+                512,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 70641,
+            "attacker": 7,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                1981,
+                -84,
+                243
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 14
+        },
+        {
+            "event": "player_death",
+            "tick": 75458,
+            "attacker": 12,
+            "victim": 14,
+            "weapon": "ak47",
+            "pos": [
+                273,
+                645,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 75582,
+            "attacker": 3,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                183,
+                507,
+                72
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 76084,
+            "attacker": 8,
+            "victim": 3,
+            "weapon": "awp",
+            "pos": [
+                1614,
+                -77,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 76306,
+            "attacker": 8,
+            "victim": 10,
+            "weapon": "awp",
+            "pos": [
+                1605,
+                -70,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 77152,
+            "attacker": 9,
+            "victim": 12,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                694,
+                2091,
+                135
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 77208,
+            "attacker": 9,
+            "victim": 7,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                712,
+                2069,
+                135
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 77440,
+            "attacker": 13,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                106,
+                843,
+                75
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 77484,
+            "attacker": 6,
+            "victim": 13,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                322,
+                1956,
+                130
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 15
+        },
+        {
+            "event": "round_announce_last_round_half"
+        },
+        {
+            "event": "player_death",
+            "tick": 81062,
+            "attacker": 11,
+            "victim": 12,
+            "weapon": "m4a1",
+            "pos": [
+                2160,
+                230,
+                284
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 81802,
+            "attacker": 8,
+            "victim": 10,
+            "weapon": "awp",
+            "pos": [
+                2390,
+                569,
+                200
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 81958,
+            "attacker": 8,
+            "victim": 7,
+            "weapon": "awp",
+            "pos": [
+                2398,
+                340,
+                137
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 82054,
+            "attacker": 13,
+            "victim": 14,
+            "weapon": "ak47",
+            "pos": [
+                1277,
+                505,
+                120
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 82080,
+            "attacker": 3,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                2075,
+                66,
+                129
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 82188,
+            "attacker": 3,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                2257,
+                58,
+                127
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 84084,
+            "attacker": 9,
+            "victim": 13,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1375,
+                101,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 84326,
+            "attacker": 3,
+            "victim": 6,
+            "weapon": "ak47",
+            "pos": [
+                1840,
+                553,
+                222
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 84436,
+            "attacker": 3,
+            "victim": 9,
+            "weapon": "ak47",
+            "pos": [
+                1833,
+                552,
+                222
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "player_team",
+            "userid": 3,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 6,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 7,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 8,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 9,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 10,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 11,
+            "team": 2
+        },
+        {
+            "event": "player_team",
+            "userid": 12,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 13,
+            "team": 3
+        },
+        {
+            "event": "player_team",
+            "userid": 14,
+            "team": 2
+        },
+        {
+            "event": "round_start",
+            "round": 16
+        },
+        {
+            "event": "player_team",
+            "userid": 15,
+            "team": 2
+        },
+        {
+            "event": "player_death",
+            "tick": 92074,
+            "attacker": 7,
+            "victim": 8,
+            "weapon": "usp_silencer",
+            "pos": [
+                914,
+                394,
+                88
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 93612,
+            "attacker": 7,
+            "victim": 15,
+            "weapon": "usp_silencer",
+            "pos": [
+                1476,
+                403,
+                133
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 94752,
+            "attacker": 12,
+            "victim": 11,
+            "weapon": "usp_silencer",
+            "pos": [
+                1459,
+                1165,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 94814,
+            "attacker": 9,
+            "victim": 7,
+            "weapon": "glock",
+            "pos": [
+                1894,
+                -4,
+                127
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 95098,
+            "attacker": 12,
+            "victim": 9,
+            "weapon": "usp_silencer",
+            "pos": [
+                1392,
+                77,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 95366,
+            "attacker": 6,
+            "victim": 12,
+            "weapon": "p250",
+            "pos": [
+                1995,
+                140,
+                154
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 95372,
+            "attacker": 13,
+            "victim": 6,
+            "weapon": "glock",
+            "pos": [
+                1977,
+                93,
+                131
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 17
+        },
+        {
+            "event": "player_death",
+            "tick": 97945,
+            "attacker": 13,
+            "victim": 8,
+            "weapon": "inferno",
+            "pos": [
+                762,
+                1971,
+                134
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 97993,
+            "attacker": 12,
+            "victim": 15,
+            "weapon": "mp9",
+            "pos": [
+                406,
+                2102,
+                131
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 98449,
+            "attacker": 12,
+            "victim": 11,
+            "weapon": "mp9",
+            "pos": [
+                133,
+                1607,
+                113
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 98905,
+            "attacker": 6,
+            "victim": 12,
+            "weapon": "mac10",
+            "pos": [
+                23,
+                853,
+                67
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 99155,
+            "attacker": 7,
+            "victim": 9,
+            "weapon": "mp9",
+            "pos": [
+                759,
+                513,
+                87
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 99245,
+            "attacker": 7,
+            "victim": 6,
+            "weapon": "mp9",
+            "pos": [
+                660,
+                494,
+                88
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 18
+        },
+        {
+            "event": "player_death",
+            "tick": 101259,
+            "attacker": 15,
+            "victim": 3,
+            "weapon": "ssg08",
+            "pos": [
+                -521,
+                897,
+                24
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 102147,
+            "attacker": 12,
+            "victim": 9,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                912,
+                1956,
+                142
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 102233,
+            "attacker": 6,
+            "victim": 12,
+            "weapon": "tec9",
+            "pos": [
+                408,
+                1950,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 102547,
+            "attacker": 10,
+            "victim": 8,
+            "weapon": "mag7",
+            "pos": [
+                2209,
+                948,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 104029,
+            "attacker": 11,
+            "victim": 13,
+            "weapon": "ak47",
+            "pos": [
+                426,
+                2999,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 105555,
+            "attacker": 15,
+            "victim": 7,
+            "weapon": "ssg08",
+            "pos": [
+                802,
+                2561,
+                137
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 105623,
+            "attacker": 10,
+            "victim": 6,
+            "weapon": "galilar",
+            "pos": [
+                545,
+                3521,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 106285,
+            "attacker": 10,
+            "victim": 15,
+            "weapon": "galilar",
+            "pos": [
+                382,
+                3037,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 106325,
+            "attacker": 11,
+            "victim": 10,
+            "weapon": "ak47",
+            "pos": [
+                116,
+                3011,
+                160
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 19
+        },
+        {
+            "event": "player_death",
+            "tick": 108929,
+            "attacker": 11,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                279,
+                660,
+                20
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 109773,
+            "attacker": 12,
+            "victim": 15,
+            "weapon": "fiveseven",
+            "pos": [
+                896,
+                2149,
+                140
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 109811,
+            "attacker": 11,
+            "victim": 12,
+            "weapon": "ak47",
+            "pos": [
+                487,
+                1875,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 110673,
+            "attacker": 6,
+            "victim": 13,
+            "weapon": "ak47",
+            "pos": [
+                774,
+                2322,
+                135
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 110709,
+            "attacker": 10,
+            "victim": 9,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                463,
+                2471,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 110915,
+            "attacker": 6,
+            "victim": 10,
+            "weapon": "ak47",
+            "pos": [
+                567,
+                2656,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 111145,
+            "attacker": 3,
+            "victim": 11,
+            "weapon": "mag7",
+            "pos": [
+                714,
+                2148,
+                136
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 111385,
+            "attacker": 6,
+            "victim": 3,
+            "weapon": "ak47",
+            "pos": [
+                636,
+                2668,
+                156
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 20
+        },
+        {
+            "event": "player_death",
+            "tick": 113861,
+            "attacker": 15,
+            "victim": 13,
+            "weapon": "ssg08",
+            "pos": [
+                -84,
+                781,
+                44
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 114089,
+            "attacker": 11,
+            "victim": 3,
+            "weapon": "ak47",
+            "pos": [
+                324,
+                1989,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 114909,
+            "attacker": 8,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                1256,
+                583,
+                122
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 115149,
+            "attacker": 9,
+            "victim": 12,
+            "weapon": "ak47",
+            "pos": [
+                747,
+                2826,
+                125
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 115265,
+            "attacker": 11,
+            "victim": 10,
+            "weapon": "ak47",
+            "pos": [
+                433,
+                2552,
+                160
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 21
+        },
+        {
+            "event": "player_death",
+            "tick": 117906,
+            "attacker": 3,
+            "victim": 8,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1234,
+                265,
+                140
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 118086,
+            "attacker": 3,
+            "victim": 9,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1458,
+                414,
+                132
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 119718,
+            "attacker": 10,
+            "victim": 11,
+            "weapon": "famas",
+            "pos": [
+                2323,
+                962,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 119742,
+            "attacker": 6,
+            "victim": 3,
+            "weapon": "ak47",
+            "pos": [
+                1852,
+                -275,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 120038,
+            "attacker": 6,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                2129,
+                -493,
+                85
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 120054,
+            "attacker": 15,
+            "victim": 10,
+            "weapon": "ak47",
+            "pos": [
+                2017,
+                147,
+                159
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 120990,
+            "attacker": 13,
+            "victim": 15,
+            "weapon": "famas",
+            "pos": [
+                1341,
+                415,
+                125
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 121138,
+            "attacker": 13,
+            "victim": 6,
+            "weapon": "famas",
+            "pos": [
+                1359,
+                124,
+                128
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 22
+        },
+        {
+            "event": "player_death",
+            "tick": 124851,
+            "attacker": 11,
+            "victim": 13,
+            "weapon": "awp",
+            "pos": [
+                101,
+                865,
+                75
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 126459,
+            "attacker": 12,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                878,
+                1914,
+                135
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 126481,
+            "attacker": 11,
+            "victim": 12,
+            "weapon": "awp",
+            "pos": [
+                424,
+                2124,
+                132
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 126615,
+            "attacker": 3,
+            "victim": 6,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                101,
+                543,
+                67
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 126773,
+            "attacker": 11,
+            "victim": 10,
+            "weapon": "awp",
+            "pos": [
+                693,
+                2065,
+                135
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 127133,
+            "attacker": 3,
+            "victim": 15,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                64,
+                628,
+                68
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 127429,
+            "attacker": 11,
+            "victim": 3,
+            "weapon": "awp",
+            "pos": [
+                417,
+                1964,
+                128
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 23
+        },
+        {
+            "event": "player_death",
+            "tick": 134258,
+            "attacker": 11,
+            "victim": 10,
+            "weapon": "awp",
+            "pos": [
+                27,
+                844,
+                67
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 134704,
+            "attacker": 6,
+            "victim": 12,
+            "weapon": "awp",
+            "pos": [
+                207,
+                438,
+                69
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 135920,
+            "attacker": 8,
+            "victim": 3,
+            "weapon": "ak47",
+            "pos": [
+                52,
+                599,
+                68
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 136390,
+            "attacker": 7,
+            "victim": 11,
+            "weapon": "ak47",
+            "pos": [
+                232,
+                2530,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 136430,
+            "attacker": 9,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                673,
+                2967,
+                132
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 136636,
+            "attacker": 15,
+            "victim": 13,
+            "weapon": "ak47",
+            "pos": [
+                835,
+                3414,
+                128
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 24
+        },
+        {
+            "event": "player_death",
+            "tick": 140394,
+            "attacker": 7,
+            "victim": 8,
+            "weapon": "m4a1",
+            "pos": [
+                1897,
+                -291,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 140934,
+            "attacker": 15,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                1581,
+                -333,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 140976,
+            "attacker": 13,
+            "victim": 11,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1394,
+                -105,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 141416,
+            "attacker": 3,
+            "victim": 9,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1382,
+                1207,
+                164
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 141604,
+            "attacker": 3,
+            "victim": 15,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1484,
+                1191,
+                161
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 141944,
+            "attacker": 6,
+            "victim": 3,
+            "weapon": "awp",
+            "pos": [
+                1251,
+                434,
+                119
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 142104,
+            "attacker": 6,
+            "victim": 13,
+            "weapon": "awp",
+            "pos": [
+                1318,
+                589,
+                125
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 142974,
+            "attacker": 12,
+            "victim": 6,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1821,
+                258,
+                222
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 25
+        },
+        {
+            "event": "player_death",
+            "tick": 145298,
+            "attacker": 13,
+            "victim": 8,
+            "weapon": "famas",
+            "pos": [
+                867,
+                2111,
+                142
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 147010,
+            "attacker": 15,
+            "victim": 13,
+            "weapon": "ak47",
+            "pos": [
+                428,
+                1826,
+                226
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 147834,
+            "attacker": 3,
+            "victim": 11,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1549,
+                1125,
+                159
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 148118,
+            "attacker": 12,
+            "victim": 6,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                408,
+                3192,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 148454,
+            "attacker": 12,
+            "victim": 15,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                501,
+                3135,
+                206
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 148812,
+            "attacker": 12,
+            "victim": 9,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                702,
+                2531,
+                136
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 26
+        },
+        {
+            "event": "player_death",
+            "tick": 150966,
+            "attacker": 10,
+            "victim": 9,
+            "weapon": "awp",
+            "pos": [
+                406,
+                1976,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 151078,
+            "attacker": 8,
+            "victim": 10,
+            "weapon": "mac10",
+            "pos": [
+                508,
+                1989,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 151362,
+            "attacker": 12,
+            "victim": 8,
+            "weapon": "ak47",
+            "pos": [
+                872,
+                2771,
+                128
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 152460,
+            "attacker": 3,
+            "victim": 11,
+            "weapon": "inferno",
+            "pos": [
+                1502,
+                1059,
+                154
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 152496,
+            "attacker": 6,
+            "victim": 3,
+            "weapon": "mac10",
+            "pos": [
+                1410,
+                666,
+                134
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 152906,
+            "attacker": 6,
+            "victim": 7,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                2335,
+                896,
+                155
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 154150,
+            "attacker": 12,
+            "victim": 15,
+            "weapon": "ak47",
+            "pos": [
+                1299,
+                473,
+                122
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 154418,
+            "attacker": 13,
+            "victim": 6,
+            "weapon": "mp9",
+            "pos": [
+                2300,
+                498,
+                141
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 27
+        },
+        {
+            "event": "player_death",
+            "tick": 159926,
+            "attacker": 13,
+            "victim": 11,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1466,
+                1228,
+                162
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 160086,
+            "attacker": 15,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                1852,
+                -331,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 160214,
+            "attacker": 3,
+            "victim": 15,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1882,
+                -209,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 160404,
+            "attacker": 9,
+            "victim": 3,
+            "weapon": "ak47",
+            "pos": [
+                1818,
+                126,
+                129
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 160456,
+            "attacker": 10,
+            "victim": 6,
+            "weapon": "awp",
+            "pos": [
+                2539,
+                1302,
+                160
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 160788,
+            "attacker": 8,
+            "victim": 13,
+            "weapon": "ak47",
+            "pos": [
+                1335,
+                584,
+                127
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 161062,
+            "attacker": 10,
+            "victim": 8,
+            "weapon": "awp",
+            "pos": [
+                2145,
+                1030,
+                158
+            ]
+        },
+        {
+            "event": "round_end"
+        },
+        {
+            "event": "player_death",
+            "tick": 162444,
+            "attacker": 9,
+            "victim": 12,
+            "weapon": "ak47",
+            "pos": [
+                1405,
+                100,
+                128
+            ]
+        },
+        {
+            "event": "round_officially_ended"
+        },
+        {
+            "event": "round_start",
+            "round": 28
+        },
+        {
+            "event": "round_announce_match_point"
+        },
+        {
+            "event": "player_death",
+            "tick": 165221,
+            "attacker": 3,
+            "victim": 8,
+            "weapon": "famas",
+            "pos": [
+                940,
+                -124,
+                256
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 165283,
+            "attacker": 6,
+            "victim": 3,
+            "weapon": "ak47",
+            "pos": [
+                934,
+                666,
+                111
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 165699,
+            "attacker": 12,
+            "victim": 11,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                931,
+                1939,
+                142
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 166845,
+            "attacker": 7,
+            "victim": 15,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                1423,
+                267,
+                130
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 166863,
+            "attacker": 9,
+            "victim": 7,
+            "weapon": "ak47",
+            "pos": [
+                1259,
+                589,
+                122
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 167469,
+            "attacker": 13,
+            "victim": 9,
+            "weapon": "m4a1_silencer",
+            "pos": [
+                2326,
+                687,
+                147
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 167585,
+            "attacker": 6,
+            "victim": 13,
+            "weapon": "ak47",
+            "pos": [
+                2143,
+                42,
+                129
+            ]
+        },
+        {
+            "event": "player_death",
+            "tick": 168829,
+            "attacker": 10,
+            "victim": 6,
+            "weapon": "awp",
+            "pos": [
+                2210,
+                767,
+                160
+            ]
+        },
+        {
+            "event": "round_end"
+        }
+    ],
+    "demoheader": {
+        "mapname": "de_inferno",
+        "tickrate": 64,
+        "protocol": 4
+    },
+    "score": [
+        12,
+        16
+    ]
+}

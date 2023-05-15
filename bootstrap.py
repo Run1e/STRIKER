@@ -52,13 +52,12 @@ async def bootstrap(
         bus.add_dependencies(sharecode_resolver=fetcher)
         waiters.append(steam_waiter)
     else:
-        fetcher = None
+        # TODO: remove this
+        bus.add_dependencies(sharecode_resolver=None)
 
     if start_faceit:
         faceit_api = FACEITAPI(api_key=config.FACEIT_API_KEY)
         bus.add_dependencies(faceit_resolver=faceit_api.match)
-    else:
-        faceit_api = None
 
     bus.register_decos()
 

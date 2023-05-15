@@ -6,8 +6,7 @@ from typing import List
 import disnake
 from tabulate import tabulate
 
-from domain.demo_events import Death, Player
-from domain.domain import Job, UserSettings
+from domain.demo_events import Death, Match, MatchHalf, Player
 
 from .area import places
 from .config import CT_COIN, T_COIN
@@ -38,20 +37,23 @@ class PlayerView(disnake.ui.View):
     def __init__(
         self,
         *,
-        demo_events,
+        match: Match,
         player_callback,
         abort_callback,
         timeout_callback,
         timeout=180.0,
     ):
         super().__init__(timeout=timeout)
-        self.demo_events = demo_events
+        self.match = match
         self.player_callback = player_callback
         self.abort_callback = abort_callback
         self.on_timeout = timeout_callback
 
+        half = self.match.halves[0]
+        team_one, team_two = half.teams
+
         # team one starts as T, team two starts as CT
-        team_one, team_two = self.demo_events.teams
+        team_one, team_two = half.teams[2], half.teams[3]
 
         for row, players in enumerate([team_two, team_one]):
             label = f"Team {row + 1}"
@@ -75,7 +77,17 @@ class PlayerView(disnake.ui.View):
                     )
                 )
 
-        self.add_item(AbortButton(callback=self.abort_callback))
+        self.add_item(AbortButton(callback=self.abort_callback, row=4))
+
+
+class HalfButton(disnake.ui.Button):
+    def __init__(self, key, callback, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._key = key
+        self._callback = callback
+
+    async def callback(self, inter: disnake.MessageInteraction):
+        asyncio.create_task(self._callback(inter, self._key))
 
 
 class RoundButton(disnake.ui.Button):
@@ -85,101 +97,153 @@ class RoundButton(disnake.ui.Button):
 
     async def callback(self, inter: disnake.MessageInteraction):
         self.view.stop()
-        asyncio.create_task(self._callback(inter, int(self.label)))
+        asyncio.create_task(self._callback(inter))
+
+
+def coin_lookup(teamnum):
+    return {
+        2: T_COIN,
+        3: CT_COIN,
+    }.get(teamnum)
 
 
 class RoundView(disnake.ui.View):
     def __init__(
         self,
         *,
-        demo_events,
+        match: Match,
+        player: Player,
         round_callback,
         reselect_callback,
         abort_callback,
         timeout_callback,
         embed_factory,
-        player: Player,
         timeout=180.0,
     ):
         super().__init__(timeout=timeout)
 
-        self.demo_events = demo_events
+        self.match = match
         self.round_callback = round_callback
         self.reselect_callback = reselect_callback
         self.abort_callback = abort_callback
         self.on_timeout = timeout_callback
         self.timeout_callback = timeout_callback
+
         self.embed_factory = embed_factory
         self.player = player
-        self.player_team = self.demo_events.get_player_team(player)
-        self.kills: List[Death] = self.demo_events.get_player_kills(player)
+
+        self.half_buttons = dict()
         self.round_buttons = list()
 
-        self.first_half.emoji = T_COIN if self.player_team == 0 else CT_COIN
-        self.second_half.emoji = CT_COIN if self.player_team == 0 else T_COIN
+        for half_num, half in enumerate(self.match.halves):
+            row = half_num // 5
 
-        self.highlights = {
-            True: self.create_table(True),
-            False: self.create_table(False),
-        }
+            teamnum = half.get_player_teamnum(player)
+            emoji = coin_lookup(teamnum)
 
-        for round_id in range(1, self.demo_events.halftime + 1):
+            # faceit does some weird ass shit with their teamnums,
+            # I genuinely don't know which team starts as CT/T and
+            # when it switches. I'll have to investigate
+            if match.origin == "faceit":
+                emoji = None
+
+            button = HalfButton(
+                key=half_num,
+                label=half.name or "UNK",
+                callback=self.half_callback,
+                row=row,
+                emoji=emoji,
+            )
+
+            self.half_buttons[half_num] = button
+            self.add_item(button)
+
+        # round buttons are gonna have to start at this + 1
+        self.min_row = row
+
+        row = 1 if len(match.halves) > 5 else 4
+
+        reselect_button = disnake.ui.Button(
+            style=disnake.ButtonStyle.secondary,
+            label="Select another player",
+            row=row,
+        )
+        reselect_button.callback = self.reselect_click
+
+        abort_button = disnake.ui.Button(
+            style=disnake.ButtonStyle.danger,
+            label="Abort",
+            row=row,
+        )
+        abort_button.callback = self.abort_click
+
+        self.add_item(reselect_button)
+        self.add_item(abort_button)
+    
+    async def reselect_click(self, inter: disnake.MessageInteraction):
+        self.stop()
+        asyncio.create_task(self.reselect_callback(inter))
+
+    async def abort_click(self, inter: disnake.MessageInteraction):
+        self.stop()
+        asyncio.create_task(self.abort_callback(inter))
+
+    async def half_callback(self, inter: disnake.MessageInteraction, n):
+        embed = self.set_half(n)
+        await inter.response.edit_message(content=None, embed=embed, view=self)
+
+    def set_half(self, n):
+        # remove previous round buttons
+        for button in self.round_buttons:
+            self.remove_item(button)
+        self.round_buttons.clear()
+
+        for half_num, half_button in self.half_buttons.items():
+            half_button.disabled = half_num == n
+
+        half = self.match.halves[n]
+        all_kills = half.get_player_kills(self.player)
+
+        for idx, (round_num, kills) in enumerate(all_kills.items()):
             button = RoundButton(
-                callback=round_callback,
+                partial(self.round_callback, half=n, round_id=round_num),
                 style=disnake.ButtonStyle.primary,
-                label="placeholder",
-                row=((round_id - 1) // 5) + 1,
+                label=round_num,
+                row=(idx // 5) + self.min_row + 1,
+                disabled=not kills,
             )
 
             self.round_buttons.append(button)
             self.add_item(button)
 
-    @disnake.ui.button(row=0)
-    async def first_half(self, button: disnake.Button, inter: disnake.MessageInteraction):
-        embed = await self.set_half(True)
+        e: disnake.Embed = self.embed_factory()
 
-        await inter.response.edit_message(
-            content=None,
-            embed=embed,
-            view=self,
+        table = self.gen_table(half)
+        e.description = (
+            f"Table of {self.player.name}'s frags.\n"
+            f"```{table}```\n"
+            "Click a round number below to record a highlight.\n"
+            "Click the top row of buttons to change half."
         )
 
-    @disnake.ui.button(row=0)
-    async def second_half(self, button: disnake.Button, inter: disnake.MessageInteraction):
-        embed = await self.set_half(False)
+        return e
 
-        await inter.response.edit_message(
-            content=None,
-            embed=embed,
-            view=self,
-        )
-
-    @disnake.ui.button(style=disnake.ButtonStyle.secondary, label="Select another player", row=0)
-    async def reselect(self, button: disnake.Button, inter: disnake.MessageInteraction):
-        self.stop()
-        asyncio.create_task(self.reselect_callback(inter))
-
-    @disnake.ui.button(style=disnake.ButtonStyle.danger, label="Abort", row=0)
-    async def abort(self, button: disnake.Button, inter: disnake.MessageInteraction):
-        self.stop()
-        asyncio.create_task(self.abort_callback(inter))
 
     def round_range(self, first_half):
-        halftime = self.demo_events.halftime
+        halftime = self.match.halftime
         return range(
             1 if first_half else halftime + 1,
             (halftime if first_half else halftime * 2) + 1,
         )
 
-    def create_table(self, first_half):
-        round_range = self.round_range(first_half)
-        map_area = places.get(self.demo_events.map, None)
+    def gen_table(self, half: MatchHalf):
+        map_area = places.get(self.match.map, None)
         data = []
 
-        for round_id in round_range:
-            kills = self.kills.get(round_id, None)
-            if kills is not None:
-                data.append(self.demo_events.kills_info(round_id, kills, map_area))
+        all_kills = half.get_player_kills(self.player)
+        for round_num, kills in all_kills.items():
+            if kills:
+                data.append(half.kills_info(round_num, kills, map_area))
 
         if not data:
             return "This player got zero kills this half."
@@ -190,45 +254,45 @@ class RoundView(disnake.ui.View):
                 tablefmt="plain",
             )
 
-    async def set_half(self, first_half):
-        enabled_style = disnake.ButtonStyle.success
-        disabled_style = disnake.ButtonStyle.primary
+    # async def set_half(self, first_half):
+    #     enabled_style = disnake.ButtonStyle.success
+    #     disabled_style = disnake.ButtonStyle.primary
 
-        self.first_half.disabled = first_half
-        self.second_half.disabled = not first_half
-        self.first_half.style = enabled_style if first_half else disabled_style
-        self.second_half.style = disabled_style if first_half else enabled_style
+    #     self.first_half.disabled = first_half
+    #     self.second_half.disabled = not first_half
+    #     self.first_half.style = enabled_style if first_half else disabled_style
+    #     self.second_half.style = disabled_style if first_half else enabled_style
 
-        round_range = self.round_range(first_half)
-        max_rounds = self.demo_events.round_count
+    #     round_range = self.round_range(first_half)
+    #     max_rounds = self.match.round_count
 
-        for round_id, button in zip(round_range, self.round_buttons):
-            button.label = str(round_id)
+    #     for round_id, button in zip(round_range, self.round_buttons):
+    #         button.label = str(round_id)
 
-            if round_id > max_rounds:
-                button.disabled = True
-                button.style = disnake.ButtonStyle.secondary
-            else:
-                button.disabled = round_id not in self.kills
-                button.style = disnake.ButtonStyle.primary
+    #         if round_id > max_rounds:
+    #             button.disabled = True
+    #             button.style = disnake.ButtonStyle.secondary
+    #         else:
+    #             button.disabled = round_id not in self.kills
+    #             button.style = disnake.ButtonStyle.primary
 
-        embed = self.embed_factory()
+    #     embed = self.embed_factory()
 
-        table = self.highlights[first_half]
-        half_one = "T" if self.player_team == 0 else "CT"
-        half_two = "CT" if self.player_team == 0 else "T"
-        team = half_one if first_half else half_two
+    #     table = self.highlights[first_half]
+    #     half_one = "T" if self.player_team == 0 else "CT"
+    #     half_two = "CT" if self.player_team == 0 else "T"
+    #     team = half_one if first_half else half_two
 
-        # embed.title = 'Select a round to render'
+    #     # embed.title = 'Select a round to render'
 
-        embed.description = (
-            f"Table of {self.player.name}'s frags on the {team} side.\n"
-            f"```{table}```\n"
-            "Click a round number below to record a highlight.\n"
-            "Click the 'CT' or 'T' coins to show frags from the other half."
-        )
+    #     embed.description = (
+    #         f"Table of {self.player.name}'s frags on the {team} side.\n"
+    #         f"```{table}```\n"
+    #         "Click a round number below to record a highlight.\n"
+    #         "Click the 'CT' or 'T' coins to show frags from the other half."
+    #     )
 
-        return embed
+    #     return embed
 
 
 class ConfigButton(disnake.ui.Button):

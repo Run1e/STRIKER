@@ -1,183 +1,75 @@
 from collections import Counter, defaultdict, namedtuple
 from copy import deepcopy
 from typing import List
+import logging
 
-Player = namedtuple("Player", "xuid name userid fakeplayer")
+log = logging.getLogger(__name__)
+
+Player = namedtuple("Player", "xuid name userid")
 Death = namedtuple("Death", "tick victim attacker pos weapon")
 
 
-class DemoEvents:
-    def __init__(self, data) -> None:
-        self.data = data
-        self._parsed = False
+class MatchHalf:
+    def __init__(self, rnd) -> None:
+        self.rnd = rnd
+        self.teams = defaultdict(set)
+        self.rounds = defaultdict(list)
+        self.name = ""
+
+    def __iter__(self):
+        yield from self.rounds
+
+    def set_round(self, rnd):
+        self.rnd = rnd
+        # if rnd in self.rounds:
+        #     self.rounds.pop(rnd, None)
 
     @classmethod
-    def from_demo(cls, demo):
-        self = cls(demo.data)
-
-        self.origin = demo.origin
-        self.time = demo.time
+    def from_preceding(cls, preceding):
+        self = cls(preceding.rnd)
+        for team_num, team_set in preceding.teams.items():
+            self.teams[team_num] = team_set.copy()
 
         return self
 
-    def get_player_team(self, player: Player) -> int:
-        for teamidx, players in enumerate(self.teams):
+    def get_player_kills(self, player: Player):
+        return {
+            round_id: [d for d in deaths if d.attacker is player]
+            for round_id, deaths in self.rounds.items()
+        }
+
+    def get_player_kills_round(self, player: Player, rnd: int):
+        deaths = self.rounds.get(rnd)
+        if deaths is None:
+            raise ValueError("Round %s not in this half", rnd)
+
+        return [d for d in deaths if d.attacker is player]
+
+    def get_player_teamnum(self, player: Player):
+        for teamnum, players in self.teams.items():
             if player in players:
-                return teamidx
+                return teamnum
         return None
 
     def death_is_tk(self, death: Death) -> bool:
-        attacker_team = self.get_player_team(death.attacker)
-        victim_team = self.get_player_team(death.victim)
+        attacker_team = self.get_player_teamnum(death.attacker)
+        victim_team = self.get_player_teamnum(death.victim)
         return attacker_team == victim_team
 
-    def get_player_by_id(self, _id) -> Player:
-        return self._players.get(self._ground_userid(_id), None)
+    def add_death(self, death: Death):
+        self.rounds[self.rnd].append(death)
 
-    def get_player_by_xuid(self, xuid) -> Player:
-        for player in self._players.values():
-            if player.xuid == xuid:
-                return player
-        return None
+    def add_player(self, player: Player, teamnum: str):
+        for team_num, players in self.teams.items():
+            if team_num != teamnum and player in players:
+                # log.info("Removing %s from %s", player.userid, team_num)
+                players.remove(player)
 
-    @property
-    def halftime(self) -> int:
-        # in half two if round > .halftime
-        return self.max_rounds // 2
+        # log.info("Adding %s to %s", player.userid, teamnum)
+        self.teams[teamnum].add(player)
 
-    def get_player_kills_round(self, player: Player, round_id, kills=None):
-        deaths = kills or self._rounds.get(round_id, None)
-
-        if deaths is None:
-            return None
-
-        from_player = list()
-        for death in deaths:
-            if death.attacker.xuid == player.xuid:
-                from_player.append(death)
-
-        return from_player or None
-
-    def get_player_kills(self, player: Player):
-        kills = dict()  # round_id: List[Death]
-
-        for round_id, deaths in self._rounds.items():
-            from_player = self.get_player_kills_round(player, round_id, deaths)
-
-            if from_player:
-                kills[round_id] = from_player
-
-        return kills
-
-    @property
-    def time_str(self):
-        if self.time is None:
-            return "Unknown"
-
-        ordinal = {1: "st", 2: "nd", 3: "rd"}.get(self.time.day % 10, "th")
-        return (
-            self.time.strftime("%d").lstrip("0") + ordinal + self.time.strftime(" %b %Y at %I:%M")
-        )
-
-    @property
-    def score_str(self):
-        return "-".join(str(s) for s in self.score)
-
-    def format(self):
-        date = self.time_str
-        score = self.score_str
-
-        return f"{self.map} [{score}] - {date}"
-
-    def parse(self):
-        if self._parsed:
-            return
-
-        self._player_team = dict()
-        self._players = dict()
-        self._rounds = defaultdict(list)
-        self._win_reasons = dict()
-        self._id_mapper = dict()
-
-        data = deepcopy(self.data)
-        self._parse_stringtables(data["stringtables"])
-        self._parse_convars(data["convars"])
-        self._parse_demoheader(data["demoheader"])
-        self._parse_events(data["events"])
-
-        self.score = data["score"]
-
-        # list(dict.fromkeys(iter)) forces an in ordered list with unique elements
-        # the teams hold all the userids of players that played for a team
-        # players can reconnect and they get a new id, hence duplicates
-        # can occur, and they need to be made unique
-        self.teams = [
-            list(dict.fromkeys([self.get_player_by_id(_id) for _id in lst]))
-            for lst in (data["teams"]["2"], data["teams"]["3"])
-        ]
-
-        self._parsed = True
-
-    def _parse_convars(self, convars: dict):
-        self.max_rounds = int(convars["mp_maxrounds"])
-
-    def _parse_demoheader(self, header: dict):
-        self.map = header["mapname"]
-        self.tickrate = header["tickrate"]
-        self.protocol = header["protocol"]
-
-    def _parse_stringtables(self, tables: List[dict]):
-        for table in tables:
-            table_name = table.pop("table")
-            if table_name == "userinfo":
-                self._add_player(table)
-
-    def _parse_events(self, events: List[dict]):
-        rnd = 0
-
-        for data in events:
-            event = data.pop("event")
-
-            if event == "round_announce_match_start":
-                rnd = 1
-
-            if event == "round_officially_ended":
-                rnd += 1
-
-            elif event == "player_death":
-                self._add_death(rnd, data)
-
-        self.round_count = rnd
-
-    def _team_idx_at_round(self, team_id, rnd):
-        team_idx = team_id - 2
-        return team_idx if rnd <= self.halftime else abs(team_idx - 1)
-
-    def _ground_userid(self, id):
-        return self._id_mapper.get(id, id)
-
-    def _add_player(self, data):
-        xuid = data["xuid"]
-        data["xuid"] = (xuid[1] << 32) + xuid[0]  # I truly hate javascript
-
-        player = Player(**data)
-        actual_player = self.get_player_by_xuid(player.xuid)
-
-        if actual_player is None:
-            self._players[player.userid] = player
-        else:
-            self._id_mapper[player.userid] = actual_player.userid
-
-    def _add_death(self, rnd, data):
-        victim_id = data.pop("victim")
-        attacker_id = data.pop("attacker")
-
-        data["victim"] = self.get_player_by_id(victim_id)
-        data["attacker"] = self.get_player_by_id(attacker_id)
-
-        self._rounds[rnd].append(Death(**data))
-
-    # remaining stuff is presentation related
+    def next_round(self):
+        self.rnd += 1
 
     @staticmethod
     def weapon_by_order(kills, n=2):
@@ -212,3 +104,162 @@ class DemoEvents:
             " ".join(info),
             self.area_by_order(kills, map_area),
         )
+
+
+class Match:
+    def __init__(self, data, origin=None, time=None) -> None:
+        self.data = data
+
+        self.halves: List[MatchHalf] = list()
+
+        self.has_knife_round = False
+        self.origin = origin
+        self.time = time
+
+        self._parsed = False
+        self._id_mapper = dict()
+        self._players = dict()
+
+    @classmethod
+    def from_demo(cls, demo):
+        return cls(demo.data, demo.origin.name.lower(), demo.time)
+
+    def get_player_by_id(self, _id) -> Player:
+        return self._players.get(self._ground_userid(_id), None)
+
+    def get_player_by_xuid(self, xuid) -> Player:
+        for player in self._players.values():
+            if player.xuid == xuid:
+                return player
+        return None
+
+    def _add_half(self, half: MatchHalf):
+        if not half.name:
+            idx = (len(self.halves) - (1 if self.has_knife_round else 0)) // 2
+            if idx == 0:
+                name = "REG"
+            else:
+                name = f"OT{idx}"
+
+            half.name = name
+        self.halves.append(half)
+
+    def _parse_events(self, events: List[dict]):
+        # hate this too
+        def nlu():
+            idx = (len(self.halves) - (1 if self.has_knife_round else 0)) // 2
+            if idx == 0:
+                return "REG"
+            else:
+                return f"OT{idx}"
+
+        last_round_of_half = False
+        half = MatchHalf(1)
+
+        for data in events:
+            event = data.pop("event")
+
+            if event == "round_announce_match_start":
+                if half.rounds:  # knife round, most likely
+                    half.name = "KNF"
+                    self._add_half(half)
+                    self.has_knife_round = True
+
+                half = MatchHalf.from_preceding(half)
+                half.set_round(1)
+
+            elif event == "round_start":
+                half.set_round(data["round"])
+
+            elif event == "round_officially_ended":
+                # round border, store deaths into rounds
+                if last_round_of_half:
+                    self._add_half(half)
+                    half = MatchHalf.from_preceding(half)
+                    last_round_of_half = False
+
+            elif event == "round_announce_last_round_half":
+                last_round_of_half = True
+
+            elif event == "player_team":
+                player = self.get_player_by_id(data["userid"])
+                if not player:
+                    log.info("Could not find player %s", data["userid"])
+                    continue
+
+                half.add_player(player, data["team"])
+
+            elif event == "player_death":
+                half.add_death(self._make_death(data))
+
+        self._add_half(half)
+
+    @property
+    def time_str(self):
+        return "Unknown" if self.time is None else self.time.strftime(f" %Y/%m/%d at %I:%M")
+
+    @property
+    def score_str(self):
+        return "-".join(str(s) for s in self.score)
+
+    def parse(self):
+        if self._parsed:
+            return
+
+        data = deepcopy(self.data)
+
+        # primarily userinfo stuff
+        self._parse_stringtables(data["stringtables"])
+
+        # probably useless at this stage
+        self._parse_convars(data["convars"])
+
+        # tickrate, map, etc
+        self._parse_demoheader(data["demoheader"])
+
+        # gameevents
+        self._parse_events(data["events"])
+
+        self.score = data["score"]
+
+        self._parsed = True
+
+    def _parse_convars(self, convars: dict):
+        self.max_rounds = int(convars["mp_maxrounds"])
+
+    def _parse_demoheader(self, header: dict):
+        self.map = header["mapname"]
+        self.tickrate = header["tickrate"]
+        self.protocol = header["protocol"]
+
+    def _parse_stringtables(self, tables: List[dict]):
+        for table in tables:
+            table_name = table.pop("table")
+            if table_name == "userinfo":
+                self._add_player(table)
+
+    def _make_death(self, data):
+        victim_id = data.pop("victim")
+        attacker_id = data.pop("attacker")
+
+        data["victim"] = self.get_player_by_id(victim_id)
+        data["attacker"] = self.get_player_by_id(attacker_id)
+
+        return Death(**data)
+
+    def _ground_userid(self, _id):
+        return self._id_mapper.get(_id, _id)
+
+    def _add_player(self, data):
+        xuid = data["xuid"]
+        data["xuid"] = (xuid[1] << 32) + xuid[0]  # I truly hate javascript
+
+        player = Player(**data)
+        actual_player = self.get_player_by_xuid(player.xuid)
+
+        if actual_player is None:
+            self._players[player.userid] = player
+        else:
+            self._id_mapper[player.userid] = actual_player.userid
+
+    # remaining stuff is presentation related

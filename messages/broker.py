@@ -88,9 +88,14 @@ class Broker:
 
         # consume from the queue
         log.info("Consuming queue (event) %s", queue_name)
+
+        consume_args = deco.consume_args.get(message_type, None)
+        if consume_args["requeue"]:
+            raise ValueError("Requeueing not supported for consuming events")
+
         await self.channel.basic_consume(
             queue=queue_name,
-            consumer_callback=partial(self.recv_event, message_type=message_type),
+            consumer_callback=partial(self.recv, message_type=message_type, **consume_args),
         )
 
     async def prepare_command(self, message_type, as_consumer: bool):
@@ -155,9 +160,7 @@ class Broker:
             log.info("Consuming queue (cmd) %s", queue_name)
             await self.channel.basic_consume(
                 queue=queue_name,
-                consumer_callback=partial(
-                    self.recv_command, message_type=message_type, **consume_args
-                ),
+                consumer_callback=partial(self.recv, message_type=message_type, **consume_args),
             )
 
     async def publish(self, message):
@@ -197,14 +200,7 @@ class Broker:
 
         return conf
 
-    async def recv_event(self, message: aiormq.abc.DeliveredMessage, message_type):
-        log.info("Consuming event of type %s", message_type)
-        await self.ack(message)
-
-        msg = message_type(**loads(message.body))
-        await self.bus.dispatch(msg)
-
-    async def recv_command(
+    async def recv(
         self,
         message: aiormq.abc.DeliveredMessage,
         message_type,
@@ -212,7 +208,7 @@ class Broker:
         requeue: bool,
         raise_on_ok: bool,
     ):
-        log.info("Consuming command of type %s", message_type)
+        log.info("Consuming message of type %s", message_type)
 
         try:
             msg = message_type(**loads(message.body))

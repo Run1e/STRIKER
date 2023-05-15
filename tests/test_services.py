@@ -1,15 +1,13 @@
 import asyncio
 from collections import deque
 from datetime import datetime, timedelta, timezone
-from json import loads
 from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
 
-from domain.demo_events import DemoEvents
-from domain.domain import (DemoGame, DemoOrigin, DemoState, JobState,
-                           RecordingType)
+from domain.demo_events import Match
+from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import commands, dto, events
 from messages.bus import MessageBus
 from services import services
@@ -184,7 +182,7 @@ async def test_new_job_demo_id_can_record(new_job_junk):
     demo = new_demo(
         state=DemoState.READY,
         add_matchinfo=True,
-        add_data=True,
+        add_valve_data=True,
     )
 
     uow = FakeUnitOfWork(demos=[demo])
@@ -205,7 +203,7 @@ async def test_job_with_deleted_demo(new_job_junk):
     demo = new_demo(
         state=DemoState.DELETED,
         add_matchinfo=True,
-        add_data=True,
+        add_valve_data=True,
     )
 
     uow = FakeUnitOfWork(demos=[demo])
@@ -247,7 +245,7 @@ async def test_new_job_demo_id_not_up_to_date(new_job_junk):
     demo = new_demo(
         state=DemoState.READY,
         add_matchinfo=True,
-        add_data=True,
+        add_valve_data=True,
     )
 
     demo.data_version -= 1
@@ -305,7 +303,7 @@ async def test_demo_step_can_record():
         state=DemoState.PROCESSING,
         sharecode=sharecode,
         add_matchinfo=True,
-        add_data=True,
+        add_valve_data=True,
     )
 
     uow = FakeUnitOfWork(demos=[demo])
@@ -322,7 +320,7 @@ async def test_demo_step_can_record():
 
 
 @pytest.mark.asyncio
-async def test_demoparse_success():
+async def test_demoparse_success(valve):
     demo = new_demo(
         state=DemoState.PROCESSING,
         add_matchinfo=True,
@@ -338,7 +336,7 @@ async def test_demoparse_success():
 
     version = 1
     event = events.DemoParseSuccess(
-        origin=demo.origin.name, identifier=demo.identifier, data=demo_data[0], version=version
+        origin=demo.origin.name, identifier=demo.identifier, data=valve, version=version
     )
     await bus.dispatch(event)
 
@@ -373,7 +371,7 @@ async def test_demoparse_success_outdated():
     version = DEMOPARSE_VERSION - 1
 
     event = events.DemoParseSuccess(
-        origin=demo.origin.name, identifier=demo.identifier, data=demo_data[0], version=version
+        origin=demo.origin.name, identifier=demo.identifier, data=valve, version=version
     )
 
     await bus.dispatch(event)
@@ -420,10 +418,10 @@ async def test_record():
     demo = new_demo(
         state=DemoState.READY,
         add_matchinfo=True,
-        add_data=True,
+        add_valve_data=True,
     )
 
-    round_id = 10
+    round_id = 1
 
     job = create_job(state=JobState.SELECTING)
     job.demo = demo
@@ -439,19 +437,19 @@ async def test_record():
     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
     bus, deps = await create_bus(uow, dict(publish=publish))
 
-    demo_events = DemoEvents.from_demo(demo)
-    demo_events.parse()
+    match = Match.from_demo(demo)
+    match.parse()
 
-    player = demo_events.get_player_by_id(6)
+    player = match.get_player_by_id(11)
 
     await bus.dispatch(
-        commands.Record(job_id=job.id, player_xuid=player.xuid, round_id=round_id, tier=0)
+        commands.Record(job_id=job.id, player_xuid=player.xuid, round_id=round_id, tier=0, half=0)
     )
 
     assert job.state is JobState.RECORDING
     assert job.recording_type is RecordingType.PLAYER_ROUND
     assert job.recording_data == {"player_xuid": player.xuid, "round_id": round_id}
-    assert job.video_title == "R10 runie 1k (1tk) ak47"
+    assert job.video_title == "R1 melan 1k usp_silencer"
 
 
 @pytest.mark.asyncio
@@ -531,7 +529,7 @@ async def test_abort_job(demo_job):
 async def test_restore_restart_jobs():
     demo = new_demo(
         state=DemoState.READY,
-        add_data=True,
+        add_valve_data=True,
         add_matchinfo=True,
     )
 

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from adapters.faceit import FACEITAPI, HTTPException, NotFound
 from domain import sequencer
-from domain.demo_events import DemoEvents
+from domain.demo_events import Match
 from domain.domain import Demo, Job, UserSettings, calculate_bitrate
 from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import commands, dto, events
@@ -169,10 +169,10 @@ async def job_selecting(event: events.JobSelecting, uow: SqlUnitOfWork):
         if job is None:
             return
 
-        demo_events = DemoEvents.from_demo(job.demo)
-        demo_events.parse()
+        match = Match.from_demo(job.demo)
+        match.parse()
 
-        uow.add_message(dto.JobSelectable(job.id, job.inter_payload, demo_events))
+        uow.add_message(dto.JobSelectable(job.id, job.inter_payload, match))
 
 
 @listener(events.DemoReady)
@@ -257,20 +257,21 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
 
         demo = job.demo
 
-        demo_events = DemoEvents.from_demo(demo)
-        demo_events.parse()
+        match = Match.from_demo(demo)
+        match.parse()
 
         # get all player kills
-        player = demo_events.get_player_by_xuid(command.player_xuid)
-        all_kills = demo_events.get_player_kills(player)
-        kills = all_kills[command.round_id]
+        player = match.get_player_by_xuid(command.player_xuid)
+
+        half = match.halves[command.half]
+        kills = half.get_player_kills_round(player, command.round_id)
 
         # get the kills info to make video title
-        info = demo_events.kills_info(command.round_id, kills)
+        info = half.kills_info(command.round_id, kills)
         job.video_title = " ".join([info[0], player.name, info[1]])
 
         start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(
-            demo_events.tickrate, kills
+            match.tickrate, kills
         )
 
         video_bitrate = calculate_bitrate(total_seconds)
@@ -283,7 +284,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             demo_identifier=demo.identifier,
             upload_url=video_upload_url,
             player_xuid=command.player_xuid,
-            tickrate=demo_events.tickrate,
+            tickrate=match.tickrate,
             start_tick=start_tick,
             end_tick=end_tick,
             skips=skips,
@@ -313,7 +314,9 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
 
         data["demo_url"] = result.presigned_url
 
-        task = wait_for(events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=2.0)
+        task = wait_for(
+            events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=2.0
+        )
 
         await publish(commands.RequestRecording(**data))
 

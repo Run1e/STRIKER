@@ -58,7 +58,9 @@ class JobAborted(Event):
 # repr removed because it caused a fuckton of
 # console spam
 @dataclass(frozen=True, repr=config.DUMP_EVENTS)
-@consume()
+@consume(
+    error_factory=lambda e, r: DemoParseFailure(e.origin, e.identifier, "Failed handling response.")
+)
 @publish()
 class DemoParseSuccess(Event):
     origin: str

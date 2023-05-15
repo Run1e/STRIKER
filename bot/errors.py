@@ -52,7 +52,6 @@ class ErrorHandler(commands.Cog):
         embed.description = desc
         kwargs = dict(content=None, components=self.bot._error_actionrow, embed=embed)
 
-
         try:
             message = await inter.original_response()
         except disnake.NotFound:
