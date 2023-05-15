@@ -303,7 +303,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         task = wait_for(
             events.PresignedUrlGenerated,
             check=lambda m: m.origin == demo.origin.name and m.identifier == demo.identifier,
-            timeout=5.0,
+            timeout=6.0,
         )
 
         await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier))

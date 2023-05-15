@@ -233,7 +233,7 @@ async def main():
     g = GatewayServer(bus, broker, waiter)
     await broker.start(config.RABBITMQ_HOST, prefetch_count=0)
 
-    token_waiter = bus.wait_for(events.Tokens)
+    token_waiter = bus.wait_for(events.Tokens, timeout=12.0)
     await broker.publish(commands.RequestTokens())
     event: events.Tokens | None = await token_waiter
 

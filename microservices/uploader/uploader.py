@@ -125,7 +125,7 @@ async def main(injectables):
     await client.wait_until_ready()
     await broker.start(config.RABBITMQ_HOST, prefetch_count=2)
 
-    token_waiter = bus.wait_for(events.Tokens)
+    token_waiter = bus.wait_for(events.Tokens, timeout=12.0)
     await broker.publish(commands.RequestTokens())
     event: events.Tokens | None = await token_waiter
 

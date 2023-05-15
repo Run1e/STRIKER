@@ -29,7 +29,7 @@ class AbortJob(Command):
 @dataclass(frozen=True)
 @publish(ttl=60.0, dead_event=events.DemoParseDL)
 @consume(
-    error_factory=lambda m, e: events.DemoParseFailure(
+    publish_err=lambda m, e: events.DemoParseFailure(
         m.origin, m.identifier, e or "Failed processsing demo."
     ),
     requeue=True,
@@ -42,14 +42,8 @@ class RequestDemoParse(Command):
 
 
 @dataclass(frozen=True)
-@publish(ttl=12.0, dead_event=events.DemoParseDL)
-@consume(
-    error_factory=lambda m, e: events.DemoParseFailure(
-        m.origin, m.identifier, e or "Failed processsing demo."
-    ),
-    requeue=True,
-    raise_on_ok=False,
-)
+@publish(ttl=6.0)
+@consume()  # uses wait_for and raises ServiceError itself
 class RequestPresignedUrl(Command):
     origin: str
     identifier: str
@@ -70,9 +64,9 @@ class Record(Command):
 
 
 @dataclass(frozen=True)
-@publish(ttl=60.0 * 20, dead_event=events.RecorderDL)
+@publish(ttl=120.0, dead_event=events.RecorderDL)
 @consume(
-    error_factory=lambda m, e: events.RecorderFailure(m.job_id, e or "Gateway timed out."),
+    publish_err=lambda m, e: events.RecorderFailure(m.job_id, e or "Gateway failed processing request."),
     requeue=False,  # False because rabbitmq won't redeliver to same consumer, and we only have one
     raise_on_ok=False,
 )
@@ -98,7 +92,7 @@ class RequestRecording(Command):
 
 
 @dataclass(frozen=True)
-@publish(ttl=32.0)
+@publish(ttl=12.0)
 @consume()
 class RequestTokens(Command):
     pass

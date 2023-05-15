@@ -38,13 +38,15 @@ def publish(ttl=None, dead_event=None):
 
 
 def consume(
-    error_factory=None,
+    publish_err=None,
+    dispatch_err=None,
     requeue=False,
     raise_on_ok=False,
 ):
     def inner(message):
         consume_args[message] = dict(
-            error_factory=error_factory,
+            publish_err=publish_err,
+            dispatch_err=dispatch_err,
             requeue=requeue,
             raise_on_ok=raise_on_ok,
         )

@@ -204,7 +204,8 @@ class Broker:
         self,
         message: aiormq.abc.DeliveredMessage,
         message_type,
-        error_factory: callable,
+        publish_err: callable,
+        dispatch_err: callable,
         requeue: bool,
         raise_on_ok: bool,
     ):
@@ -224,8 +225,12 @@ class Broker:
             # if we're unable to requeue...
             else:
                 # publish an error event if an error factory is set up
-                if error_factory:
-                    await self.publish(error_factory(msg, str(exc) if is_ok else None))
+                if publish_err:
+                    await self.publish(publish_err(msg, str(exc) if is_ok else None))
+
+                # or dispatch one if that's set up instead
+                elif dispatch_err:
+                    await self.bus.dispatch(dispatch_err(msg, str(exc) if is_ok else None))
 
                 # and ack the command
                 await self.ack(message)

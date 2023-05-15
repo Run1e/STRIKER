@@ -57,11 +57,11 @@ class JobAborted(Event):
 
 # repr removed because it caused a fuckton of
 # console spam
-@dataclass(frozen=True, repr=config.DUMP_EVENTS)
-@consume(
-    error_factory=lambda e, r: DemoParseFailure(e.origin, e.identifier, "Failed handling response.")
-)
+@dataclass(frozen=True, repr=False)
 @publish()
+@consume(
+    dispatch_err=lambda e, r: DemoParseFailure(e.origin, e.identifier, "Failed handling response.")
+)
 class DemoParseSuccess(Event):
     origin: str
     identifier: str
@@ -70,16 +70,8 @@ class DemoParseSuccess(Event):
 
 
 @dataclass(frozen=True)
+@publish(ttl=6.0)
 @consume()
-@publish()
-class DemoUploaded(Event):
-    origin: str
-    identifier: str
-
-
-@dataclass(frozen=True)
-@consume()
-@publish()
 class PresignedUrlGenerated(Event):
     origin: str
     identifier: str
@@ -87,8 +79,8 @@ class PresignedUrlGenerated(Event):
 
 
 @dataclass(frozen=True)
-@consume()
 @publish()
+@consume()
 class DemoParseFailure(Event):
     origin: str
     identifier: str
@@ -105,23 +97,23 @@ class DemoParseDL(Event):
 
 
 @dataclass(frozen=True)
+@publish(ttl=60.0)  # not stritcly a good ttl but I don't want these events to heap up I guess?
 @consume()
-@publish()
 class RecordingProgression(Event):
     job_id: str
     infront: int | None  # > 0: queued, == 0: recording, is None: send from commands.Record handler
 
 
 @dataclass(frozen=True)
-@consume()
 @publish()
+@consume()
 class RecorderSuccess(Event):
     job_id: str
 
 
 @dataclass(frozen=True)
-@consume()
 @publish()
+@consume()
 class RecorderFailure(Event):
     job_id: str
     reason: str
@@ -152,14 +144,14 @@ class UploaderFailure(Event):
 
 
 @dataclass(frozen=True, repr=False)
-@publish(ttl=32.0)
+@publish(ttl=12.0)
 @consume()
 class Tokens(Event):
     tokens: list
 
 
 @dataclass(frozen=True, repr=False)
-@publish()
+@publish(ttl=32.0)
 @consume()
 class UploadData(Event):
     job_id: str = None
