@@ -27,11 +27,6 @@ class AbortJob(Command):
 
 
 @dataclass(frozen=True)
-class RequestMatchInfo(Command):
-    sharecode: str
-
-
-@dataclass(frozen=True)
 @publish(ttl=60.0, dead_event=events.DemoParseDL)
 @consume(
     error_factory=lambda m, e: events.DemoParseFailure(

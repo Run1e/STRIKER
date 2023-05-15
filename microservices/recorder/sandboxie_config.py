@@ -45,6 +45,10 @@ AutoDelete=y
 NeverDelete=n
 CopyLimitKb=-1
 CopyLimitSilent=y
+BlockNetParam=n
+OpenDevCMApi=y
+OpenSamEndpoint=y
+OpenLsaEndpoint=y
 OpenFilePath={demo_dir}
 OpenFilePath={temp_dir}""".format(
         **kwargs

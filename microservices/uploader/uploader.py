@@ -53,27 +53,17 @@ async def perform_upload(
             disnake.ui.Button(
                 style=disnake.ButtonStyle.url,
                 label="Discord",
-                emoji=":discord:1099362254731882597",
+                emoji=config.DISCORD_EMOJI,
                 url=config.DISCORD_INVITE_URL,
-            )
-        )
-
-    if config.GITHUB_URL is not None:
-        buttons.append(
-            disnake.ui.Button(
-                style=disnake.ButtonStyle.url,
-                label="GitHub",
-                emoji=":github:1099362911077544007",
-                url=config.GITHUB_URL,
             )
         )
 
     buttons.append(
         disnake.ui.Button(
-            style=disnake.ButtonStyle.secondary,
-            label="Donate",
-            emoji="\N{Hot Beverage}",
-            custom_id="donatebutton",
+            style=disnake.ButtonStyle.url,
+            label="Patreon",
+            emoji=config.PATREON_EMOJI,
+            url=config.PATREON_URL,
         )
     )
 
