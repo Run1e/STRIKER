@@ -183,6 +183,7 @@ class RecorderCog(commands.Cog):
     @job_limit(config.JOB_LIMIT)
     async def record(self, inter: disnake.AppCmdInter, sharecode_or_url: str):
         demo_dict = dict()
+        sharecode_or_url = sharecode_or_url.strip()
 
         # https://stackoverflow.com/questions/11384589/what-is-the-correct-regex-for-matching-values-generated-by-uuid-uuid4-hex
         faceit_match = re.match(
@@ -190,13 +191,22 @@ class RecorderCog(commands.Cog):
             sharecode_or_url,
         )
 
+        replay_match = re.match(
+            r"^http:\/\/replay\d{1,3}\.valve\.net\/730\/(\d*)_(\d*)\.dem\.bz2$",
+            sharecode_or_url,
+        )
+
         if faceit_match:
             demo_dict = dict(origin="FACEIT", identifier=faceit_match.group(1))
+        elif replay_match:
+            demo_dict = dict(origin="VALVE", identifier=replay_match.group(1).strip("0"), demo_url=sharecode_or_url)
+
         else:
+            # last resort is sharecode
             sharecode = re.sub(
                 r"^steam://rungame/730/\d*/\+csgo_download_match(%20| )",
                 "",
-                sharecode_or_url.strip(),
+                sharecode_or_url,
             )
 
             if not is_valid_sharecode(sharecode):

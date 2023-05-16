@@ -19,6 +19,7 @@ class CreateJob(Command):
     identifier: str = None
     sharecode: str = None
     demo_id: int = None
+    demo_url: str = None
 
 
 @dataclass(frozen=True, repr=False)

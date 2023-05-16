@@ -84,6 +84,23 @@ async def create_job(
 
                         uow.demos.add(demo)
 
+                elif command.origin == "VALVE":
+                    # if no sharecode but origin is still valve, the identifier holds a demo url
+                    origin = DemoOrigin.VALVE
+                    demo = await uow.demos.from_identifier(origin, command.identifier)
+
+                    if demo is None:
+                        new_demo = True
+                        demo = Demo(
+                            game=DemoGame.CSGO,
+                            origin=origin,
+                            state=DemoState.PROCESSING,
+                            identifier=command.identifier,
+                            download_url=command.demo_url,
+                        )
+
+                        uow.demos.add(demo)
+
             if not new_demo and demo.state is DemoState.DELETED:
                 raise ServiceError("Demo has been deleted.")
 
