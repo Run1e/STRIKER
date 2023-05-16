@@ -167,7 +167,7 @@ class CSGO:
         if (w, h) != self.assumed_resolution:
             await self.run(f"mat_setvideomode {w} {h} 1")
             self.assumed_resolution = (w, h)
-            await asyncio.sleep(15.0)
+            # await asyncio.sleep(15.0)
 
     async def playdemo(self, demo, unblock_string, start_at=None):
         # disconnect in case we're stuck in another demo playback

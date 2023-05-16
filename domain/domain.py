@@ -150,6 +150,7 @@ class Job(Entity):
 
 class UserSettings(Entity):
     toggleable_values = {
+        "hq": False,
         "fragmovie": False,
         "color_filter": True,
         "righthand": True,

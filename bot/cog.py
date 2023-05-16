@@ -199,7 +199,11 @@ class RecorderCog(commands.Cog):
         if faceit_match:
             demo_dict = dict(origin="FACEIT", identifier=faceit_match.group(1))
         elif replay_match:
-            demo_dict = dict(origin="VALVE", identifier=replay_match.group(1).strip("0"), demo_url=sharecode_or_url)
+            demo_dict = dict(
+                origin="VALVE",
+                identifier=replay_match.group(1).strip("0"),
+                demo_url=sharecode_or_url,
+            )
 
         else:
             # last resort is sharecode

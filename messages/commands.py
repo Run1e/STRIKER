@@ -67,7 +67,9 @@ class Record(Command):
 @dataclass(frozen=True)
 @publish(ttl=120.0, dead_event=events.RecorderDL)
 @consume(
-    publish_err=lambda m, e: events.RecorderFailure(m.job_id, e or "Gateway failed processing request."),
+    publish_err=lambda m, e: events.RecorderFailure(
+        m.job_id, e or "Gateway failed processing request."
+    ),
     requeue=False,  # False because rabbitmq won't redeliver to same consumer, and we only have one
     raise_on_ok=False,
 )
@@ -90,6 +92,7 @@ class RequestRecording(Command):
     righthand: bool
     crosshair_code: str
     use_demo_crosshair: bool
+    hq: bool
 
 
 @dataclass(frozen=True)

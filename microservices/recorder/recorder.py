@@ -101,6 +101,11 @@ async def record(
 
     await csgo.run(";".join(preplay_commands))
 
+    if command.hq:
+        await csgo.set_resolution(1920, 1080)
+    else:
+        await csgo.set_resolution(1280, 854)
+
     take_folder = await csgo.playdemo(
         demo=demo,
         unblock_string=unblock_string,

@@ -179,7 +179,7 @@ class RoundView(disnake.ui.View):
 
         self.add_item(reselect_button)
         self.add_item(abort_button)
-    
+
     async def reselect_click(self, inter: disnake.MessageInteraction):
         self.stop()
         asyncio.create_task(self.reselect_callback(inter))
@@ -227,7 +227,6 @@ class RoundView(disnake.ui.View):
         )
 
         return e
-
 
     def round_range(self, first_half):
         halftime = self.match.halftime
@@ -395,6 +394,7 @@ class ConfigView(disnake.ui.View):
             righthand="cl_righthand",
             use_demo_crosshair="Use demo crosshair",
             crosshair_code="Change crosshair",
+            hq="High quality",
         ).get(k, k)
 
     def embed(self):
@@ -417,6 +417,8 @@ class ConfigView(disnake.ui.View):
             crosshair_text = "default"
 
         e.description = f"Thank you for your support.\n\nCrosshair: {crosshair_text}"
+
+        e.add_field(name="High quality", value="Record at 1600x900", inline=False)
 
         e.add_field(
             name="Clean HUD", value="Hide HUD except for killfeed and crosshair", inline=False
@@ -452,7 +454,7 @@ class ConfigView(disnake.ui.View):
             modal=CrosshairModal(
                 on_submit=self.save_crosshair,
                 title="Paste crosshair sharecode",
-                timeout=500.0,
+                timeout=500.0,  # idiotic timeout
             )
         )
 

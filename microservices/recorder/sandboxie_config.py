@@ -49,6 +49,7 @@ BlockNetParam=n
 OpenDevCMApi=y
 OpenSamEndpoint=y
 OpenLsaEndpoint=y
+NoSecurityIsolation=y
 OpenFilePath={demo_dir}
 OpenFilePath={temp_dir}""".format(
         **kwargs
