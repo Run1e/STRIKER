@@ -6,7 +6,7 @@ from uuid import UUID
 
 from adapters.faceit import FACEITAPI, HTTPException, NotFound
 from domain import sequencer
-from domain.demo_events import Match
+from domain.match import Match
 from domain.domain import Demo, Job, UserSettings, calculate_bitrate
 from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import commands, dto, events

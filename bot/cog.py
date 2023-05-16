@@ -10,7 +10,7 @@ from rapidfuzz import fuzz, process
 from tabulate import tabulate
 
 from bot.sharecode import is_valid_sharecode
-from domain.demo_events import Player
+from domain.match import Player
 from messages import commands as cmds
 from messages import dto
 from messages.bus import MessageBus

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from .events import Event
-from domain.demo_events import Match
+from domain.match import Match
 
 
 class DTO(Event):

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from domain.demo_events import Match
+from domain.match import Match
 from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from messages import commands, dto, events
 from messages.bus import MessageBus

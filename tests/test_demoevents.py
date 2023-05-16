@@ -1,5 +1,5 @@
 from json import loads
-from domain.demo_events import Match
+from domain.match import Match
 from .testutils import valve, faceit
 
 import pytest

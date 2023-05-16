@@ -6,7 +6,7 @@ from typing import List
 import disnake
 from tabulate import tabulate
 
-from domain.demo_events import Death, Match, MatchHalf, Player
+from domain.match import Death, Match, MatchHalf, Player
 
 from .area import places
 from .config import CT_COIN, T_COIN
