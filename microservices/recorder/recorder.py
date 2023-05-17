@@ -164,7 +164,7 @@ def craft_hlae_args(port):
         "-mmcfg",
         config.MMCFG_DIR,
         "-customLaunchOptions",
-        f"-netconport {port} -console -novid -disable_d3d9ex",
+        f"-netconport {port} -console -novid",
     )
 
 

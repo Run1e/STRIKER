@@ -110,6 +110,6 @@ class RequestUploadData(Command):
 
 
 @dataclass(frozen=True)
-class UpdateUser(Command):
+class UpdateUserSettings(Command):
     user_id: int
     data: dict

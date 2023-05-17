@@ -479,7 +479,7 @@ class RecorderCog(commands.Cog):
         await inter.send(embed=view.embed(), view=view, ephemeral=True)
 
     async def _store_config(self, inter: disnake.MessageInteraction, updates):
-        await self.bus.dispatch(cmds.UpdateUser(inter.author.id, updates))
+        await self.bus.dispatch(cmds.UpdateUserSettings(inter.author.id, updates))
 
         e = self.embed.success(title="STRIKER Patreon Configurator")
         e.description = "Configuration saved."

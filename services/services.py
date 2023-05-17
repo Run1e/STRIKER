@@ -454,8 +454,8 @@ async def restore(command: commands.Restore, uow: SqlUnitOfWork):
         await uow.commit()
 
 
-@handler(commands.UpdateUser)
-async def update_user(command: commands.UpdateUser, uow: SqlUnitOfWork):
+@handler(commands.UpdateUserSettings)
+async def update_user_settings(command: commands.UpdateUserSettings, uow: SqlUnitOfWork):
     async with uow:
         user = await uow.users.get_user(command.user_id)
         if user is None:
