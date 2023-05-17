@@ -172,18 +172,19 @@ class GatewayServer:
 
             await self.queue.put((command, started, future))
 
-            if not client_count:  # no clients, send with None
-                await self.broker.publish(events.RecordingProgression(command.job_id, None))
-            elif queue_size >= getter_count:  # more waiting in queue than clients doing .get()
-                await self.broker.publish(
-                    events.RecordingProgression(command.job_id, queue_size - getter_count + 1)
-                )
+            if retry:
+                if not client_count:  # no clients, send with None
+                    await self.broker.publish(events.RecordingProgression(command.job_id, None))
+                elif queue_size >= getter_count:  # more waiting in queue than clients doing .get()
+                    await self.broker.publish(
+                        events.RecordingProgression(command.job_id, queue_size - getter_count + 1)
+                    )
 
-            # wait for connection handler to .get() this request
-            await started.wait()
+                # wait for connection handler to .get() this request
+                await started.wait()
 
-            # this request is currently being processed
-            await self.broker.publish(events.RecordingProgression(command.job_id, 0))
+                # this request is currently being processed
+                await self.broker.publish(events.RecordingProgression(command.job_id, 0))
 
         # wait for recording to finish, then ack the message
         try:
@@ -216,7 +217,6 @@ async def process_request(path: str, request_headers: Headers, tokens: set):
 
     if token is None or token not in tokens:
         return http.HTTPStatus.UNAUTHORIZED, [], b""
-        ot
 
     # continue websocket handshake
     return None
