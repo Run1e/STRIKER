@@ -139,11 +139,6 @@ class Job(Entity):
     def recording(self):
         self.state = JobState.RECORDING
 
-    def uploading(self):
-        # only advance if we're currently RECORDING
-        if self.state is JobState.RECORDING:
-            self.state = JobState.UPLOADING
-
     def success(self):
         self.state = JobState.SUCCESS
 

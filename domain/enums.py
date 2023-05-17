@@ -5,7 +5,6 @@ class JobState(Enum):
     WAITING = auto()  # associated demo is currently processing
     SELECTING = auto()  # job is or can have user selecting
     RECORDING = auto()  # job is on record queue
-    UPLOADING = auto()  # job is being uploaded
     ABORTED = auto()  # job was aborted by the user, view timeout, or job limit
     FAILED = auto()  # job failed for some reason
     SUCCESS = auto()  # job completed successfully

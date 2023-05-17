@@ -80,7 +80,7 @@ class JobRepository(SqlRepository):
         stmt = (
             select(Job.id, Job.state)
             .select_from(Job)
-            .where(Job.state.in_((JobState.SELECTING, JobState.RECORDING, JobState.UPLOADING)))
+            .where(Job.state.in_((JobState.SELECTING, JobState.RECORDING)))
         )
 
         result = await self.session.execute(stmt)

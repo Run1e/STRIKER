@@ -68,9 +68,6 @@ class EmbedBuilder:
     def recording(self, job_id: str = None, title: str = None):
         return self.build(title or "Recording queued!", disnake.Color.orange(), job_id)
 
-    def uploading(self, job_id: str = None, title: str = None):
-        return self.build(title or "Uploading", disnake.Color.orange(), job_id)
-
     def success(self, job_id: str = None, title: str = None):
         return self.build(title or "Job completed, enjoy!", disnake.Color.green(), job_id)
 

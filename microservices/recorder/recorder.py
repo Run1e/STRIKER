@@ -356,7 +356,7 @@ class GatewayClient:
                 await handle_recording_request(command, self.session, self.pool)
             except Exception as exc:
                 log.exception(exc)
-                reason = str(exc) if isinstance(exc, RecordingError) else "Recording failed."
+                reason = str(exc) if isinstance(exc, RecordingError) else "Recorder failed."
                 await self.send("failure", dict(job_id=command.job_id, reason=reason))
             else:
                 await self.send("success", dict(job_id=command.job_id))

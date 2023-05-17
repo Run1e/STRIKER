@@ -142,7 +142,7 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
         try:
             await loop.run_in_executor(executor, decompress, archive_path, demo_path)
         except OSError:
-            raise MessageError("Demo corrupted.")
+            raise MessageError("Unable to extract demo archive.")
 
         log.info(end())
     else:

@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from .events import Event
 from domain.match import Match
+
+from .events import Event
 
 
 class DTO(Event):
@@ -40,9 +41,3 @@ class JobRecording(DTO):
     job_id: UUID
     job_inter: bytes
     infront: int
-
-
-@dataclass(frozen=True, repr=False)
-class JobUploading(DTO):
-    job_id: UUID
-    job_inter: bytes

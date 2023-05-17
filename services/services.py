@@ -265,6 +265,8 @@ async def demoparse_died(event: events.DemoParseDL, uow: SqlUnitOfWork):
 
 @handler(commands.Record)
 async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for, video_upload_url):
+    # a lot of the stuff in here is not orchestration
+    # it should be majorly refactored
     async with uow:
         job = await uow.jobs.get(command.job_id)
         job.recording()
@@ -346,16 +348,9 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             uow.add_message(events.RecordingProgression(job_id, None))
 
 
-# @listener(events.RecorderSuccess)
-# async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
-#     async with uow:
-#         job = await uow.jobs.get(UUID(event.job_id))
-#         if job is None:
-#             return
-
-#         job.uploading()
-#         # uow.add_message(dto.JobUploading(job.id, job.inter_payload))
-#         await uow.commit()
+@listener(events.RecorderSuccess)
+async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
+    return  # nice to know I guess but not much to do here
 
 
 @listener(events.RecorderFailure)

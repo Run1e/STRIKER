@@ -6,8 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from domain.match import Match
 from domain.domain import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
+from domain.match import Match
 from messages import commands, dto, events
 from messages.bus import MessageBus
 from services import services
@@ -453,26 +453,6 @@ async def test_record():
 
 
 @pytest.mark.asyncio
-# async def test_recorder_success():
-#     job = create_job(state=JobState.RECORDING)
-#     demo = new_demo(
-#         state=DemoState.READY,
-#         add_data=True,
-#         add_matchinfo=True,
-#     )
-
-#     job.demo = demo
-
-#     uow = FakeUnitOfWork(jobs=[job], demos=[demo])
-#     bus, deps = await create_bus(uow)
-
-#     await bus.dispatch(events.RecorderSuccess(str(job.id)))
-
-#     assert uow.committed
-#     assert job.state is JobState.UPLOADING
-
-
-@pytest.mark.asyncio
 async def test_recorder_failure():
     job = create_job(state=JobState.WAITING)
 
@@ -489,7 +469,7 @@ async def test_recorder_failure():
 
 @pytest.mark.asyncio
 async def test_uploader_success():
-    job = create_job(state=JobState.UPLOADING)
+    job = create_job(state=JobState.RECORDING)
 
     uow = FakeUnitOfWork(jobs=[job])
     bus, deps = await create_bus(uow)
@@ -502,7 +482,7 @@ async def test_uploader_success():
 
 @pytest.mark.asyncio
 async def test_uploader_failure():
-    job = create_job(state=JobState.UPLOADING)
+    job = create_job(state=JobState.RECORDING)
 
     uow = FakeUnitOfWork(jobs=[job])
     bus, desp = await create_bus(uow)
