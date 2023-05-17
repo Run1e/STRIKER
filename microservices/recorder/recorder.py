@@ -440,7 +440,8 @@ class GatewayClient:
 async def main():
     global sb
 
-    # logging.getLogger("websockets").setLevel(logging.INFO)
+    if not config.DEBUG:
+        logging.getLogger("websockets").setLevel(logging.INFO)
 
     # copy over csgo config files
     copy_tree("cfg", str(config.CSGO_DIR / "cfg"))

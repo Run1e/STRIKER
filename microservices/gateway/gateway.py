@@ -224,7 +224,9 @@ async def process_request(path: str, request_headers: Headers, tokens: set):
 
 async def main():
     logging.getLogger("aiormq").setLevel(logging.INFO)
-    # logging.getLogger("websockets").setLevel(logging.INFO)
+
+    if not config.DEBUG:
+        logging.getLogger("websockets").setLevel(logging.INFO)
 
     waiter = asyncio.Event()
 
