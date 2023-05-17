@@ -119,9 +119,9 @@ class Job(Entity):
     def set_demo(self, demo: Demo):
         self.demo = demo
 
-        if demo.is_selectable() and self.state is JobState.WAITING:
+        if demo.is_selectable():
             self.selecting()
-        elif demo.state is DemoState.PROCESSING:
+        else:
             self.add_event(events.JobWaiting(self.id))
 
     def selecting(self):

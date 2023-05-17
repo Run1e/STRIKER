@@ -94,7 +94,7 @@ def parse_demo(demofile):
 
 
 @handler(RequestDemoParse)
-async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
+async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
     loop = asyncio.get_running_loop()
 
     origin = command.origin

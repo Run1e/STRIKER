@@ -82,6 +82,7 @@ async def record(
         fragmovie=command.fragmovie,
         righthand=command.righthand,
         # is this really the right place to set this default?
+        # E: yeah pretty much
         crosshair_code=command.crosshair_code or "CSGO-CRGTh-TOq2d-nhbkC-doNM6-tzioE",
         use_demo_crosshair=command.use_demo_crosshair,
         capture_dir=capture_dir,
@@ -276,19 +277,26 @@ async def handle_recording_request(
 
     if not archive_path.is_file():
         log.info("Downloading archive...")
-        async with session.get(url=command.demo_url, timeout=aiohttp.ClientTimeout(20.0)) as resp:
-            if resp.status == 200:
-                async with aiofiles.open(temp_archive_path, "wb") as f:
-                    while not resp.content.at_eof():
-                        await f.write(await resp.content.read(CHUNK_SIZE))
-            else:
-                raise RecordingError("Failed fetching demo archive.")
+        try:
+            async with session.get(
+                url=command.demo_url, timeout=aiohttp.ClientTimeout(20.0)
+            ) as resp:
+                if resp.status == 200:
+                    async with aiofiles.open(temp_archive_path, "wb") as f:
+                        while not resp.content.at_eof():
+                            await f.write(await resp.content.read(CHUNK_SIZE))
+                else:
+                    raise RecordingError("Failed fetching demo archive.")
 
-            if not archive_path.is_file():
-                try:
-                    os.rename(temp_archive_path, archive_path)
-                except OSError:
-                    log.info("Failed renaming archive? %s -> %s", temp_archive_path, archive_path)
+                if not archive_path.is_file():
+                    try:
+                        os.rename(temp_archive_path, archive_path)
+                    except OSError:
+                        log.info(
+                            "Failed renaming archive? %s -> %s", temp_archive_path, archive_path
+                        )
+        except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
+            raise RecordingError("Unable to download demo archive.")
 
     # decompress temp archive to temp demo file
     log.info("Decompressing archive...")
@@ -314,11 +322,11 @@ async def handle_recording_request(
             timeout=aiohttp.ClientTimeout(total=32.0),
         ) as resp:
             log.info("Upload for job %s status %s", command.job_id, resp.status)
-            if resp.status == 500:
+            if resp.status != 200:
                 raise RecordingError("Uploader service failed.")
 
-    except asyncio.TimeoutError:
-        raise RecordingError("Upload timed out.")
+    except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
+        raise RecordingError("Upload service did not respond to the upload request.")
 
     # delete stuff that is now junk...
     for path in (demo_path, temp_archive_path, video_file):

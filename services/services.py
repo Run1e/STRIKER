@@ -349,7 +349,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
 
 
 @listener(events.RecorderSuccess)
-async def recorder_success(event: events.RecorderSuccess, uow: SqlUnitOfWork):
+async def recorder_success(event: events.RecorderSuccess):
     return  # nice to know I guess but not much to do here
 
 
