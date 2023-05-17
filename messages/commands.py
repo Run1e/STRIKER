@@ -31,7 +31,7 @@ class AbortJob(Command):
 @publish(ttl=60.0, dead_event=events.DemoParseDL)
 @consume(
     publish_err=lambda m, e: events.DemoParseFailure(
-        m.origin, m.identifier, e or "Failed processsing demo."
+        m.origin, m.identifier, e or "Failed processing demo."
     ),
     requeue=True,
     raise_on_ok=False,

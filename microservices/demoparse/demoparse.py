@@ -21,7 +21,7 @@ from messages.commands import RequestDemoParse, RequestPresignedUrl
 from messages.deco import handler
 from shared.const import DEMOPARSE_VERSION
 from shared.log import logging_config
-from shared.utils import DemoCorrupted, decompress, timer
+from shared.utils import decompress, timer
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -66,13 +66,13 @@ class DemoStorage:
 
     @staticmethod
     def _build_key(origin, identifier):
-        return f"{origin.lower()}_{identifier}.dem.{origin_to_ext(origin)}"
+        return f"{origin.lower()}/{identifier}.dem.{origin_to_ext(origin)}"
 
-    async def upload_demo(self, origin, identifier):
+    async def upload_demo(self, file, origin, identifier):
         key = self._build_key(origin, identifier)
 
         # this shit just has to be sync smh
-        with open(config.DATA_FOLDER / key, "rb") as fp:
+        with open(file, "rb") as fp:
             async with self.make_client() as client:
                 await client.upload_fileobj(fp, self.bucket, key)
 
@@ -141,7 +141,7 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
 
         try:
             await loop.run_in_executor(executor, decompress, archive_path, demo_path)
-        except DemoCorrupted:
+        except OSError:
             raise MessageError("Demo corrupted.")
 
         log.info(end())
@@ -158,7 +158,7 @@ async def on_demoparse(command: RequestDemoParse, publish, upload_demo):
     async def uploader():
         log.info("uploading %s", archive_path)
         end = timer("upload")
-        await upload_demo(origin, identifier)
+        await upload_demo(archive_path, origin, identifier)
         log.info(end())
 
     # parse and upload demo
@@ -209,7 +209,7 @@ async def main():
     broker = Broker(bus)
     bus.add_dependencies(publish=broker.publish, upload_demo=s3.upload_demo, get_url=s3.get_url)
     bus.register_decos()
-    await broker.start(config.RABBITMQ_HOST, prefetch_count=3)
+    await broker.start(config.RABBITMQ_HOST, prefetch_count=1)
 
     log.info("Ready to parse!")
 

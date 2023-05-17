@@ -14,6 +14,8 @@ SbieCtrl_AutoRunSoftCompat=n
 SbieCtrl_HideWindowNotify=n
 SbieCtrl_ReloadConfNotify=n
 SbieCtrl_TerminateWarn=n
+SbieCtrl_AutoStartAgent=SandMan.exe
+SbieCtrl_EnableAutoStart=y
 
 [DefaultBox]
 Enabled=y

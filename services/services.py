@@ -377,7 +377,12 @@ async def recorder_died(event: events.RecorderDL, uow: SqlUnitOfWork):
         if job is None:
             return
 
-        job.failed(event.reason)
+        prose_version = dict(
+            rejected="The recorder service was unable to process your request.",
+            expired="The recorder service request timed out.",
+        ).get(event.reason, "The demo parse service request failed.")
+
+        job.failed(prose_version)
         await uow.commit()
 
 

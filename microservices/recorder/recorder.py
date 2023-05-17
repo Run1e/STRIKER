@@ -26,7 +26,7 @@ from websockets.exceptions import ConnectionClosed
 
 from messages import commands
 from shared.log import logging_config
-from shared.utils import DemoCorrupted, decompress
+from shared.utils import decompress
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
@@ -139,8 +139,7 @@ async def record(
         capture_output=True,
     )
 
-    rmtree(take_folder)
-
+    delete_folder(take_folder)
     return output
 
 
@@ -165,7 +164,7 @@ def craft_hlae_args(port):
         "-mmcfg",
         config.MMCFG_DIR,
         "-customLaunchOptions",
-        f"-netconport {port} -console -novid",
+        f"-netconport {port} -console -novid -disable_d3d9ex",
     )
 
 
@@ -221,7 +220,9 @@ async def on_csgo_error(pool: ResourcePool, csgo: CSGO, exc: Exception):
 
 async def prepare_csgo(csgo: CSGO):
     await csgo.connect()
-    csgo.minimize()
+
+    # causes issues with resolution changes
+    # csgo.minimize()
 
     startup_commands = ('mirv_block_commands add 5 "\*"', "exec stream")
     for command in startup_commands:
@@ -237,12 +238,28 @@ async def file_reader(file_name):
             chunk = await f.read(CHUNK_SIZE)
 
 
+def make_folder(path: Path):
+    try:
+        os.makedirs(path, exist_ok=True)
+    except:
+        pass
+
+
 def delete_file(path: Path):
     if path.is_file():
         try:
             os.remove(path)
+            log.info("Deleted file: %s", path)
         except:
             pass
+
+
+def delete_folder(path: Path):
+    try:
+        rmtree(path)
+        log.info("Deleted folder: %s", path)
+    except:
+        pass
 
 
 async def handle_recording_request(
@@ -251,11 +268,9 @@ async def handle_recording_request(
     pool: ResourcePool,
 ):
     origin_lower = command.demo_origin.lower()
-    archive_dir = config.DEMO_DIR / origin_lower
-    os.makedirs(archive_dir, exist_ok=True)
-
     archive_name = os.path.basename(parse.urlparse(command.demo_url).path)
-    archive_path = archive_dir / archive_name
+
+    archive_path = config.DEMO_DIR / f"{origin_lower}_{archive_name}"
     temp_archive_path = config.TEMP_DIR / f"{command.job_id}.dem.{archive_path.suffix}"
     demo_path = config.TEMP_DIR / f"{command.job_id}.dem"
 
@@ -272,16 +287,15 @@ async def handle_recording_request(
             if not archive_path.is_file():
                 try:
                     os.rename(temp_archive_path, archive_path)
-                except FileExistsError:  # this exc is fine since we're on windows
-                    log.info("Failed renaming archive?")
-                    pass
+                except OSError:
+                    log.info("Failed renaming archive? %s -> %s", temp_archive_path, archive_path)
 
     # decompress temp archive to temp demo file
     log.info("Decompressing archive...")
     try:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(executor, decompress, archive_path, demo_path)
-    except DemoCorrupted:
+    except OSError:
         raise RecordingError("Demo corrupted.")
 
     log.info("Getting CSGO instance and starting recording...")
@@ -309,6 +323,11 @@ async def handle_recording_request(
     # delete stuff that is now junk...
     for path in (demo_path, temp_archive_path, video_file):
         delete_file(path)
+
+    # delete the least recently used demo(s) that fall outside our cache size
+    oldest = list(sorted(config.DEMO_DIR.iterdir(), key=lambda f: f.stat().st_atime))
+    for file in oldest[: len(oldest) - config.KEEP_DEMO_COUNT]:
+        delete_file(file)
 
 
 class GatewayClient:
@@ -419,17 +438,11 @@ async def main():
     copy_tree("cfg", str(config.CSGO_DIR / "cfg"))
 
     # delete temp dir
-    try:
-        rmtree(config.TEMP_DIR)
-    except FileNotFoundError:
-        pass
+    delete_folder(config.TEMP_DIR)
 
     # ensure data folders exist
     for path in (config.TEMP_DIR, config.DEMO_DIR):
-        try:
-            os.makedirs(path)
-        except FileExistsError:
-            pass
+        make_folder(path)
 
     if config.SANDBOXED:
         sb.terminate_all()

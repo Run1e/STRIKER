@@ -20,10 +20,6 @@ ordinal = lambda n: "%d%s" % (
 )
 
 
-class DemoCorrupted(Exception):
-    pass
-
-
 def decompress(archive: Path, file: Path):
     if archive.suffix == ".gz":
         f = decompress_gz
@@ -37,11 +33,7 @@ def decompress_bz2(archive, file, block_size=64 * 1024):
     decompressor = BZ2Decompressor()
     with open(file, "wb") as new_file, open(archive, "rb") as file:
         for data in iter(lambda: file.read(block_size), b""):
-            try:
-                chunk = decompressor.decompress(data)
-            except OSError as exc:
-                raise DemoCorrupted("Demo corrupted.") from exc
-
+            chunk = decompressor.decompress(data)
             new_file.write(chunk)
 
 

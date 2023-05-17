@@ -91,7 +91,7 @@ class Broker:
 
         consume_args = deco.consume_args.get(message_type, None)
         if consume_args["requeue"]:
-            raise ValueError("Requeueing not supported for consuming events")
+            raise ValueError("Requeueing not supported for events")
 
         await self.channel.basic_consume(
             queue=queue_name,
@@ -247,9 +247,8 @@ class Broker:
         log.info("Consuming dead letter of type %s", message_type)
 
         command = message_type(**loads(message.body))
-        event = dead_event(
-            command=command, reason=message.header.properties.headers["x-first-death-reason"]
-        )
+        reason = message.header.properties.headers["x-first-death-reason"]
+        event = dead_event(command=command, reason=reason)
 
         # immediately ack
         await self.ack(message)
