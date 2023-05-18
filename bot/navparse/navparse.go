@@ -13,15 +13,17 @@ import (
 	"github.com/mrazza/gonav"
 )
 
-func ParseNav(save_at string, file string) {
+func ParseNav(file string) map[string][][]float32 {
 	_, filename := filepath.Split(file)
 	mapname := strings.Split(filename, ".")[0]
 
 	f, ok := os.Open(file) // Open the file
 
+	data := map[string][][]float32{}
+
 	if ok != nil {
 		fmt.Printf("Failed to open file: %v\n", ok)
-		return
+		return nil
 	}
 
 	defer f.Close()
@@ -32,12 +34,10 @@ func ParseNav(save_at string, file string) {
 
 	if nerr != nil {
 		fmt.Printf("Failed to parse: %v\n", nerr)
-		return
+		return nil
 	}
 
 	fmt.Printf("%s: parse OK in %v\n", mapname, elapsed)
-
-	data := map[string][][]float32{}
 
 	for _, curr := range mesh.Places {
 		a := [][]float32{}
@@ -52,22 +52,14 @@ func ParseNav(save_at string, file string) {
 	}
 
 	if len(data) == 0 {
-		return
+		return nil
 	}
 
-	empData, _ := json.Marshal(data)
-	jsonStr := string(empData)
-
-	f, _ = os.Create(save_at + "/" + mapname + ".json")
-
-	f.WriteString(jsonStr)
-
-	defer f.Close()
+	return data
 }
 
 func main() {
-	save_at := os.Args[1]
-	csgo_dir := os.Args[2]
+	csgo_dir := os.Args[1]
 
 	files, err := ioutil.ReadDir(csgo_dir)
 	if err != nil {
@@ -75,11 +67,22 @@ func main() {
 		return
 	}
 
+	all := map[string]map[string][][]float32{}
+
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".nav") {
-			ParseNav(save_at, csgo_dir+"/"+file.Name())
-
+			data := ParseNav(csgo_dir + "/" + file.Name())
+			if data != nil {
+				_, filename := filepath.Split(file.Name())
+				mapname := strings.Split(filename, ".")[0]
+				all[mapname] = data
+			}
 		}
 	}
 
+	empData, _ := json.Marshal(all)
+	jsonStr := string(empData)
+	f, _ := os.Create("nav.json")
+	f.WriteString(jsonStr)
+	defer f.Close()
 }

@@ -1,7 +1,7 @@
 config.py
 
 # bot
-bot/navparse/nav
+bot/navparse/nav.json
 bot/config.py
 bot/config copy.py
 

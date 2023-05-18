@@ -1,5 +1,4 @@
 import json
-import os
 from math import sqrt
 from string import ascii_uppercase
 
@@ -75,13 +74,6 @@ class MapAreas:
         return winning_place_id
 
 
-places = {}
-
-for file in os.listdir("bot/navparse/nav"):
-    map_name = file.split(".")[0]
-    with open(f"bot/navparse/nav/{file}", "r") as f:
-        data = json.loads(f.read())
-        if not data:
-            continue
-
-        places[map_name] = MapAreas(map_name, data)
+with open("bot/navparse/nav.json") as f:
+    data = json.loads(f.read())
+    places = {k: MapAreas(k, v) for k, v in data.items()}
