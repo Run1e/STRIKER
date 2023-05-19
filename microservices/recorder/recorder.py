@@ -1,5 +1,6 @@
 import sys
 
+
 sys.path.append("../..")
 
 import asyncio
@@ -21,7 +22,7 @@ from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
 from sandboxie_config import make_config
 from script_builder import make_script
-from websockets import client
+from websockets import client, InvalidStatusCode
 from websockets.exceptions import ConnectionClosed
 
 from messages import commands
@@ -390,6 +391,10 @@ class GatewayClient:
                 )
             except ConnectionRefusedError as exc:
                 log.warn("Timed out trying to connect...")
+                continue
+            except InvalidStatusCode as exc:
+                log.warn("Connect returned code %s", exc.status_code)
+                await asyncio.sleep(1.0)
                 continue
 
             log.info("Connected!")

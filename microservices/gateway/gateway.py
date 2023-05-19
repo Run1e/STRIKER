@@ -172,7 +172,7 @@ class GatewayServer:
 
             await self.queue.put((command, started, future))
 
-            if retry:
+            if not retry:
                 if not client_count:  # no clients, send with None
                     await self.broker.publish(events.RecordingProgression(command.job_id, None))
                 elif queue_size >= getter_count:  # more waiting in queue than clients doing .get()
@@ -249,7 +249,7 @@ async def main():
 
     await server.serve(
         ws_handler=g.new_connection,
-        host="localhost",
+        host="0.0.0.0",
         port=9191,
         process_request=partial(process_request, tokens=tokens),
     )

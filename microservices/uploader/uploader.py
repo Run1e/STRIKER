@@ -146,5 +146,5 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main(injectables))
     app = web.Application(client_max_size=30 * 1024 * 1024)
-    app.add_routes([web.post("/upload", partial(upload, **injectables))])
+    app.add_routes([web.post("/uploader", partial(upload, **injectables))])
     web.run_app(app, host="0.0.0.0", port=9000, loop=loop)
