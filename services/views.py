@@ -45,7 +45,7 @@ async def get_user_settings(user_id: int, tier: int, uow: SqlUnitOfWork):
         await uow.commit()
         return user.filled(tier), UserSettings.value_tiers
 
-    
+
 async def get_demo_origin(demo_id: int, uow: SqlUnitOfWork):
     async with uow:
         stmt = text("SELECT origin FROM demo WHERE id=:demo_id").bindparams(demo_id=demo_id)

@@ -110,6 +110,8 @@ class FakeUserSettingsRepository(FakeRepository):
                 return instance
 
         return None
+
+
 class FakeUnitOfWork:
     def __init__(self, jobs=None, demos=None, users=None) -> None:
         self.jobs = FakeJobRepository(jobs or [])

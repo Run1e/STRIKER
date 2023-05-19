@@ -255,6 +255,7 @@ class RecorderCog(commands.Cog):
         user_id = inter.author.id
         demo_origin = await views.get_demo_origin(found_demo_id, uow=SqlUnitOfWork())
 
+        # this data probably belongs in a dict somewhere
         if demo_origin == "FACEIT":
             tier = await get_tier(self.bot, user_id)
             if tier < 2:
@@ -466,7 +467,9 @@ class RecorderCog(commands.Cog):
     # @tier(2)
     async def _config(self, inter: disnake.AppCmdInter):
         tier = await get_tier(self.bot, inter.author.id)
-        user_settings, value_tiers = await views.get_user_settings(inter.author.id, tier, uow=SqlUnitOfWork())
+        user_settings, value_tiers = await views.get_user_settings(
+            inter.author.id, tier, uow=SqlUnitOfWork()
+        )
 
         view = ConfigView(
             inter=inter,
