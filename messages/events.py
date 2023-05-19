@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from bot import config
 from messages.deco import consume, publish
 
 

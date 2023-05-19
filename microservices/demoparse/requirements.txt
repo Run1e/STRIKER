@@ -1,3 +1,5 @@
 aiohttp==3.8.4
+aioboto3==11.1.0
 aiormq==6.7.4
+aiofiles==23.1.0
 coloredlogs==15.0.1
