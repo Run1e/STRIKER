@@ -100,10 +100,21 @@ class FakeDemoRepository(FakeRepository):
         return None
 
 
+class FakeUserSettingsRepository(FakeRepository):
+    def __init__(self, instances=None):
+        super().__init__(instances)
+
+    async def get_user(self, user_id: int):
+        for instance in self.instances:
+            if instance.user_id == user_id:
+                return instance
+
+        return None
 class FakeUnitOfWork:
-    def __init__(self, jobs=None, demos=None) -> None:
+    def __init__(self, jobs=None, demos=None, users=None) -> None:
         self.jobs = FakeJobRepository(jobs or [])
         self.demos = FakeDemoRepository(demos or [])
+        self.users = FakeUserSettingsRepository(users or [])
         self.committed = False
 
     async def __aenter__(self):
