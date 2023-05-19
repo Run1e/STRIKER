@@ -314,10 +314,9 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             **UserSettings.text_values,
         )
 
-        if command.tier > 0:
-            user = await uow.users.get_user(job.user_id)
-            if user is not None:
-                data.update(**user.unfilled())
+        user = await uow.users.get_user(job.user_id)
+        if user is not None:
+            data.update(**user.unfilled(command.tier))
 
         task = wait_for(
             events.PresignedUrlGenerated,

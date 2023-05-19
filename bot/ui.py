@@ -328,7 +328,9 @@ class ConfigView(disnake.ui.View):
     def __init__(
         self,
         inter: disnake.AppCmdInter,
+        tier: int,
         user_settings: dict,
+        value_tiers: dict,
         store_callback,
         abort_callback,
         timeout=900.0,
@@ -346,11 +348,14 @@ class ConfigView(disnake.ui.View):
 
         for index, (k, v) in enumerate(self.user_settings.items()):
             row = row_calc(index)
-            button = ConfigButton(
-                key=k,
-                label=self.name_mapper(k),
-                row=row,
-            )
+            required_tier = value_tiers[k]
+            disabled = tier < required_tier
+            label = self.name_mapper(k)
+
+            if disabled:
+                label += f" (Patron Tier {required_tier})"
+
+            button = ConfigButton(key=k, label=label, row=row, disabled=disabled)
             button.callback = self.callback_mapper(k, button)
 
             if isinstance(v, bool):
@@ -418,15 +423,15 @@ class ConfigView(disnake.ui.View):
 
         e.description = f"Thank you for your support.\n\nCrosshair: {crosshair_text}"
 
-        e.add_field(name="High quality", value="Record at 1600x900", inline=False)
+        e.add_field(name="High quality", value="Record at 1080p", inline=False)
 
         e.add_field(
             name="Clean HUD", value="Hide HUD except for killfeed and crosshair", inline=False
         )
 
-        e.add_field(name="Vibrancy filter", value="Enable the video filter", inline=False)
+        e.add_field(name="Vibrancy filter", value="Toggle the video filter", inline=False)
 
-        e.add_field(name="cl_righthand", value="Enable for right handed gun wielding", inline=False)
+        e.add_field(name="cl_righthand", value="Toggle gun wielding hand", inline=False)
 
         e.add_field(
             name="Use demo crosshair",

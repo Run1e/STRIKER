@@ -156,6 +156,15 @@ class UserSettings(Entity):
         "crosshair_code": None,
     }
 
+    value_tiers = {
+        "hq": 2,
+        "fragmovie": 1,
+        "color_filter": 1,
+        "righthand": 0,
+        "use_demo_crosshair": 0,
+        "crosshair_code": 0,
+    }
+
     def __init__(
         self,
         user_id: int,
@@ -172,26 +181,34 @@ class UserSettings(Entity):
         self.righthand = righthand
         self.use_demo_crosshair = use_demo_crosshair
 
+    @classmethod
+    def defaults(cls):
+        return {**cls.toggleable_values, **cls.text_values}
+
     def update(self, **d):
         for k, v in d.items():
             if k in self.toggleable_values or k in self.text_values:
                 setattr(self, k, v)
 
-    def filled(self):
-        p = lambda a, b: b if a is None else a
-        return {
-            k: p(getattr(self, k), v)
-            for k, v in {**self.toggleable_values, **self.text_values}.items()
-        }
+    def filled(self, tier: int):
+        # returns default settings, but updated with .unfilled()
+        settings = self.defaults()
+        settings.update(self.unfilled(tier))
+        return settings
 
-    def unfilled(self):
-        d = dict()
-        for k in {**self.toggleable_values, **self.text_values}.keys():
-            v = getattr(self, k)
-            if v is not None:
-                d[k] = v
+    def unfilled(self, tier: int):
+        # only returns user-specified settings that match tier level or above
 
-        return d
+        settings = dict()
+        for key in self.defaults().keys():
+            if tier < self.value_tiers[key]:
+                continue
+
+            user_value = getattr(self, key)
+            if user_value is not None:
+                settings[key] = user_value
+
+        return settings
 
 
 def calculate_bitrate(

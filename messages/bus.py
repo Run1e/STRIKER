@@ -39,6 +39,7 @@ class MessageBus:
             if check(message):
                 # TODO: should I check for if not fut.cancelled() here?
                 # edit: I don't think so
+                log.info("Message passed check: %s", message)
                 fut.set_result(message)
                 to_remove.add(tup)
 

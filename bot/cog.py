@@ -461,13 +461,16 @@ class RecorderCog(commands.Cog):
         description="Tweak the recording settings",
         dm_permission=False,
     )
-    @tier(2)
+    # @tier(2)
     async def _config(self, inter: disnake.AppCmdInter):
-        user_settings = await views.get_user_settings(inter.author.id, uow=SqlUnitOfWork())
+        tier = await get_tier(self.bot, inter.author.id)
+        user_settings, value_tiers = await views.get_user_settings(inter.author.id, tier, uow=SqlUnitOfWork())
 
         view = ConfigView(
             inter=inter,
+            tier=tier,
             user_settings=user_settings,
+            value_tiers=value_tiers,
             store_callback=self._store_config,
             abort_callback=self._abort_config,
             timeout=180.0,

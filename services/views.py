@@ -35,7 +35,7 @@ async def user_recording_count(user_id: int, uow: SqlUnitOfWork):
         return await uow.jobs.recording_count(user_id=user_id)
 
 
-async def get_user_settings(user_id: int, uow: SqlUnitOfWork):
+async def get_user_settings(user_id: int, tier: int, uow: SqlUnitOfWork):
     async with uow:
         user = await uow.users.get_user(user_id)
         if user is None:
@@ -43,4 +43,4 @@ async def get_user_settings(user_id: int, uow: SqlUnitOfWork):
             uow.users.add(user)
 
         await uow.commit()
-        return user.filled()
+        return user.filled(tier), UserSettings.value_tiers
