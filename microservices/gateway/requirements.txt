@@ -1,0 +1,3 @@
+aiormq==6.7.4
+websockets==11.0.2
+coloredlogs==15.0.1

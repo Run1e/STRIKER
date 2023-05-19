@@ -5,8 +5,8 @@ WORKDIR /app
 
 COPY shared shared
 COPY messages messages
-COPY microservices/uploader .
+COPY microservices/gateway .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python3", "-u", "uploader.py"]
+CMD ["python3", "-u", "gateway.py"]

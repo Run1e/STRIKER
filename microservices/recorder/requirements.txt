@@ -1,3 +1,6 @@
-aiormq==6.3.3
+aiormq==6.7.4
+aiohttp==3.8.4
+aiofiles==23.1.0
 coloredlogs==15.0.1
-psutil==5.9.4
+psutil==5.9.5
+websockets==11.0.2
