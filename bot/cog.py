@@ -125,19 +125,8 @@ async def get_tier(bot: commands.InteractionBot, user_id):
 async def tier_checker(inter: disnake.AppCmdInter, required_tier: int):
     actual_level = await get_tier(inter.bot, inter.author.id)
 
-    if actual_level == 0:
-        raise SponsorRequired(
-            f"A [Patreon subscription]({config.PATREON_URL}) is required to run this command.\n\n"
-            "If you're already a Patron, "
-            "make sure your Discord account is linked to your Patreon account "
-            f"and that you've joined the [STRIKER Community Discord]({config.DISCORD_INVITE_URL})."
-        )
-
     if actual_level < required_tier:
-        tier_name = config.PATREON_TIER_NAMES[actual_level]
-        raise SponsorRequired(
-            f"This command requires a Tier {required_tier} '{tier_name}' [Patreon subscription]({config.PATREON_URL})."
-        )
+        raise SponsorRequired("This command", tier=required_tier)
 
     return True
 
@@ -163,6 +152,7 @@ class RecorderCog(commands.Cog):
         self.bus.add_event_listener(dto.JobSuccess, self.job_success)
 
         self.bot._error_actionrow = self.make_actionrow(discord=True)
+        self.bot._error_sponsor_actionrow = self.make_actionrow(patreon=True)
 
     async def cog_slash_command_check(self, inter: disnake.Interaction):
         if not self.bot.is_ready() or not self.bot.gather.is_set():
@@ -181,6 +171,7 @@ class RecorderCog(commands.Cog):
     async def record(self, inter: disnake.AppCmdInter, sharecode_or_url: str):
         demo_dict = dict()
         sharecode_or_url = sharecode_or_url.strip()
+        user_id = inter.author.id
 
         # https://stackoverflow.com/questions/11384589/what-is-the-correct-regex-for-matching-values-generated-by-uuid-uuid4-hex
         faceit_match = re.match(
@@ -194,6 +185,9 @@ class RecorderCog(commands.Cog):
         )
 
         if faceit_match:
+            tier = await get_tier(self.bot, user_id)
+            if tier < 2:
+                raise SponsorRequired("Recording FACEIT demos", tier=2)
             demo_dict = dict(origin="FACEIT", identifier=faceit_match.group(1))
         elif replay_match:
             demo_dict = dict(
@@ -227,7 +221,7 @@ class RecorderCog(commands.Cog):
             cmds.CreateJob(
                 guild_id=inter.guild.id,
                 channel_id=inter.channel.id,
-                user_id=inter.user.id,
+                user_id=user_id,
                 inter_payload=pickle.dumps(inter._payload),
                 **demo_dict,
             )
@@ -258,11 +252,19 @@ class RecorderCog(commands.Cog):
 
         await inter.response.defer(ephemeral=True)
 
+        user_id = inter.author.id
+        demo_origin = await views.get_demo_origin(found_demo_id, uow=SqlUnitOfWork())
+
+        if demo_origin == "FACEIT":
+            tier = await get_tier(self.bot, user_id)
+            if tier < 2:
+                raise SponsorRequired("Recording FACEIT demos", tier=2)
+
         await self.bus.dispatch(
             cmds.CreateJob(
                 guild_id=inter.guild.id,
                 channel_id=inter.channel.id,
-                user_id=inter.user.id,
+                user_id=user_id,
                 inter_payload=pickle.dumps(inter._payload),
                 demo_id=found_demo_id,
             )
@@ -473,7 +475,7 @@ class RecorderCog(commands.Cog):
             value_tiers=value_tiers,
             store_callback=self._store_config,
             abort_callback=self._abort_config,
-            timeout=180.0,
+            timeout=300.0,
         )
 
         await inter.send(embed=view.embed(), view=view, ephemeral=True)
@@ -481,13 +483,13 @@ class RecorderCog(commands.Cog):
     async def _store_config(self, inter: disnake.MessageInteraction, updates):
         await self.bus.dispatch(cmds.UpdateUserSettings(inter.author.id, updates))
 
-        e = self.embed.success(title="STRIKER Patreon Configurator")
+        e = self.embed.success(title="STRIKER Configurator")
         e.description = "Configuration saved."
 
         await inter.response.edit_message(view=None, embed=e)
 
     async def _abort_config(self, inter: disnake.MessageInteraction):
-        e = self.embed.failed(title="STRIKER Patreon Configurator")
+        e = self.embed.failed(title="STRIKER Configurator")
         e.description = "Configurator aborted."
 
         await inter.response.edit_message(view=None, embed=e)

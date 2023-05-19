@@ -338,7 +338,9 @@ class ConfigView(disnake.ui.View):
         super().__init__(timeout=timeout)
 
         self.inter = inter
+        self.tier = tier
         self.user_settings = user_settings
+        self.value_tiers = value_tiers
         self.store_callback = store_callback
         self.abort_callback = abort_callback
 
@@ -407,9 +409,7 @@ class ConfigView(disnake.ui.View):
             color=disnake.Color.orange(),
         )
 
-        e.set_author(
-            name="STRIKER Patreon Configurator", icon_url=self.inter.bot.user.display_avatar
-        )
+        e.set_author(name="STRIKER Configurator", icon_url=self.inter.bot.user.display_avatar)
 
         if self.get_value("use_demo_crosshair"):
             if self.get_value("crosshair_code"):
@@ -421,7 +421,10 @@ class ConfigView(disnake.ui.View):
         else:
             crosshair_text = "default"
 
-        e.description = f"Thank you for your support.\n\nCrosshair: {crosshair_text}"
+        desc = f"*Thank you for your support.*\n\n" if self.tier else ""
+        desc += f"Crosshair: {crosshair_text}"
+
+        e.description = desc
 
         e.add_field(name="High quality", value="Record at 1080p", inline=False)
 
