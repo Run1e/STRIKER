@@ -194,7 +194,8 @@ class Broker:
             exchange=exchange,
             routing_key=queue_name,
             properties=aiormq.spec.Basic.Properties(
-                expiration=str(int(ttl * 1000)) if ttl is not None else None
+                expiration=str(int(ttl * 1000)) if ttl is not None else None,
+                delivery_mode=2,  # persistent messages
             ),
         )
 
