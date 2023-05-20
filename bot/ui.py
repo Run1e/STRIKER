@@ -369,7 +369,10 @@ class ConfigView(disnake.ui.View):
 
         # row calc here needs to change if we add too many more settings...
         button = disnake.ui.Button(
-            style=disnake.ButtonStyle.secondary, label="Reset crosshair", row=row
+            style=disnake.ButtonStyle.secondary,
+            label="Reset crosshair",
+            row=row,
+            disabled=tier < value_tiers["crosshair_code"],
         )
 
         button.callback = self.reset_crosshair
@@ -396,12 +399,12 @@ class ConfigView(disnake.ui.View):
 
     def name_mapper(self, k):
         return dict(
-            fragmovie="Clean HUD",
-            color_filter="Vibrancy filter",
             righthand="cl_righthand",
+            color_filter="Vibrancy filter",
+            hq="High quality",
+            fragmovie="Clean HUD",
             use_demo_crosshair="Use demo crosshair",
             crosshair_code="Change crosshair",
-            hq="High quality",
         ).get(k, k)
 
     def embed(self):
@@ -426,22 +429,19 @@ class ConfigView(disnake.ui.View):
 
         e.description = desc
 
-        e.add_field(name="High quality", value="Record at 1080p", inline=False)
-
-        e.add_field(
-            name="Clean HUD", value="Hide HUD except for killfeed and crosshair", inline=False
-        )
-
-        e.add_field(name="Vibrancy filter", value="Toggle the video filter", inline=False)
-
         e.add_field(name="cl_righthand", value="Toggle gun wielding hand", inline=False)
-
+        e.add_field(name="Vibrancy filter", value="Toggle the video filter", inline=False)
+        e.add_field(name="High quality", value="Record at 1080p", inline=False)
+        e.add_field(
+            name="Clean HUD",
+            value="Hide HUD except for killfeed and crosshair",
+            inline=False,
+        )
         e.add_field(
             name="Use demo crosshair",
             value="Use the crosshair of the player being recorded",
             inline=False,
         )
-
         e.add_field(
             name="Change crosshair",
             value="Change the default crosshair using a crosshair sharecode",

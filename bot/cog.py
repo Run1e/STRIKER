@@ -69,7 +69,7 @@ class EmbedBuilder:
         return self.build(title or "Recording queued!", disnake.Color.orange(), job_id)
 
     def success(self, job_id: str = None, title: str = None):
-        return self.build(title or "Job completed, enjoy!", disnake.Color.green(), job_id)
+        return self.build(title or "Job completed!", disnake.Color.green(), job_id)
 
     def failed(self, job_id: str = None, title: str = None):
         return self.build(title or "Oops!", disnake.Color.red(), job_id)
@@ -184,12 +184,17 @@ class RecorderCog(commands.Cog):
             sharecode_or_url,
         )
 
+        tier = await get_tier(self.bot, user_id)
+
         if faceit_match:
-            tier = await get_tier(self.bot, user_id)
             if tier < 2:
                 raise SponsorRequired("Recording FACEIT demos", tier=2)
+
             demo_dict = dict(origin="FACEIT", identifier=faceit_match.group(1))
         elif replay_match:
+            if tier < 1:
+                raise SponsorRequired("Direct Valve demo links", tier=1)
+
             demo_dict = dict(
                 origin="VALVE",
                 identifier=replay_match.group(1).strip("0"),
@@ -329,23 +334,29 @@ class RecorderCog(commands.Cog):
         else:  # queued
             embed.description = f"{config.SPINNER} #{event.infront} in queue..."
 
-        embed.add_field(
-            name="Get perks by becoming a Patreon member!",
-            value=(
-                "* Record FACEIT demos\n"
-                "* Change cl_righthand, remove HUD, change crosshair, and more\n"
-                "* Bot keeps your demos for an entire month"
-            ),
-        )
+        tier = await get_tier(self.bot, inter.author.id)
 
-        actionrow = self.make_actionrow(patreon=True)
-        await inter.edit_original_response(embed=embed, content=None, components=actionrow)
+        if tier == 0:
+            embed.add_field(
+                name="Get perks by becoming a Patreon member!",
+                value=(
+                    "- Record FACEIT demos\n"
+                    "- Remove HUD, change crosshair\n"
+                    "- Record same demo for an entire month"
+                ),
+            )
+
+            components = self.make_actionrow(patreon=True)
+        else:
+            components = None
+
+        await inter.edit_original_response(embed=embed, content=None, components=components)
 
     async def job_success(self, event: dto.JobSuccess):
         inter = make_inter(event.job_inter, self.bot)
 
         embed = self.embed.success(event.job_id)
-        embed.description = "Uploaded! Enjoy the clip!"
+        embed.description = "Enjoy the clip!"
 
         await inter.edit_original_response(embed=embed, content=None, components=None)
 
@@ -464,7 +475,6 @@ class RecorderCog(commands.Cog):
         description="Tweak the recording settings",
         dm_permission=False,
     )
-    # @tier(2)
     async def _config(self, inter: disnake.AppCmdInter):
         tier = await get_tier(self.bot, inter.author.id)
         user_settings, value_tiers = await views.get_user_settings(

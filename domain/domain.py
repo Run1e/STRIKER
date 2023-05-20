@@ -145,10 +145,10 @@ class Job(Entity):
 
 class UserSettings(Entity):
     toggleable_values = {
+        "righthand": True,
+        "color_filter": True,
         "hq": False,
         "fragmovie": False,
-        "color_filter": True,
-        "righthand": True,
         "use_demo_crosshair": False,
     }
 
@@ -157,12 +157,12 @@ class UserSettings(Entity):
     }
 
     value_tiers = {
+        "righthand": 0,
+        "color_filter": 0,
         "hq": 2,
         "fragmovie": 1,
-        "color_filter": 1,
-        "righthand": 0,
-        "use_demo_crosshair": 0,
-        "crosshair_code": 0,
+        "use_demo_crosshair": 1,
+        "crosshair_code": 1,
     }
 
     def __init__(

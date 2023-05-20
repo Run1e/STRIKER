@@ -31,7 +31,7 @@ class CSGO:
         self.checks = {}
         self.results = {}
         self._exception = None
-        self.assumed_resolution = (1280, 852)
+        self.assumed_resolution = (1280, 854)
 
         self.log(f"Starting CSGO on port {port}")
 
