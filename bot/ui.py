@@ -253,46 +253,6 @@ class RoundView(disnake.ui.View):
                 tablefmt="plain",
             )
 
-    # async def set_half(self, first_half):
-    #     enabled_style = disnake.ButtonStyle.success
-    #     disabled_style = disnake.ButtonStyle.primary
-
-    #     self.first_half.disabled = first_half
-    #     self.second_half.disabled = not first_half
-    #     self.first_half.style = enabled_style if first_half else disabled_style
-    #     self.second_half.style = disabled_style if first_half else enabled_style
-
-    #     round_range = self.round_range(first_half)
-    #     max_rounds = self.match.round_count
-
-    #     for round_id, button in zip(round_range, self.round_buttons):
-    #         button.label = str(round_id)
-
-    #         if round_id > max_rounds:
-    #             button.disabled = True
-    #             button.style = disnake.ButtonStyle.secondary
-    #         else:
-    #             button.disabled = round_id not in self.kills
-    #             button.style = disnake.ButtonStyle.primary
-
-    #     embed = self.embed_factory()
-
-    #     table = self.highlights[first_half]
-    #     half_one = "T" if self.player_team == 0 else "CT"
-    #     half_two = "CT" if self.player_team == 0 else "T"
-    #     team = half_one if first_half else half_two
-
-    #     # embed.title = 'Select a round to render'
-
-    #     embed.description = (
-    #         f"Table of {self.player.name}'s frags on the {team} side.\n"
-    #         f"```{table}```\n"
-    #         "Click a round number below to record a highlight.\n"
-    #         "Click the 'CT' or 'T' coins to show frags from the other half."
-    #     )
-
-    #     return embed
-
 
 class ConfigButton(disnake.ui.Button):
     def __init__(self, key, *args, **kwargs):

@@ -327,6 +327,7 @@ class RecorderCog(commands.Cog):
         inter = make_inter(event.job_inter, self.bot)
 
         embed = self.embed.recording(event.job_id)
+
         if event.infront is None:  # gateway nonresponsive or no getters in gateway
             embed.description = "Waiting for gateway..."
         elif event.infront == 0:  # currently recording
@@ -356,7 +357,7 @@ class RecorderCog(commands.Cog):
         inter = make_inter(event.job_inter, self.bot)
 
         embed = self.embed.success(event.job_id)
-        embed.description = "Enjoy the clip!"
+        embed.description = "Enjoy the clip!\n\nCheck out `/config` to tweak your recording settings!"
 
         await inter.edit_original_response(embed=embed, content=None, components=None)
 
