@@ -118,18 +118,22 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
         end = timer("download")
 
         # down the demo
-        async with session.get(download_url) as resp:
-            # deleted from valve servers
-            if resp.status == 404:
-                raise MessageError("Demo is not available at the given URL.")
+        try:
+            async with session.get(download_url, timeout=aiohttp.ClientTimeout(total=32.0)) as resp:
+                # deleted from valve servers
+                if resp.status == 404:
+                    raise MessageError("Demo is not available at the given URL.")
 
-            # misc error
-            elif resp.status != 200:
-                raise MessageError("Unable to download demo.")
+                # misc error
+                elif resp.status != 200:
+                    raise MessageError("Unable to download demo.")
 
-            # write to file
-            async with aiofiles.open(archive_path, "wb") as f:
-                await f.write(await resp.read())
+                # write to file
+                async with aiofiles.open(archive_path, "wb") as f:
+                    await f.write(await resp.read())
+
+        except asyncio.TimeoutError:
+            raise MessageError("Fetching demo timed out.")
 
         log.info(end())
     else:
