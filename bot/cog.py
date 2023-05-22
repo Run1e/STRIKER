@@ -342,8 +342,10 @@ class RecorderCog(commands.Cog):
                 name="Get perks by becoming a Patreon member!",
                 value=(
                     "- Record FACEIT demos\n"
+                    "- Record scrimmage/wingman demos\n"
+                    "- Record 1080p video\n"
                     "- Remove HUD, change crosshair\n"
-                    "- Record same demo for an entire month"
+                    "- Bot keeps your demos for 30 days"
                 ),
             )
 
