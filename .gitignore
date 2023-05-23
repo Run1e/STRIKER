@@ -38,6 +38,7 @@ __pycache__
 node_modules
 package-lock.json
 push_images.sh
+steam_login.py
 
 # glob
 *.exe

@@ -18,32 +18,12 @@ class MessageBus:
 
         self.command_handlers = dict()
         self.event_listeners = defaultdict(list)
-        self.checks = defaultdict(set)
 
     async def dispatch(self, message):
         if isinstance(message, commands.Command):
             await self.dispatch_command(message)
         elif isinstance(message, events.Event):
             await self.dispatch_event(message)
-
-        # are there any checks
-        message_type = type(message)
-        checks = self.checks.get(message_type, None)
-        if checks is None:
-            return
-
-        # set future and add to remove set if check succeeds
-        to_remove = set()
-        for tup in checks:
-            check, fut = tup
-            if check(message):
-                # TODO: should I check for if not fut.cancelled() here?
-                # edit: I don't think so
-                log.info("Message passed check: %s", message)
-                fut.set_result(message)
-                to_remove.add(tup)
-
-        self._remove_checks(message_type, to_remove)
 
     async def dispatch_command(self, command: commands.Command):
         handler = self.command_handlers.get(type(command), None)
@@ -57,7 +37,11 @@ class MessageBus:
 
     async def dispatch_event(self, event: events.Event):
         listeners = self.event_listeners.get(type(event), [])
-        log.info("Dispatching event to %s listeners: %s", len(listeners), event)
+        if not listeners:
+            log.info("Event has no listeners: %s", event)
+            return
+
+        log.info("Dispatching to %s listeners: %s", len(listeners), event)
         for listener in listeners:
             await listener(event)
 
@@ -73,34 +57,21 @@ class MessageBus:
                 await self.dispatch(message)
 
     def wait_for(self, message_type, check=None, timeout=10.0):
-        if check is None:
-            check = lambda m: True
+        async def listener(message):
+            if check is None or check(message):
+                fut.set_result(message)
+                self.remove_event_listener(message_type, added)
+                task.cancel()
 
+        async def sleeper():
+            await asyncio.sleep(timeout)
+            self.remove_event_listener(message_type, added)
+            fut.set_result(None)
+
+        added = self.add_event_listener(message_type, listener)
         fut = asyncio.Future()
-        tup = (check, fut)
-        self.checks[message_type].add(tup)
-
-        async def waiter():
-            try:
-                async with asyncio.timeout(delay=timeout):
-                    return await fut
-            except asyncio.TimeoutError:
-                return None
-            finally:
-                self._remove_checks(message_type, {tup})
-
-        return waiter()
-
-    def _remove_checks(self, message_type, to_remove):
-        checks = self.checks.get(message_type, None)
-        if checks is None:
-            return
-
-        if len(to_remove) == len(checks):
-            del self.checks[message_type]
-        elif to_remove:
-            for remove_tup in to_remove:
-                checks.remove(remove_tup)
+        task = asyncio.create_task(sleeper())
+        return fut
 
     def register_decos(self):
         for command, handler in deco.command_handlers.items():
@@ -124,9 +95,15 @@ class MessageBus:
 
     def add_event_listener(self, event, listener):
         needs_uow, deps = self.find_injectables(listener)
-        self.event_listeners[event].append(
-            partial(self.run_message, listener, needs_uow=needs_uow, deps=deps)
-        )
+        added = partial(self.run_message, listener, needs_uow=needs_uow, deps=deps)
+        self.event_listeners[event].append(added)
+        return added
+
+    def remove_event_listener(self, event, listener):
+        try:
+            self.event_listeners[event].remove(listener)
+        except ValueError:
+            pass
 
     def find_injectables(self, func):
         params = signature(func).parameters

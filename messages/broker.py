@@ -187,7 +187,7 @@ class Broker:
         else:
             exchange = "event"
 
-        log.info("Publishing to '%s': %s", exchange, message)
+        log.info("Publishing %s", message)
 
         conf = await self.channel.basic_publish(
             body=dumps(data).encode("utf-8"),
@@ -210,7 +210,7 @@ class Broker:
         requeue: bool,
         raise_on_ok: bool,
     ):
-        log.info("Consuming message of type %s", message_type)
+        log.info("Consuming %s", message_type)
 
         try:
             msg = message_type(**loads(message.body))
@@ -245,7 +245,7 @@ class Broker:
             await self.ack(message)
 
     async def recv_dead(self, message: aiormq.abc.DeliveredMessage, message_type, dead_event):
-        log.info("Consuming dead letter of type %s", message_type)
+        log.info("Consuming dead letter %s", message)
 
         command = message_type(**loads(message.body))
         reason = message.header.properties.headers["x-first-death-reason"]

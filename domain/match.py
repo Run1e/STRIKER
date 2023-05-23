@@ -184,7 +184,7 @@ class Match:
             elif event == "player_team":
                 player = self.get_player_by_id(data["userid"])
                 if not player:
-                    log.info("Could not find player %s", data["userid"])
+                    # log.info("Could not find player %s", data["userid"])
                     continue
 
                 half.add_player(player, data["team"])
