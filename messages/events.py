@@ -35,7 +35,7 @@ class JobSelecting(Event):
     job_id: UUID
 
 
-@dataclass(frozen=True, repr=False)
+@dataclass(frozen=True)
 class JobWaiting(Event):
     job_id: UUID
 
@@ -54,8 +54,6 @@ class JobAborted(Event):
 # demoparse
 
 
-# repr removed because it caused a fuckton of
-# console spam
 @dataclass(frozen=True, repr=False)
 @publish()
 @consume(
@@ -68,7 +66,7 @@ class DemoParseSuccess(Event):
     version: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 @publish(ttl=6.0)
 @consume()
 class PresignedUrlGenerated(Event):
@@ -149,7 +147,7 @@ class Tokens(Event):
     tokens: list
 
 
-@dataclass(frozen=True, repr=False)
+@dataclass(frozen=True)
 @publish(ttl=32.0)
 @consume()
 class UploadData(Event):

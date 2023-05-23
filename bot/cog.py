@@ -359,7 +359,9 @@ class RecorderCog(commands.Cog):
         inter = make_inter(event.job_inter, self.bot)
 
         embed = self.embed.success(event.job_id)
-        embed.description = "Enjoy the clip!\n\nCheck out `/config` to tweak your recording settings!"
+        embed.description = (
+            "Enjoy the clip!\n\nCheck out `/config` to tweak your recording settings!"
+        )
 
         await inter.edit_original_response(embed=embed, content=None, components=None)
 

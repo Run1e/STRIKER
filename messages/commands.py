@@ -22,7 +22,7 @@ class CreateJob(Command):
     demo_url: str = None
 
 
-@dataclass(frozen=True, repr=False)
+@dataclass(frozen=True)
 class AbortJob(Command):
     job_id: UUID
 
@@ -102,7 +102,7 @@ class RequestTokens(Command):
     pass
 
 
-@dataclass(frozen=True, repr=False)
+@dataclass(frozen=True)
 @publish(ttl=32.0)
 @consume()
 class RequestUploadData(Command):
