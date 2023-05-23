@@ -530,6 +530,10 @@ class RecorderCog(commands.Cog):
         else:
             await self.bot.normal_presence()
 
+    @commands.slash_command(name="donate", description="Support the project", dm_permission=False)
+    async def donate(self, inter: disnake.AppCmdInter):
+        await self._send_donate_embed(inter)
+
     @commands.slash_command(name="about", description="About the bot", dm_permission=False)
     async def about(self, inter: disnake.AppCmdInter):
         e = self.embed.build("STRIKER")
@@ -559,7 +563,7 @@ class RecorderCog(commands.Cog):
             value=f"{sum(g.member_count for g in self.bot.guilds):,d}",
         )
 
-        actionrow = self.make_actionrow(invite=True, discord=True, github=True, patreon=True)
+        actionrow = self.make_actionrow(invite=True, discord=True, github=True, patreon=True, kofi=True, tradelink=True)
         await inter.send(embed=e, components=actionrow)
 
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)
@@ -594,7 +598,7 @@ class RecorderCog(commands.Cog):
         actionrow = self.make_actionrow(invite=True, discord=True)
         await inter.send(embed=e, components=actionrow, ephemeral=True)
 
-    async def _send_donate(self, inter: disnake.Interaction):
+    async def _send_donate_embed(self, inter: disnake.Interaction):
         e = self.embed.build("Donate to support the project!")
 
         e.description = (
@@ -655,7 +659,8 @@ class RecorderCog(commands.Cog):
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
-                    label="Support through Ko-fi",
+                    label="Donate",
+                    emoji=config.KOFI_EMOJI,
                     url=config.DONATE_URL,
                 )
             )
@@ -665,9 +670,18 @@ class RecorderCog(commands.Cog):
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
                     label="Send me some skins",
+                    emoji=config.STEAM_EMOJI,
                     url=config.TRADELINK_URL,
                 )
             )
+
+        # dumb thing to hardcode but there's never gonna be > 10 buttons
+        # so it's fine
+        if len(buttons) > 5:
+            return [
+                disnake.ui.ActionRow(*buttons[0:5]),
+                disnake.ui.ActionRow(*buttons[5:]),
+            ]
 
         return disnake.ui.ActionRow(*buttons)
 
