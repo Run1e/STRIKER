@@ -295,16 +295,16 @@ async def handle_recording_request(
                         log.info(
                             "Failed renaming archive? %s -> %s", temp_archive_path, archive_path
                         )
-        except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
-            raise RecordingError("Unable to download demo archive.")
+        except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as exc:
+            raise RecordingError("Unable to download demo archive.") from exc
 
     # decompress temp archive to temp demo file
     log.info("Decompressing archive...")
     try:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(executor, decompress, archive_path, demo_path)
-    except OSError:
-        raise RecordingError("Demo corrupted.")
+    except OSError as exc:
+        raise RecordingError("Demo corrupted.") from exc
 
     log.info("Getting CSGO instance and starting recording...")
     async with ResourceRequest(pool) as csgo:
@@ -325,8 +325,8 @@ async def handle_recording_request(
             if resp.status != 200:
                 raise RecordingError("Uploader service failed.")
 
-    except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
-        raise RecordingError("Upload service did not respond to the upload request.")
+    except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as exc:
+        raise RecordingError("Upload service did not respond to the upload request.") from exc
 
     # delete stuff that is now junk...
     for path in (demo_path, temp_archive_path, video_file):

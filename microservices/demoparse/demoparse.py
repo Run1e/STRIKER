@@ -132,8 +132,8 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
                 async with aiofiles.open(archive_path, "wb") as f:
                     await f.write(await resp.read())
 
-        except asyncio.TimeoutError:
-            raise MessageError("Fetching demo timed out.")
+        except asyncio.TimeoutError as exc:
+            raise MessageError("Fetching demo timed out.") from exc
 
         log.info(end())
     else:
@@ -145,8 +145,8 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
 
         try:
             await loop.run_in_executor(executor, decompress, archive_path, demo_path)
-        except OSError:
-            raise MessageError("Unable to extract demo archive.")
+        except OSError as exc:
+            raise MessageError("Unable to extract demo archive.") from exc
 
         log.info(end())
     else:
