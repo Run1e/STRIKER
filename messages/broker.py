@@ -245,11 +245,11 @@ class Broker:
             await self.ack(message)
 
     async def recv_dead(self, message: aiormq.abc.DeliveredMessage, message_type, dead_event):
-        log.info("Consuming dead letter %s", message)
-
         command = message_type(**loads(message.body))
         reason = message.header.properties.headers["x-first-death-reason"]
         event = dead_event(command=command, reason=reason)
+
+        log.info("Consuming dead letter %s", event)
 
         # immediately ack
         await self.ack(message)
