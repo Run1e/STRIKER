@@ -15,7 +15,7 @@ NEEDS_ANALYZE = "The nav mesh needs a full"
 
 
 async def main():
-    csgo = make_csgo()
+    csgo = make_csgo(port=41920)
 
     await csgo.connect()
     result = await csgo.run("maps *")
@@ -42,7 +42,7 @@ async def main():
                 log.info(f"{_map} needs analyze first...")
                 log.info(result)
                 await csgo.run("nav_generate")
-                await csgo.wait_for(check=lambda line: line == INGAME)
+                await csgo.wait_for(check=lambda line: line == INGAME, timeout=300.0)
                 await csgo.run("nav_analyze")
                 result = await csgo.run("nav_save")
             log.info(result)

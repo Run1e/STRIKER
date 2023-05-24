@@ -370,7 +370,10 @@ class GatewayClient:
             else:
                 await self.send("success", dict(job_id=command.job_id))
             finally:
-                self.job_ids.remove(command.job_id)
+                try:
+                    self.job_ids.remove(command.job_id)
+                except KeyError:
+                    pass
 
     async def send(self, *data):
         if not self.connected_event.is_set():
