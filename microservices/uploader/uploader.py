@@ -16,7 +16,7 @@ from messages import commands, events
 from messages.broker import Broker
 from messages.bus import MessageBus
 from shared.log import logging_config
-from shared.utils import timer
+from shared.utils import sentry_init
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -105,6 +105,9 @@ async def upload(
 
 
 async def main(injectables):
+    if config.SENTRY_DSN:
+        sentry_init(config.SENTRY_DSN)
+
     logging.getLogger("aiormq").setLevel(logging.INFO)
 
     client = disnake.AutoShardedClient(intents=disnake.Intents.none())

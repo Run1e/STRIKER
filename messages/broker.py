@@ -208,7 +208,6 @@ class Broker:
         publish_err: callable,
         dispatch_err: callable,
         requeue: bool,
-        raise_on_ok: bool,
     ):
         log.info("Consuming %s", message_type)
 
@@ -237,8 +236,10 @@ class Broker:
                 await self.ack(message)
 
             # this is not a MessageError, or if it is and we want to raise on those, do so
-            if not is_ok or raise_on_ok:
+            if not is_ok:
                 raise exc
+            else:
+                log.exception(exc)
 
         # if the command handler didn't except, ack the message
         else:

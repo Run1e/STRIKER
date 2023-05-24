@@ -1,6 +1,5 @@
 import sys
 
-
 sys.path.append("../..")
 
 import asyncio
@@ -22,12 +21,12 @@ from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
 from sandboxie_config import make_config
 from script_builder import make_script
-from websockets import client, InvalidStatusCode
+from websockets import InvalidStatusCode, client
 from websockets.exceptions import ConnectionClosed
 
 from messages import commands
 from shared.log import logging_config
-from shared.utils import decompress
+from shared.utils import decompress, sentry_init
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
@@ -447,6 +446,9 @@ class GatewayClient:
 
 async def main():
     global sb
+
+    if config.SENTRY_DSN:
+        sentry_init(config.SENTRY_DSN)
 
     if not config.DEBUG:
         logging.getLogger("websockets").setLevel(logging.INFO)

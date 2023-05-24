@@ -41,14 +41,12 @@ def consume(
     publish_err=None,
     dispatch_err=None,
     requeue=False,
-    raise_on_ok=False,
 ):
     def inner(message):
         consume_args[message] = dict(
             publish_err=publish_err,
             dispatch_err=dispatch_err,
             requeue=requeue,
-            raise_on_ok=raise_on_ok,
         )
         return message
 

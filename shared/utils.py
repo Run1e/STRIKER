@@ -4,6 +4,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from time import monotonic
 
+import sentry_sdk
+from sentry_sdk.integrations.asyncio import AsyncioIntegration
+
+
+def sentry_init(dsn):
+    sentry_sdk.init(
+        dsn=dsn,
+        integrations=[
+            AsyncioIntegration(),
+        ],
+        traces_sample_rate=0.2,
+    )
+
 
 def utcnow():
     return datetime.now(timezone.utc)

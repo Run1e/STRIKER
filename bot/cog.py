@@ -563,7 +563,9 @@ class RecorderCog(commands.Cog):
             value=f"{sum(g.member_count for g in self.bot.guilds):,d}",
         )
 
-        actionrow = self.make_actionrow(invite=True, discord=True, github=True, patreon=True, kofi=True, tradelink=True)
+        actionrow = self.make_actionrow(
+            invite=True, discord=True, github=True, patreon=True, kofi=True, tradelink=True
+        )
         await inter.send(embed=e, components=actionrow)
 
     @commands.slash_command(name="help", description="How to use the bot!", dm_permission=False)

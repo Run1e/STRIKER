@@ -9,6 +9,7 @@ from messages.broker import Broker
 from messages.bus import MessageBus
 from services.uow import SqlUnitOfWork
 from shared.log import logging_config
+from shared.utils import sentry_init
 
 logging_config(config.DEBUG)
 
@@ -81,6 +82,9 @@ async def bootstrap(
 
 
 def main():
+    if config.SENTRY_DSN:
+        sentry_init(config.SENTRY_DSN)
+
     loop = asyncio.get_event_loop()
 
     logging.getLogger("aiormq.connection").setLevel(logging.INFO)

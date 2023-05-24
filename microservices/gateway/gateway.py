@@ -19,6 +19,7 @@ from messages import commands, events
 from messages.broker import Broker
 from messages.bus import MessageBus
 from shared.log import logging_config
+from shared.utils import sentry_init
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
@@ -223,6 +224,9 @@ async def process_request(path: str, request_headers: Headers, tokens: set):
 
 
 async def main():
+    if config.SENTRY_DSN:
+        sentry_init(config.SENTRY_DSN)
+
     logging.getLogger("aiormq").setLevel(logging.INFO)
 
     if not config.DEBUG:

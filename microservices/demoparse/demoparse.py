@@ -21,7 +21,7 @@ from messages.commands import RequestDemoParse, RequestPresignedUrl
 from messages.deco import handler
 from shared.const import DEMOPARSE_VERSION
 from shared.log import logging_config
-from shared.utils import decompress, timer
+from shared.utils import decompress, sentry_init, timer
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
@@ -196,6 +196,9 @@ async def request_presigned_url(command: RequestPresignedUrl, publish, get_url):
 
 
 async def main():
+    if config.SENTRY_DSN:
+        sentry_init(config.SENTRY_DSN)
+
     logging.getLogger("aiormq").setLevel(logging.INFO)
     logging.getLogger("botocore").setLevel(logging.INFO)
     logging.getLogger("aiobotocore").setLevel(logging.INFO)

@@ -35,7 +35,6 @@ class AbortJob(Command):
         m.origin, m.identifier, e or "The demo parser encountered an error."
     ),
     requeue=True,
-    raise_on_ok=False,
 )
 class RequestDemoParse(Command):
     origin: str
@@ -72,7 +71,6 @@ class Record(Command):
         m.job_id, e or "Gateway failed processing request."
     ),
     requeue=False,  # False because rabbitmq won't redeliver to same consumer, and we only have one
-    raise_on_ok=False,
 )
 class RequestRecording(Command):
     job_id: str
