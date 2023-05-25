@@ -135,24 +135,16 @@ class Match:
 
     def _add_half(self, half: MatchHalf):
         if not half.name:
-            idx = (len(self.halves) - (1 if self.has_knife_round else 0)) // 2
-            if idx == 0:
+            idx = (len(self.halves) - (1 if self.has_knife_round else 0))
+            if idx < 2:
                 name = "REG"
             else:
-                name = f"OT{idx}"
+                name = f"OT{idx - 1}"
 
             half.name = name
         self.halves.append(half)
 
     def _parse_events(self, events: List[dict]):
-        # hate this too
-        def nlu():
-            idx = (len(self.halves) - (1 if self.has_knife_round else 0)) // 2
-            if idx == 0:
-                return "REG"
-            else:
-                return f"OT{idx}"
-
         last_round_of_half = False
         half = MatchHalf(1)
 
@@ -172,11 +164,23 @@ class Match:
                 half.set_round(data["round"])
 
             elif event == "round_officially_ended":
-                # round border, store deaths into rounds
-                if last_round_of_half:
-                    self._add_half(half)
-                    half = MatchHalf.from_preceding(half)
-                    last_round_of_half = False
+                _rnd = half.rnd
+
+                if _rnd <= self.max_rounds:
+                    # regulation rules
+
+                    # half border, store deaths into rounds
+                    if last_round_of_half or _rnd == self.max_rounds:
+                        self._add_half(half)
+                        half = MatchHalf.from_preceding(half)
+                        last_round_of_half = False
+                else:
+                    # overtime rules
+
+                    if (_rnd - self.max_rounds) % 6 == 0:
+                        self._add_half(half)
+                        half = MatchHalf.from_preceding(half)
+                        last_round_of_half = False
 
             elif event == "round_announce_last_round_half":
                 last_round_of_half = True

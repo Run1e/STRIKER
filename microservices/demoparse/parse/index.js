@@ -11,6 +11,9 @@ var seenTeam = new Set();
 var clearSeenTeam = false;
 
 function addEvent(data) {
+  // if (data["event"] == "player_death") {
+  //   return;
+  // }
   // console.log(data);
   r['events'].push(data);
 }

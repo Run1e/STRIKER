@@ -33,7 +33,7 @@ class Broker:
         self._consume_events = consume_events or set()
         self._identified = bool(identifier)
 
-    async def start(self, url: str, prefetch_count=0):
+    async def start(self, url: str, prefetch_count=None):
         mq = await aiormq.connect(url)
         self.channel = await mq.channel()
 

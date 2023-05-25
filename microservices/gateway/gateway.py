@@ -114,12 +114,14 @@ class GatewayServer:
     def get_future(self, job_id):
         future = self.futures.get(job_id)
         if future is None:
+            log.info("Creating new future for job %s", job_id)
             future = asyncio.Future()
             self.futures[job_id] = future
 
         return future
 
     def remove_future(self, job_id):
+        log.info("Removing future for job %s", job_id)
         future = self.futures.pop(job_id, None)
         if not future:
             return
@@ -204,7 +206,7 @@ class GatewayServer:
             await self.broker.publish(event)
         elif isinstance(event, events.RecorderFailure):
             if not retry:
-                log.info("Retrying %s", command.job_id)
+                log.info("Retrying %s because %s", command.job_id, event)
                 await self.request_recording(command, retry=True)
             else:
                 await self.broker.publish(event)
@@ -237,7 +239,7 @@ async def main():
     bus = MessageBus()
     broker = Broker(bus, publish_commands={commands.RequestTokens}, consume_events={events.Tokens})
     g = GatewayServer(bus, broker, waiter)
-    await broker.start(config.RABBITMQ_HOST, prefetch_count=0)
+    await broker.start(config.RABBITMQ_HOST)
 
     token_waiter = bus.wait_for(events.Tokens, timeout=12.0)
     await broker.publish(commands.RequestTokens())
