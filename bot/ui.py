@@ -71,7 +71,7 @@ class PlayerView(disnake.ui.View):
                     PlayerButton(
                         callback=player_callback,
                         player=player,
-                        label=player.name,
+                        label=player.name.strip() or "?",
                         style=disnake.ButtonStyle.primary,
                         row=(row * 2) + 1,
                     )
