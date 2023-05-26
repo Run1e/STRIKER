@@ -580,24 +580,52 @@ class RecorderCog(commands.Cog):
             await self._send_help_embed(inter)
         elif custom_id == "donatebutton":
             await self._send_donate(inter)
+        elif custom_id == "alternateoriginhelp":
+            await self._send_alternate_origin_help(inter)
 
     async def _send_help_embed(self, inter: disnake.Interaction):
-        e = self.embed.build("How to use the bot!")
+        e = self.embed.build("STRIKER")
 
         e.description = (
-            "This bot can record and upload CS:GO clips from matchmaking and FACEIT games straight to Discord. "
-            "To do so you will need to give the bot a sharecode from one of your matchmaking matches, or a FACEIT room link.\n\n"
-            "The below image shows how to find and copy a matchmaking sharecode from inside CS:GO.\n\n"
-            "To record a highlight, run the `/record` command and paste the sharecode you copied.\n\n"
-            "To record another highlight from the same match, use `/demos`.\n\n"
-            "To record FACEIT matches, give `/record` a link like:\n"
-            "`https://www.faceit.com/en/csgo/room/1-9fa1db69-5f1a-4ea3-a37c-3ab84fbd416a`\n\n"
-            "Have fun!"
+            "STRIKER can record and upload CS:GO highlights from matchmaking, FACEIT, scrimmage, and wingman matches straight to Discord.\n\n"
+            "### How do I use STRIKER?\n"
+            "1. Follow the steps in the image below to copy a sharecode from inside CS:GO\n"
+            "2. Run the `/record` command inside Discord and paste the sharecode\n"
+            "3. Select a player and a round\n"
+            "4. You're done! The bot will record the highlight and upload it."
         )
 
         e.set_image(url=config.SHARECODE_IMG_URL)
 
-        actionrow = self.make_actionrow(invite=True, discord=True)
+        actionrow = self.make_actionrow(invite=True)
+        actionrow.append_item(
+            disnake.ui.Button(
+                label="FACEIT/scrimmage/wingman matches",
+                custom_id="alternateoriginhelp",
+                emoji="\N{Black Question Mark Ornament}",
+            )
+        )
+
+        await inter.send(embed=e, components=actionrow, ephemeral=True)
+
+    async def _send_alternate_origin_help(self, inter: disnake.Interaction):
+        e = self.embed.build("STRIKER")
+
+        e.description = (
+            "Patreon supporters can record highlights from additional sources.\n\n"
+            "### FACEIT matches (Patreon Tier 2)\n"
+            "1. Open https://faceit.com/ and and go to your profile\n"
+            '2. Click on the "Stats" tab and scroll down to your match history\n'
+            "3. Click one of the matches and copy the url\n"
+            "4. Give that url to `/record`\n"
+            "### Scrimmage/wingman matches (Patreon Tier 1)\n"
+            '1. Go to https://steamcommunity.com/my/gcpd/730\n'
+            '2. Click on "Scrimmage Matches" or "Wingman matches"\n'
+            '3. Right click "Download GOTV Replay" and select "Copy link address"\n'
+            "4. Give that url to `/record`\n"
+        )
+
+        actionrow = self.make_actionrow(invite=True, patreon=True)
         await inter.send(embed=e, components=actionrow, ephemeral=True)
 
     async def _send_donate_embed(self, inter: disnake.Interaction):
@@ -671,7 +699,7 @@ class RecorderCog(commands.Cog):
             buttons.append(
                 disnake.ui.Button(
                     style=disnake.ButtonStyle.url,
-                    label="Send me some skins",
+                    label="Gift some skins",
                     emoji=config.STEAM_EMOJI,
                     url=config.TRADELINK_URL,
                 )
