@@ -5,9 +5,9 @@ from uuid import UUID
 
 from adapters.faceit import HTTPException, NotFound
 from domain import sequencer
-from domain.match import Match
 from domain.domain import Demo, Job, UserSettings, calculate_bitrate
 from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
+from domain.match import Match
 from messages import commands, dto, events
 from messages.deco import handler, listener
 from services import views
@@ -262,6 +262,30 @@ async def demoparse_died(event: events.DemoParseDL, uow: SqlUnitOfWork):
         )
 
 
+@handler(commands.GetPresignedUrlDTO)
+async def get_presigned_url_dto(
+    command: commands.GetPresignedUrlDTO, wait_for, publish, uow: SqlUnitOfWork
+):
+    async with uow:
+        waiter = wait_for(
+            events.PresignedUrlGenerated,
+            check=lambda e: e.origin == command.origin and e.identifier == command.identifier,
+            timeout=3.0,
+        )
+
+        await publish(commands.RequestPresignedUrl(command.origin, command.identifier, 60 * 5))
+        result = await waiter
+
+        if result is not None:
+            uow.add_message(
+                dto.PresignedUrlReceived(
+                    origin=command.origin,
+                    identifier=command.identifier,
+                    presigned_url=result.presigned_url,
+                )
+            )
+
+
 @handler(commands.Record)
 async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for, video_upload_url):
     # a lot of the stuff in here is not orchestration
@@ -323,7 +347,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             timeout=6.0,
         )
 
-        await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier))
+        await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier, 60 * 60))
         result: events.PresignedUrlGenerated | None = await task
 
         if result is None:

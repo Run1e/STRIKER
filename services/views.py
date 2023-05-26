@@ -1,8 +1,8 @@
 from uuid import UUID
 
 from sqlalchemy import text
-from domain.domain import UserSettings
 
+from domain.domain import UserSettings
 from services.uow import SqlUnitOfWork
 
 
@@ -46,8 +46,17 @@ async def get_user_settings(user_id: int, tier: int, uow: SqlUnitOfWork):
         return user.filled(tier), UserSettings.value_tiers
 
 
-async def get_demo_origin(demo_id: int, uow: SqlUnitOfWork):
+async def get_demo_origin_and_identifier(demo_id: int, uow: SqlUnitOfWork):
     async with uow:
-        stmt = text("SELECT origin FROM demo WHERE id=:demo_id").bindparams(demo_id=demo_id)
+        stmt = text("SELECT origin, identifier FROM demo WHERE id=:demo_id").bindparams(
+            demo_id=demo_id
+        )
+        result = await uow.session.execute(stmt)
+        return result.first()
+
+
+async def get_job_demo_id(job_id: UUID, uow: SqlUnitOfWork):
+    async with uow:
+        stmt = text("SELECT demo_id FROM job WHERE id=:job_id").bindparams(job_id=job_id)
         result = await uow.session.execute(stmt)
         return result.scalar()

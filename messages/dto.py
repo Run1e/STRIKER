@@ -39,3 +39,10 @@ class JobRecording(DTO):
     job_id: UUID
     job_inter: bytes
     infront: int
+
+
+@dataclass(frozen=True)
+class PresignedUrlReceived(DTO):
+    origin: str
+    identifier: str
+    presigned_url: str

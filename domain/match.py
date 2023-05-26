@@ -137,7 +137,7 @@ class Match:
 
     def _add_half(self, half: MatchHalf):
         if not half.name:
-            idx = (len(self.halves) - (1 if self.has_knife_round else 0))
+            idx = len(self.halves) - (1 if self.has_knife_round else 0)
             if idx < 2:
                 name = "REG"
             else:

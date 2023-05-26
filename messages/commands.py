@@ -48,6 +48,13 @@ class RequestDemoParse(Command):
 class RequestPresignedUrl(Command):
     origin: str
     identifier: str
+    expires_in: int
+
+
+@dataclass(frozen=True)
+class GetPresignedUrlDTO(Command):
+    origin: str
+    identifier: str
 
 
 @dataclass(frozen=True)

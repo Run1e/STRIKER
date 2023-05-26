@@ -3,6 +3,7 @@ import logging
 import pickle
 import re
 from functools import partial
+from uuid import UUID
 
 import disnake
 from disnake.ext import commands
@@ -258,7 +259,9 @@ class RecorderCog(commands.Cog):
         await inter.response.defer(ephemeral=True)
 
         user_id = inter.author.id
-        demo_origin = await views.get_demo_origin(found_demo_id, uow=SqlUnitOfWork())
+        demo_origin, _ = await views.get_demo_origin_and_identifier(
+            found_demo_id, uow=SqlUnitOfWork()
+        )
 
         # this data probably belongs in a dict somewhere
         if demo_origin == "FACEIT":
@@ -530,6 +533,49 @@ class RecorderCog(commands.Cog):
         else:
             await self.bot.normal_presence()
 
+    @commands.slash_command(
+        name="download",
+        description="Get demo download link",
+        dm_permission=False,
+        guild_ids=[config.STRIKER_GUILD_ID],
+    )
+    @commands.is_owner()
+    async def download(self, inter: disnake.AppCmdInter, job_or_demo_id: str):
+        job_id = None
+        demo_id = None
+
+        try:
+            job_id = UUID(job_or_demo_id)
+            demo_id = await views.get_job_demo_id(job_id, uow=SqlUnitOfWork())
+        except ValueError:
+            try:
+                demo_id = int(job_or_demo_id)
+            except ValueError:
+                raise commands.BadArgument("Not a valid job or demo id.")
+
+        row = await views.get_demo_origin_and_identifier(demo_id=demo_id, uow=SqlUnitOfWork())
+        if row is None:
+            raise commands.BadArgument("Could not find that job/demo.")
+
+        demo_origin, demo_identifier = row
+        command = cmds.GetPresignedUrlDTO(demo_origin, demo_identifier)
+
+        waiter = self.bus.wait_for(
+            dto.PresignedUrlReceived,
+            check=lambda e: e.origin == demo_origin and e.identifier == demo_identifier,
+            timeout=4.0,
+        )
+
+        await self.bus.dispatch(command)
+        result = await waiter
+
+        if result:
+            e = self.embed.build(f"Demo #{demo_id}")
+            e.description = f"Download link valid for 5 minutes.\n\n[Download]({result.presigned_url})"
+            await inter.response.send_message(embed=e)
+        else:
+            await inter.response.send_message("Failed getting presigned url.", ephemeral=True)
+
     @commands.slash_command(name="donate", description="Support the project", dm_permission=False)
     async def donate(self, inter: disnake.AppCmdInter):
         await self._send_donate_embed(inter)
@@ -619,7 +665,7 @@ class RecorderCog(commands.Cog):
             "3. Click one of the matches and copy the url\n"
             "4. Give that url to `/record`\n"
             "### Scrimmage/wingman matches (Patreon Tier 1)\n"
-            '1. Go to https://steamcommunity.com/my/gcpd/730\n'
+            "1. Go to https://steamcommunity.com/my/gcpd/730\n"
             '2. Click on "Scrimmage Matches" or "Wingman matches"\n'
             '3. Right click "Download GOTV Replay" and select "Copy link address"\n'
             "4. Give that url to `/record`\n"

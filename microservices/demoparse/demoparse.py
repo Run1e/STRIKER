@@ -76,12 +76,12 @@ class DemoStorage:
             async with self.make_client() as client:
                 await client.upload_fileobj(fp, self.bucket, key)
 
-    async def get_url(self, origin, identifier):
+    async def get_url(self, origin: str, identifier: str, expires_in: int):
         async with self.make_client() as client:
             return await client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": self.bucket, "Key": self._build_key(origin, identifier)},
-                ExpiresIn=3600,  # an hour
+                ExpiresIn=expires_in,
             )
 
 
@@ -191,7 +191,7 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
 
 @handler(RequestPresignedUrl)
 async def request_presigned_url(command: RequestPresignedUrl, publish, get_url):
-    presigned_url = await get_url(command.origin, command.identifier)
+    presigned_url = await get_url(command.origin, command.identifier, command.expires_in)
     await publish(events.PresignedUrlGenerated(command.origin, command.identifier, presigned_url))
 
 
