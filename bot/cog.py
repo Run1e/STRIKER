@@ -681,8 +681,8 @@ class RecorderCog(commands.Cog):
         # so it's fine
         if len(buttons) > 5:
             return [
-                disnake.ui.ActionRow(*buttons[0:5]),
-                disnake.ui.ActionRow(*buttons[5:]),
+                disnake.ui.ActionRow(*buttons[0:3]),
+                disnake.ui.ActionRow(*buttons[3:]),
             ]
 
         return disnake.ui.ActionRow(*buttons)

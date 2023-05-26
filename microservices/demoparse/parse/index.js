@@ -23,6 +23,7 @@ function addConVar(k, v) {
 }
 
 function addStringTable(data) {
+  // console.log(data);
   r['stringtables'].push(data);
 }
 

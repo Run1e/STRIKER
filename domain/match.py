@@ -71,6 +71,8 @@ class MatchHalf:
     def next_round(self):
         self.rnd += 1
 
+    # TODO: presentation stuff, does not belong here
+
     @staticmethod
     def weapon_by_order(kills, n=2):
         c = Counter([k.weapon for k in kills])
@@ -142,6 +144,7 @@ class Match:
                 name = f"OT{idx - 1}"
 
             half.name = name
+
         self.halves.append(half)
 
     def _parse_events(self, events: List[dict]):

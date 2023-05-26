@@ -3,6 +3,7 @@ from typing import List
 
 from messages import events
 from shared.const import DEMOPARSE_VERSION
+from shared.utils import utcnow
 
 from .enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 
@@ -141,6 +142,7 @@ class Job(Entity):
 
     def success(self):
         self.state = JobState.SUCCESS
+        self.completed_at = utcnow()
 
 
 class UserSettings(Entity):

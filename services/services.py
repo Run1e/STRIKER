@@ -1,10 +1,9 @@
 import asyncio
 import logging
 from json import loads
-from typing import List
 from uuid import UUID
 
-from adapters.faceit import FACEITAPI, HTTPException, NotFound
+from adapters.faceit import HTTPException, NotFound
 from domain import sequencer
 from domain.match import Match
 from domain.domain import Demo, Job, UserSettings, calculate_bitrate

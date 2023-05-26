@@ -490,6 +490,7 @@ async def test_uploader_success():
     await bus.dispatch(events.UploaderSuccess(job_id=str(job.id)))
 
     assert job.state is JobState.SUCCESS
+    assert isinstance(job.completed_at, datetime)
     assert isinstance(uow.messages[-1], dto.JobSuccess)
 
 
