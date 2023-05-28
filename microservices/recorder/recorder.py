@@ -103,7 +103,7 @@ async def record(
 
     preplay_commands = (
         "mirv_cmd clear",
-        f'mirv_cmd load "{script_file}"',
+        f'mirv_cmd load "{script_file.absolute()}"',
         "mirv_deathmsg lifetime 0",
         # f"mirv_pov {command.player_entityid}",
     )
@@ -116,7 +116,7 @@ async def record(
         await csgo.set_resolution(1280, 854)
 
     take_folder = await csgo.playdemo(
-        demo=demo,
+        demo=demo.absolute(),
         unblock_string=unblock_string,
         start_at=command.start_tick - (6 * command.tickrate),
     )
