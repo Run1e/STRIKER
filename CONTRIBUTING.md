@@ -99,8 +99,9 @@ Make a virtual environment (with your 3.11.3 install!):
 python -m venv venv
 ```
 
-Then activate the venv and install the requirements for all the bot and all microservices:
+Then activate the venv and install the requirements for development and all services:
 ```bash
+pip install -r dev_requirements.txt
 pip install -r bot/requirements.txt
 pip install -r microservices/demoparse/requirements.txt
 pip install -r microservices/gateway/requirements.txt

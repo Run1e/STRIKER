@@ -9,9 +9,9 @@ SENTRY_DSN = ""
 
 KEEP_DEMO_COUNT = 10
 
-DEMO_DIR = Path("")  # path where demos are stored (up to KEEP_DEMO_COUNT demos)
-TEMP_DIR = Path("")  # temp dir, emptied on recorder startup
-MMCFG_DIR = Path("")  # path for HLAE mmcfg directory (set to an empty dir)
+DEMO_DIR = Path("demo")  # path where demos are stored (up to KEEP_DEMO_COUNT demos)
+TEMP_DIR = Path("temp")  # temp dir, emptied on recorder startup
+MMCFG_DIR = Path("mmcfg")  # path for HLAE mmcfg directory (set to an empty dir)
 HLAE_DIR = Path("")  # path to your HLAE install
 STEAM_DIR = Path("C:/Program Files (x86)/Steam")
 

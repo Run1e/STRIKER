@@ -3,20 +3,18 @@ config.py
 # bot
 bot/navparse/nav.json
 bot/config.py
-bot/config copy.py
 
 # demoparse microservice
 microservices/demoparse_py
 microservices/demoparse/config.py
-microservices/demoparse/parse/amqp_tests.js
-microservices/demoparse/parse/asd
 microservices/demoparse/data
 
 # recorder microservice
-microservices/recorder/hlae
+microservices/recorder/demo
+microservices/recorder/temp
 microservices/recorder/mmcfg
+microservices/recorder/hlae
 microservices/recorder/config.py
-microservices/recorder/standalone.py
 
 # uploader microservice
 microservices/uploader/config.py
@@ -30,6 +28,7 @@ docker-compose.yml
 notes.md
 cred
 sentries
+gateway_bug
 test.py
 venv
 .vscode
@@ -43,4 +42,3 @@ steam_login.py
 # glob
 *.exe
 *.sum
-gateway_bug
