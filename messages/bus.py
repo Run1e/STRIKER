@@ -116,20 +116,3 @@ class MessageBus:
     @property
     def has_deco(self):
         return set(self.command_handlers).union(set(self.event_listeners))
-
-
-"""
-Commands:
-indicates that publisher wants *one* consumer to DO something
-one queue per command
-published by doing await bus.handle(command)
-consumed by doing @handler(command)
-queues: use reply_on thing to specify where the micro should reply to, autogen uuid4 for correlation_id
-
-Events:
-indicates that publisher wants to inform *any* consumer about an event
-one queue per command
-published by doing await bus.handle(event)
-consumed by doing @listener(event)
-queues: put on events' queue which is fanout type
-"""

@@ -10,7 +10,6 @@ from concurrent.futures import ProcessPoolExecutor
 from distutils.dir_util import copy_tree
 from json import dumps, loads
 from pathlib import Path
-from shutil import rmtree
 from urllib import parse
 
 import aiofiles
@@ -25,8 +24,17 @@ from websockets import InvalidStatusCode, client
 from websockets.exceptions import ConnectionClosed
 
 from messages import commands
+from messages.broker import MessageError
 from shared.log import logging_config
-from shared.utils import decompress, sentry_init
+from shared.utils import (
+    RunError,
+    decompress,
+    delete_file,
+    delete_folder,
+    download_file,
+    make_folder,
+    sentry_init,
+)
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
@@ -239,30 +247,6 @@ async def file_reader(file_name):
             chunk = await f.read(CHUNK_SIZE)
 
 
-def make_folder(path: Path):
-    try:
-        os.makedirs(path, exist_ok=True)
-    except:
-        pass
-
-
-def delete_file(path: Path):
-    if path.is_file():
-        try:
-            os.remove(path)
-            log.info("Deleted file: %s", path)
-        except:
-            pass
-
-
-def delete_folder(path: Path):
-    try:
-        rmtree(path)
-        log.info("Deleted folder: %s", path)
-    except:
-        pass
-
-
 async def handle_recording_request(
     command: commands.RequestRecording,
     session: aiohttp.ClientSession,
@@ -276,35 +260,23 @@ async def handle_recording_request(
     demo_path = config.TEMP_DIR / f"{command.job_id}.dem"
 
     if not archive_path.is_file():
-        log.info("Downloading archive...")
         try:
-            async with session.get(
-                url=command.demo_url, timeout=aiohttp.ClientTimeout(20.0)
-            ) as resp:
-                if resp.status == 200:
-                    async with aiofiles.open(temp_archive_path, "wb") as f:
-                        while not resp.content.at_eof():
-                            await f.write(await resp.content.read(CHUNK_SIZE))
-                else:
-                    raise RecordingError("Failed fetching demo archive.")
+            log.info("Download demo archive...")
+            await download_file(command.demo_url, temp_archive_path, timeout=20.0)
+        except RunError as exc:
+            raise MessageError("Failed downloading demo archive.")
+        except asyncio.TimeoutError as exc:
+            raise MessageError("Timed out downloading demo archive.")
 
-                if not archive_path.is_file():
-                    try:
-                        os.rename(temp_archive_path, archive_path)
-                    except OSError:
-                        log.info(
-                            "Failed renaming archive? %s -> %s", temp_archive_path, archive_path
-                        )
-        except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as exc:
-            raise RecordingError("Unable to download demo archive.") from exc
+        if not archive_path.is_file():
+            temp_archive_path.rename(archive_path)
 
     # decompress temp archive to temp demo file
     log.info("Decompressing archive...")
     try:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(executor, decompress, archive_path, demo_path)
-    except OSError as exc:
-        raise RecordingError("Demo corrupted.") from exc
+        await decompress(archive_path, demo_path)
+    except (asyncio.TimeoutError, RunError) as exc:
+        raise MessageError("Failed extracting demo archive.") from exc
 
     log.info("Getting CSGO instance and starting recording...")
     async with ResourceRequest(pool) as csgo:
@@ -500,7 +472,6 @@ async def main():
         csgo.set_connection_lost_callback(pool.on_removal)
 
     g = GatewayClient(pool)
-
     await g.connect(config.API_ENDPOINT)
 
     log.info("Ready to record!")

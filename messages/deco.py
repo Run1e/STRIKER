@@ -42,6 +42,9 @@ def consume(
     dispatch_err=None,
     requeue=False,
 ):
+    if publish_err and dispatch_err:
+        raise ValueError("Cannot set both publish_err and dispatch_err")
+
     def inner(message):
         consume_args[message] = dict(
             publish_err=publish_err,

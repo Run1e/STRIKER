@@ -6,11 +6,8 @@ sys.path.append("../..")
 import asyncio
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor
-from subprocess import run
 
 import aioboto3
-import aiofiles
 import aiohttp
 import config
 
@@ -21,14 +18,14 @@ from messages.commands import RequestDemoParse, RequestPresignedUrl
 from messages.deco import handler
 from shared.const import DEMOPARSE_VERSION
 from shared.log import logging_config
-from shared.utils import decompress, sentry_init, timer
+from shared.utils import (RunError, decompress, delete_file, download_file,
+                          make_folder, run, sentry_init, timer)
 
 CHUNK_SIZE = 4 * 1024 * 1024
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
 
-executor = ProcessPoolExecutor(max_workers=3)
 session = aiohttp.ClientSession()
 
 if os.name == "nt":
@@ -85,24 +82,21 @@ class DemoStorage:
             )
 
 
-def parse_demo(demofile):
-    p = run(["node", "parse/index.js", demofile], capture_output=True)
-    if p.returncode != 0:
-        log.error(p.stdout)
-        raise MessageError("Failed parsing demo.")
-    return p.stdout
+async def parse_demo(demofile) -> str:
+    code, stdout, stderr = await run("node", "parse/index.js", demofile, timeout=32.0)
+    if code != 0:
+        raise RunError(code=code)  # node code lmao
+    return stdout
 
 
 @handler(RequestDemoParse)
 async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
-    loop = asyncio.get_running_loop()
-
     origin = command.origin
     identifier = command.identifier
     download_url = command.download_url
 
     if not config.DATA_FOLDER.is_dir():
-        os.makedirs(config.DATA_FOLDER)
+        make_folder(config.DATA_FOLDER)
 
     log.info("Processing origin %s identifier %s url %s", origin, identifier, download_url)
 
@@ -111,51 +105,37 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
     demo_path = config.DATA_FOLDER / f"{origin.lower()}_{identifier}.dem"
     archive_path = config.DATA_FOLDER / f"{origin.lower()}_{identifier}.dem.{ext}"
 
+    # clear if they already exist
+    delete_file(demo_path)
+    delete_file(archive_path)
+
     # if archive and demo does not exist, download the archive
-    if not archive_path.is_file():
-        log.info("downloading %s", archive_path)
+    log.info("downloading %s", archive_path)
+    end = timer("download")
 
-        end = timer("download")
+    try:
+        await download_file(download_url, archive_path, timeout=32.0)
+    except asyncio.TimeoutError as exc:
+        raise MessageError("Fetching demo timed out.") from exc
+    except RunError as exc:
+        raise MessageError("Failed fetching demo.") from exc
 
-        # down the demo
-        try:
-            async with session.get(download_url, timeout=aiohttp.ClientTimeout(total=32.0)) as resp:
-                # deleted from valve servers
-                if resp.status == 404:
-                    raise MessageError("Demo is not available at the given URL.")
+    log.info(end())
 
-                # misc error
-                elif resp.status != 200:
-                    raise MessageError("Unable to download demo.")
+    log.info("extracting %s", demo_path)
+    end = timer("extraction")
 
-                # write to file
-                async with aiofiles.open(archive_path, "wb") as f:
-                    await f.write(await resp.read())
+    try:
+        await decompress(archive_path, demo_path)
+    except (asyncio.TimeoutError, RunError) as exc:
+        raise MessageError("Failed extracting demo archive.") from exc
 
-        except asyncio.TimeoutError as exc:
-            raise MessageError("Fetching demo timed out.") from exc
-
-        log.info(end())
-    else:
-        log.info("archive exists %s", archive_path)
-
-    if not demo_path.is_file():
-        log.info("extracting %s", demo_path)
-        end = timer("extraction")
-
-        try:
-            await loop.run_in_executor(executor, decompress, archive_path, demo_path)
-        except OSError as exc:
-            raise MessageError("Unable to extract demo archive.") from exc
-
-        log.info(end())
-    else:
-        log.info("demo exists %s", demo_path)
+    log.info(end())
 
     async def parser():
         log.info("parsing %s", demo_path)
         end = timer("parsing")
-        result = await loop.run_in_executor(executor, parse_demo, demo_path)
+        result = await parse_demo(demo_path)
         log.info(end())
         return result
 
@@ -165,15 +145,15 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
         await upload_demo(archive_path, origin, identifier)
         log.info(end())
 
-    # parse and upload demo
     async with asyncio.TaskGroup() as tg:
         parse_task = tg.create_task(parser())
         tg.create_task(uploader())
 
-    if not config.DEBUG:
-        # only remove when in prod...
-        os.remove(demo_path)
-        os.remove(archive_path)
+    # everything after the tg above will have hidden exception stack traces
+    # because of an obscure bug caused by weird asyncio stuff and aiormq weirdness
+
+    delete_file(demo_path)
+    delete_file(archive_path)
 
     data = parse_task.result()
     if not data:
@@ -183,7 +163,7 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
         events.DemoParseSuccess(
             origin=origin,
             identifier=identifier,
-            data=data.decode("utf-8"),
+            data=data,
             version=DEMOPARSE_VERSION,
         )
     )
@@ -216,7 +196,7 @@ async def main():
     broker = Broker(bus)
     bus.add_dependencies(publish=broker.publish, upload_demo=s3.upload_demo, get_url=s3.get_url)
     bus.register_decos()
-    await broker.start(config.RABBITMQ_HOST, prefetch_count=1)
+    await broker.start(config.RABBITMQ_HOST, prefetch_count=2)
 
     log.info("Ready to parse!")
 

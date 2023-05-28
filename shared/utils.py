@@ -1,11 +1,15 @@
-import gzip
-from bz2 import BZ2Decompressor
+import asyncio
+import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
+from shutil import rmtree
 from time import monotonic
 
 import sentry_sdk
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
+
+log = logging.getLogger(__name__)
 
 
 def sentry_init(dsn):
@@ -16,6 +20,95 @@ def sentry_init(dsn):
         ],
         traces_sample_rate=0.2,
     )
+
+
+class RunError(Exception):
+    def __init__(self, *args: object, code: int = None) -> None:
+        super().__init__(*args)
+        self.code = code
+
+
+async def run(program: str, *args, timeout: float = 8.0):
+    proc = None
+
+    try:
+        async with asyncio.timeout(timeout):
+            proc = await asyncio.create_subprocess_exec(
+                program,
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            stdout, stderr = await proc.communicate()
+            return proc.returncode, stdout.decode(), stderr.decode()
+    except asyncio.TimeoutError:
+        if proc is not None:
+            proc.kill()
+        raise
+
+
+async def download_file(url: str, file: Path, timeout: float = 8.0) -> bool:
+    code, stdout, stderr = await run(
+        "curl",
+        "--connect-timeout",
+        "8",
+        "--max-time",
+        str(timeout),
+        "-o",
+        file,
+        url,
+        timeout=timeout,
+    )
+
+    if code != 0:
+        raise RunError(code=code)
+
+
+async def decompress(archive: Path, file: Path):
+    suffix = archive.suffix
+
+    if suffix == ".gz":
+        program = "gzip"
+    elif suffix == ".bz2":
+        program = "bzip2"
+    else:
+        raise RunError("Unknown archive suffix")
+
+    code, stdout, stderr = await run(program, "-dk", archive, timeout=32.0)
+
+    if code != 0:
+        raise RunError(code=code)
+
+    decompressed = archive.parent / archive.stem
+    decompressed.rename(file)
+
+
+def delete_file(path: Path):
+    if path.is_file():
+        try:
+            path.unlink(missing_ok=True)
+            log.info("Deleted file: %s", path)
+        except:
+            pass
+
+
+def make_folder(path: Path):
+    if not path.is_dir():
+        try:
+            os.makedirs(path, exist_ok=True)
+            log.info("Created directory: %s", path)
+        except:
+            pass
+
+
+def delete_folder(path: Path):
+    if path.is_dir():
+        try:
+            rmtree(path)
+            log.info("Deleted folder: %s", path)
+        except:
+            pass
 
 
 def utcnow():
@@ -31,33 +124,6 @@ ordinal = lambda n: "%d%s" % (
     n,
     "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
 )
-
-
-def decompress(archive: Path, file: Path):
-    if archive.suffix == ".gz":
-        f = decompress_gz
-    elif archive.suffix == ".bz2":
-        f = decompress_bz2
-
-    f(archive, file)
-
-
-def decompress_bz2(archive, file, block_size=64 * 1024):
-    decompressor = BZ2Decompressor()
-    with open(file, "wb") as new_file, open(archive, "rb") as file:
-        for data in iter(lambda: file.read(block_size), b""):
-            chunk = decompressor.decompress(data)
-            new_file.write(chunk)
-
-
-def decompress_gz(archive, file, block_size=64 * 1024):
-    with gzip.open(archive, "rb") as s_file, open(file, "wb") as d_file:
-        while True:
-            block = s_file.read(block_size)
-            if not block:
-                break
-            else:
-                d_file.write(block)
 
 
 class MISSING:

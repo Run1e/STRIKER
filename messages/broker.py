@@ -235,11 +235,7 @@ class Broker:
                 # and ack the command
                 await self.ack(message)
 
-            # this is not a MessageError, or if it is and we want to raise on those, do so
-            if not is_ok:
-                raise exc
-            else:
-                log.exception(exc)
+            raise exc
 
         # if the command handler didn't except, ack the message
         else:
@@ -257,9 +253,11 @@ class Broker:
         await self.bus.dispatch(event)
 
     async def ack(self, message: aiormq.abc.DeliveredMessage):
+        log.debug("ACK %s", message.delivery.delivery_tag)
         await self.channel.basic_ack(message.delivery.delivery_tag)
 
     async def nack(self, message: aiormq.abc.DeliveredMessage, requeue: bool):
+        log.debug("NACK %s requeue=%s", message.delivery.delivery_tag, requeue)
         await self.channel.basic_nack(
             message.delivery.delivery_tag,
             requeue=requeue,

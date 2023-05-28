@@ -571,7 +571,9 @@ class RecorderCog(commands.Cog):
 
         if result:
             e = self.embed.build(f"Demo #{demo_id}")
-            e.description = f"Download link valid for 5 minutes.\n\n[Download]({result.presigned_url})"
+            e.description = (
+                f"Download link valid for 5 minutes.\n\n[Download]({result.presigned_url})"
+            )
             await inter.response.send_message(embed=e)
         else:
             await inter.response.send_message("Failed getting presigned url.", ephemeral=True)
