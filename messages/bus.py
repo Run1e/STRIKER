@@ -49,7 +49,7 @@ class MessageBus:
         built_factories = {key: factory() for key, factory in factories.items()}
         await func(message, **dependencies, **built_factories)
 
-        if (uow := built_factories.get("uow")):
+        if uow := built_factories.get("uow"):
             for message in uow.messages:
                 await self.dispatch(message)
 

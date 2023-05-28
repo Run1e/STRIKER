@@ -22,7 +22,7 @@ CSGO_BIN = str(CSGO_DIR) + ".exe"
 HLAE_BIN = HLAE_DIR / "HLAE.exe"
 FFMPEG_BIN = HLAE_DIR / "ffmpeg/bin/ffmpeg.exe"
 
-VIDEO_FILTERS = 'vibrance=intensity=0.5,colorbalance=rm=0.04,curves=all=0/0 0.5/0.65 1/1'
+VIDEO_FILTERS = "vibrance=intensity=0.5,colorbalance=rm=0.04,curves=all=0/0 0.5/0.65 1/1"
 
 # ignore everything under here unless you know what you're doing
 SANDBOXED = False

@@ -2,7 +2,7 @@ DEBUG = True
 DROP_TABLES = False
 
 DB_BIND = "postgresql+asyncpg://striker_user:striker_pass@localhost:5432/striker_db"
-RABBITMQ_HOST = 'amqp://striker_user:striker_pass@localhost:5672'
+RABBITMQ_HOST = "amqp://striker_user:striker_pass@localhost:5672"
 VIDEO_UPLOAD_URL = "http://localhost:9090/uploader"
 SENTRY_DSN = ""
 
@@ -43,4 +43,3 @@ PATREON_TIER_NAMES = {
     2: "Tier 2",
     3: "Tier 3",
 }
-

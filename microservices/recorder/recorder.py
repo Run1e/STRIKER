@@ -233,7 +233,12 @@ async def prepare_csgo(csgo: CSGO):
     # causes issues with resolution changes
     # csgo.minimize()
 
-    startup_commands = ('mirv_block_commands add 5 "\*"', "exec stream")
+    startup_commands = (
+        'mirv_block_commands add 5 "\*"',
+        "exec recorder",
+        "exec stream",
+    )
+
     for command in startup_commands:
         await csgo.run(command)
         await asyncio.sleep(0.5)
