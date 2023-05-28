@@ -109,7 +109,13 @@ pip install -r microservices/uploader/requirements.txt
 pip install -r microservices/recorder/requirements.txt
 ```
 
-## launch.json
+## Final steps
+
+Invite your new bot to a server with an invite link.
+You can quickly craft an invite link by inserting your bot client id into this url:
+```
+https://discord.com/api/oauth2/authorize?client_id={YOUR_CLIENT_ID_HERE}&permissions=274878286912&scope=bot%20applications.commands
+```
 
 Now you should be good to go! Obviously you should have Steam running and CS:GO installed as well.
 

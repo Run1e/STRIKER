@@ -13,6 +13,10 @@ You can add the bot to your server using the [bot invite link here](https://disc
 
 You can also join the [Discord server here](https://discord.gg/G7cMssWnR2).
 
+## Contributing to the project
+
+Please read CONTRIBUTING.md for complete setup steps to set up a working development instance!
+
 ## Acknowledgements
 
 The structure of the bot application was heavily inspired by the book [Architecture Patterns with Python](https://www.cosmicpython.com/).
