@@ -3,11 +3,11 @@ from pathlib import Path
 DEBUG = True
 
 API_ENDPOINT = "ws://localhost:9191/gateway"
-API_TOKEN = "not_a_secure_string"
+API_TOKEN = "not_a_secure_token"
 
 SENTRY_DSN = ""
 
-KEEP_DEMO_COUNT = 2
+KEEP_DEMO_COUNT = 10
 
 DEMO_DIR = Path("")  # path where demos are stored (up to KEEP_DEMO_COUNT demos)
 TEMP_DIR = Path("")  # temp dir, emptied on recorder startup

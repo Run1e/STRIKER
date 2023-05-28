@@ -5,6 +5,7 @@ I've tried to make the instructions as simple as possible.
 
 The example configs assume you're running the compose file I've provided.
 For other setups, the configs will obviously need to be changed accordingly.
+These instructions are meant for development environments only, and is not production ready!
 
 Please raise a GitHub issue if anything needs clarification or updating.
 
@@ -61,7 +62,7 @@ Located at `bot/config.py`
 
 - `BOT_TOKEN`: [Create a Discord application+bot](https://discord.com/developers/applications) and get the bot token
 - `STRIKER_GUILD_ID`: Create a Discord server for testing (or use an existing one) and use the servers Discord id
-- `STEAM_REFRESH_TOKEN`: Run `kubernetes/steam_login.py` and log into a Steam account. It will print a refresh key at the end that you can use
+- `STEAM_REFRESH_TOKEN`: Run `bot/steam_login.py` and log into a Steam account. It will print a refresh key at the end that you can use
 - `FACEIT_API_KEY`: (Optional) Create a [FACEIT App](https://developers.faceit.com/)
 
 ### Demoparse config
