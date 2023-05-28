@@ -28,8 +28,8 @@ async def bootstrap(
         await orm.start_orm()
 
     bus = MessageBus(
-        uow_factory=lambda: uow_type(),
         dependencies=dict(video_upload_url=config.VIDEO_UPLOAD_URL, tokens=config.TOKENS),
+        factories=dict(uow=uow_type),
     )
 
     broker = Broker(

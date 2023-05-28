@@ -18,8 +18,16 @@ from messages.commands import RequestDemoParse, RequestPresignedUrl
 from messages.deco import handler
 from shared.const import DEMOPARSE_VERSION
 from shared.log import logging_config
-from shared.utils import (RunError, decompress, delete_file, download_file,
-                          make_folder, run, sentry_init, timer)
+from shared.utils import (
+    RunError,
+    decompress,
+    delete_file,
+    download_file,
+    make_folder,
+    run,
+    sentry_init,
+    timer,
+)
 
 CHUNK_SIZE = 4 * 1024 * 1024
 

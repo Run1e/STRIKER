@@ -157,9 +157,10 @@ async def create_bus(uow: FakeUnitOfWork, dependencies=None) -> MessageBus:
         faceit_resolver=AsyncMock(),
     )
 
-    deps.update(dependencies or dict())
+    if dependencies:
+        deps.update(dependencies)
 
-    bus = MessageBus(dependencies=deps, uow_factory=lambda: uow)
+    bus = MessageBus(dependencies=deps, factories=dict(uow=lambda: uow))
     bus.register_decos()
     return bus, deps
 

@@ -10,9 +10,9 @@ log = logging.getLogger(__name__)
 
 
 class MessageBus:
-    def __init__(self, dependencies: dict = None, uow_factory=None) -> None:
+    def __init__(self, dependencies: dict = None, factories: dict = None) -> None:
         self.dependencies = dependencies or dict()
-        self.uow_factory = uow_factory
+        self.factories = factories or dict()
 
         self.dependencies["wait_for"] = self.wait_for
 
@@ -45,14 +45,11 @@ class MessageBus:
         for listener in listeners:
             await listener(event)
 
-    async def run_message(self, func, message, needs_uow, deps):
-        if needs_uow:
-            uow = self.uow_factory()
-            deps["uow"] = uow
+    async def run_message(self, func, message, dependencies, factories):
+        built_factories = {key: factory() for key, factory in factories.items()}
+        await func(message, **dependencies, **built_factories)
 
-        await func(message, **deps)
-
-        if needs_uow:
+        if (uow := built_factories.get("uow")):
             for message in uow.messages:
                 await self.dispatch(message)
 
@@ -73,14 +70,6 @@ class MessageBus:
         task = asyncio.create_task(sleeper())
         return fut
 
-    def register_decos(self):
-        for command, handler in deco.command_handlers.items():
-            self.add_command_handler(command, handler)
-
-        for event, listeners in deco.event_listeners.items():
-            for listener in listeners:
-                self.add_event_listener(event, listener)
-
     def add_dependencies(self, **kwargs):
         self.dependencies.update(kwargs)
 
@@ -88,14 +77,14 @@ class MessageBus:
         if command in self.command_handlers:
             raise ValueError(f"Handler already added for command {command}")
 
-        needs_uow, deps = self.find_injectables(handler)
+        dependencies, factories = self.find_injectables(handler)
         self.command_handlers[command] = partial(
-            self.run_message, handler, needs_uow=needs_uow, deps=deps
+            self.run_message, handler, dependencies=dependencies, factories=factories
         )
 
     def add_event_listener(self, event, listener):
-        needs_uow, deps = self.find_injectables(listener)
-        added = partial(self.run_message, listener, needs_uow=needs_uow, deps=deps)
+        dependencies, factories = self.find_injectables(listener)
+        added = partial(self.run_message, listener, dependencies=dependencies, factories=factories)
         self.event_listeners[event].append(added)
         return added
 
@@ -107,11 +96,22 @@ class MessageBus:
 
     def find_injectables(self, func):
         params = signature(func).parameters
-        needs_uow = "uow" in params
 
-        return needs_uow, {
+        dependencies = {
             name: dependency for name, dependency in self.dependencies.items() if name in params
         }
+
+        factories = {name: factory for name, factory in self.factories.items() if name in params}
+
+        return dependencies, factories
+
+    def register_decos(self):
+        for command, handler in deco.command_handlers.items():
+            self.add_command_handler(command, handler)
+
+        for event, listeners in deco.event_listeners.items():
+            for listener in listeners:
+                self.add_event_listener(event, listener)
 
     @property
     def has_deco(self):
