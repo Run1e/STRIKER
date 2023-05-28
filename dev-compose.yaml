@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:12.10
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: striker_user
+      POSTGRES_PASSWORD: striker_pass
+      POSTGRES_DB: striker_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3.8-management-alpine
+    hostname: rabbitmq
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: striker_user
+      RABBITMQ_DEFAULT_PASS: striker_pass
+    
+  minio:
+    container_name: minio
+    image: docker.io/bitnami/minio:2023
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      MINIO_ROOT_USER: striker_user
+      MINIO_ROOT_PASSWORD: striker_pass
+      MINIO_DEFAULT_BUCKETS: striker-bucket
+    volumes:
+      - minio-data:/data
+
+volumes:
+  postgres-data:
+  minio-data:

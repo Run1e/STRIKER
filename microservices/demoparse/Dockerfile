@@ -9,7 +9,8 @@ COPY microservices/demoparse .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN apt update && apt install curl -y
+RUN apt update
+RUN apt install curl bzip2 -y
 
 ENV NODE_VERSION=16.16.0
 RUN curl https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz | tar -xz -C /usr/local --strip-components 1
