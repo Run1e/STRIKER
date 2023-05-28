@@ -1,5 +1,10 @@
 **/__pycache__
-
-# matchinfo stuff
 **/cred
 **/config.py
+**/example_config.py
+
+microservices/demoparse/data
+microservices/recorder/demo
+microservices/recorder/temp
+microservices/recorder/mmcfg
+microservices/recorder/hlae
