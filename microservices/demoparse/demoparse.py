@@ -122,7 +122,7 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
     end = timer("download")
 
     try:
-        await download_file(download_url, archive_path, timeout=32.0)
+        await download_file(download_url, archive_path, timeout=45.0)
     except asyncio.TimeoutError as exc:
         raise MessageError("Fetching demo timed out.") from exc
     except RunError as exc:

@@ -8,4 +8,4 @@ SQLAlchemy==2.0.12
 tabulate==0.9.0
 sentry-sdk==1.24.0
 # steamio @ https://github.com/Gobot1234/steam.py/archive/42c46148f8e06fc4466307ea17220aa5ef79c0d4.zip
-steamio @ https://github.com/Run1e/steam.py/archive/0fc635027f3c96a3142c19d3188774f373f6acff.zip
+steamio @ https://github.com/Run1e/steam.py/archive/ca7e409287d1a820a885dc67a0331ef8ee53f8ad.zip
