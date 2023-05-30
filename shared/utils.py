@@ -55,13 +55,16 @@ async def download_file(url: str, file: Path, timeout: float = 8.0) -> bool:
         "8",
         "--max-time",
         str(timeout),
+        "-s",
+        "-w",
+        "%{http_code}",
         "-o",
         file,
         url,
         timeout=timeout,
     )
 
-    if code != 0:
+    if code != 0 or stdout != "200":
         raise RunError(code=code)
 
 

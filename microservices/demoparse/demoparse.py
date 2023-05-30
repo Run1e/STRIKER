@@ -121,6 +121,7 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
     log.info("downloading %s", archive_path)
     end = timer("download")
 
+    # if not archive_path.is_file():
     try:
         await download_file(download_url, archive_path, timeout=45.0)
     except asyncio.TimeoutError as exc:
