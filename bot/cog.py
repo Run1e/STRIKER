@@ -84,6 +84,9 @@ def not_maintenance():
         if not inter.bot.maintenance:
             return True
 
+        if await inter.bot.is_owner(inter.author):
+            return True
+
         raise commands.CheckFailure("Bot is under maintenance! Check back in a bit!")
 
     return commands.check(checker)
