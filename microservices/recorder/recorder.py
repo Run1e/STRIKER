@@ -253,10 +253,31 @@ async def file_reader(file_name):
             chunk = await f.read(CHUNK_SIZE)
 
 
+def ensure_cleanup(f):
+    async def cleanup_wrapper(*args, **kwargs):
+        files = []
+        try:
+            result = await f(*args, **kwargs, cleanup_files=files)
+        finally:
+            for file in files:
+                delete_file(file)
+
+            # delete the least recently used demo(s) that fall outside our cache size
+            oldest = list(sorted(config.DEMO_DIR.iterdir(), key=lambda f: f.stat().st_atime))
+            for file in oldest[: len(oldest) - config.KEEP_DEMO_COUNT]:
+                delete_file(file)
+
+        return result
+
+    return cleanup_wrapper
+
+
+@ensure_cleanup
 async def handle_recording_request(
     command: commands.RequestRecording,
     session: aiohttp.ClientSession,
     pool: ResourcePool,
+    cleanup_files: list,
 ):
     origin_lower = command.demo_origin.lower()
     archive_name = os.path.basename(parse.urlparse(command.demo_url).path)
@@ -265,14 +286,15 @@ async def handle_recording_request(
     temp_archive_path = config.TEMP_DIR / f"{command.job_id}.dem.{archive_path.suffix}"
     demo_path = config.TEMP_DIR / f"{command.job_id}.dem"
 
+    cleanup_files.append(demo_path)
+    cleanup_files.append(temp_archive_path)
+
     if not archive_path.is_file():
         try:
             log.info("Download demo archive...")
             await download_file(command.demo_url, temp_archive_path, timeout=20.0)
-        except RunError as exc:
+        except (asyncio.TimeoutError, RunError) as exc:
             raise MessageError("Failed downloading demo archive.")
-        except asyncio.TimeoutError as exc:
-            raise MessageError("Timed out downloading demo archive.")
 
         if not archive_path.is_file():
             rename_file(temp_archive_path, archive_path)
@@ -282,12 +304,15 @@ async def handle_recording_request(
     try:
         await decompress(archive_path, demo_path)
     except (asyncio.TimeoutError, RunError) as exc:
+        # if we fail decompressing, delete the archive as well
+        cleanup_files.append(archive_path)
         raise MessageError("Failed extracting demo archive.") from exc
 
     log.info("Getting CSGO instance and starting recording...")
     async with ResourceRequest(pool) as csgo:
         log.info("Got CSGO instance: %s", csgo)
         video_file = await record(csgo, demo_path, command)
+        cleanup_files.append(video_file)
 
     log.info("Uploading to uploader service...")
 
@@ -305,15 +330,6 @@ async def handle_recording_request(
 
     except (asyncio.TimeoutError, aiohttp.ClientConnectionError) as exc:
         raise RecordingError("Upload service did not respond to the upload request.") from exc
-
-    # delete stuff that is now junk...
-    for path in (demo_path, temp_archive_path, video_file):
-        delete_file(path)
-
-    # delete the least recently used demo(s) that fall outside our cache size
-    oldest = list(sorted(config.DEMO_DIR.iterdir(), key=lambda f: f.stat().st_atime))
-    for file in oldest[: len(oldest) - config.KEEP_DEMO_COUNT]:
-        delete_file(file)
 
 
 class GatewayClient:
