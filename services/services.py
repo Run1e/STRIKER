@@ -270,7 +270,7 @@ async def get_presigned_url_dto(
         waiter = wait_for(
             events.PresignedUrlGenerated,
             check=lambda e: e.origin == command.origin and e.identifier == command.identifier,
-            timeout=3.0,
+            timeout=4.0,
         )
 
         await publish(commands.RequestPresignedUrl(command.origin, command.identifier, 60 * 5))
@@ -344,14 +344,15 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         task = wait_for(
             events.PresignedUrlGenerated,
             check=lambda m: m.origin == demo.origin.name and m.identifier == demo.identifier,
-            timeout=6.0,
+            timeout=4.0,
         )
 
         await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier, 60 * 60))
         result: events.PresignedUrlGenerated | None = await task
 
         if result is None:
-            raise ServiceError("Unable to get archive link from demo parser.")
+            uow.add_message(events.JobFailed(job.id, reason="Unable to get archive link from demo parser."))
+            return
 
         data["demo_url"] = result.presigned_url
 

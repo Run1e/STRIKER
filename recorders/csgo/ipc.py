@@ -90,7 +90,7 @@ class CSGO:
             pass
 
         # connection lost on read loop stop iteration
-        self._exception = ConnectionError("Connection lost")
+        self._exception = ConnectionError("Connection lost to CSGO telnet server")
         for event in self.checks.values():
             event.set()
 

@@ -68,7 +68,7 @@ class DemoParseSuccess(Event):
 
 
 @dataclass(frozen=True, repr=False)
-@publish(ttl=6.0)
+@publish(ttl=4.0)
 @consume()
 class PresignedUrlGenerated(Event):
     origin: str
