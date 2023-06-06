@@ -1,3 +1,4 @@
+aio-pika==9.1.2
 aiohttp==3.8.4
 aiofiles==23.1.0
 coloredlogs==15.0.1
