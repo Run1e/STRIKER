@@ -33,6 +33,7 @@ from shared.utils import (
     delete_folder,
     download_file,
     make_folder,
+    rename_file,
     sentry_init,
 )
 
@@ -274,7 +275,7 @@ async def handle_recording_request(
             raise MessageError("Timed out downloading demo archive.")
 
         if not archive_path.is_file():
-            temp_archive_path.rename(archive_path)
+            rename_file(temp_archive_path, archive_path)
 
     # decompress temp archive to temp demo file
     log.info("Decompressing archive...")

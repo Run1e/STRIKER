@@ -84,7 +84,15 @@ async def decompress(archive: Path, file: Path):
         raise RunError(code=code)
 
     decompressed = archive.parent / archive.stem
-    decompressed.rename(file)
+    rename_file(decompressed, file)
+
+
+def rename_file(path: Path, dst: Path):
+    try:
+        path.rename(dst)
+    except FileExistsError:
+        delete_file(dst)
+        path.rename(dst)
 
 
 def delete_file(path: Path):
