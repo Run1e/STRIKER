@@ -1,10 +1,19 @@
+import asyncio
 import logging
 from dataclasses import asdict
 from functools import partial
 from json import dumps, loads
+from typing import Mapping
 from uuid import uuid4
 
-import aiormq
+import aio_pika
+import aio_pika.abc
+from aio_pika.abc import (
+    AbstractChannel,
+    AbstractConnection,
+    AbstractExchange,
+    AbstractIncomingMessage,
+)
 
 from . import bus, commands, deco, events
 
@@ -26,7 +35,9 @@ class Broker:
         self.bus = bus
         self.bus.add_dependencies(publish=self.publish)
 
-        self.channel: aiormq.Channel = None
+        self.connection: AbstractConnection = None
+        self.channel: AbstractChannel = None
+        self.exchanges: Mapping[str, AbstractExchange] = {}
         self.identifier = identifier or str(uuid4())[:8]
 
         self._publish_commands = publish_commands or set()
@@ -34,14 +45,15 @@ class Broker:
         self._identified = bool(identifier)
 
     async def start(self, url: str, prefetch_count=None):
-        mq = await aiormq.connect(url)
-        self.channel = await mq.channel()
+        self.connection = await aio_pika.connect_robust(url)
+        self.channel = await self.connection.channel()
 
-        await self.prefetch(prefetch_count=prefetch_count)
+        await self.channel.set_qos(prefetch_count=prefetch_count)
+
         for exchange_name in ("command", "event", "dead"):
-            await self.channel.exchange_declare(
-                exchange=exchange_name,
-                exchange_type="direct",
+            self.exchanges[exchange_name] = await self.channel.declare_exchange(
+                name=exchange_name,
+                type="direct",
                 durable=True,
                 auto_delete=False,
             )
@@ -63,9 +75,6 @@ class Broker:
             for event_type in self._consume_events:
                 await self.prepare_event(event_type)
 
-    async def prefetch(self, prefetch_count):
-        await self.channel.basic_qos(prefetch_count=prefetch_count)
-
     def message_type_to_queue_name(self, message_type):
         if issubclass(message_type, events.Event):
             return f"event-{message_type.__name__}-{self.identifier}"
@@ -76,15 +85,15 @@ class Broker:
         routing_key = message_type.__name__
         queue_name = self.message_type_to_queue_name(message_type)
 
-        await self.channel.queue_declare(
-            queue=queue_name,
+        queue = await self.channel.declare_queue(
+            name=queue_name,
             durable=self._identified,
             exclusive=not self._identified,
             auto_delete=not self._identified,
         )
 
         # bind the queue to its related exchange
-        await self.channel.queue_bind(queue=queue_name, exchange="event", routing_key=routing_key)
+        await queue.bind(exchange="event", routing_key=routing_key)
 
         # consume from the queue
         log.info("Consuming queue (event) %s", queue_name)
@@ -93,10 +102,7 @@ class Broker:
         if consume_args["requeue"]:
             raise ValueError("Requeueing not supported for events")
 
-        await self.channel.basic_consume(
-            queue=queue_name,
-            consumer_callback=partial(self.recv, message_type=message_type, **consume_args),
-        )
+        await queue.consume(callback=partial(self.recv, message_type=message_type, **consume_args))
 
     async def prepare_command(self, message_type, as_consumer: bool):
         routing_key = message_type.__name__
@@ -108,8 +114,8 @@ class Broker:
         dead_event = publish_args["dead_event"]
 
         if dead_event:
-            await self.channel.queue_declare(
-                queue=dlx_queue_name,
+            dead_queue = await self.channel.declare_queue(
+                name=dlx_queue_name,
                 durable=True,
                 exclusive=False,
                 auto_delete=False,
@@ -119,8 +125,7 @@ class Broker:
             queue_args["x-dead-letter-routing-key"] = routing_key
 
             # bind the dlx queue to its related exchange
-            await self.channel.queue_bind(
-                queue=dlx_queue_name,
+            await dead_queue.bind(
                 exchange="dead",
                 routing_key=routing_key,
             )
@@ -128,24 +133,23 @@ class Broker:
             if not as_consumer:
                 # we're publisher, so consume dead letter queue
                 log.info("Consuming queue (dlx) %s", dlx_queue_name)
-                await self.channel.basic_consume(
-                    queue=dlx_queue_name,
-                    consumer_callback=partial(
+                await dead_queue.consume(
+                    callback=partial(
                         self.recv_dead, message_type=message_type, dead_event=dead_event
                     ),
                 )
 
         # create the message queue
-        await self.channel.queue_declare(
-            queue=queue_name,
-            arguments=queue_args,
+        queue = await self.channel.declare_queue(
+            name=queue_name,
             durable=True,
             exclusive=False,
             auto_delete=False,
+            arguments=queue_args,
         )
 
         # bind the queue to its related exchange
-        await self.channel.queue_bind(queue=queue_name, exchange="command", routing_key=routing_key)
+        await queue.bind(exchange="command", routing_key=routing_key)
 
         if as_consumer:
             consume_args = deco.consume_args.get(message_type, None)
@@ -158,9 +162,8 @@ class Broker:
 
             # we're consumer, so consume the main queue
             log.info("Consuming queue (cmd) %s", queue_name)
-            await self.channel.basic_consume(
-                queue=queue_name,
-                consumer_callback=partial(self.recv, message_type=message_type, **consume_args),
+            await queue.consume(
+                callback=partial(self.recv, message_type=message_type, **consume_args),
             )
 
     async def publish(self, message):
@@ -189,21 +192,21 @@ class Broker:
 
         log.info("Publishing %s", message)
 
-        conf = await self.channel.basic_publish(
+        exchange = self.exchanges[exchange]
+
+        message = aio_pika.Message(
             body=dumps(data).encode("utf-8"),
-            exchange=exchange,
-            routing_key=queue_name,
-            properties=aiormq.spec.Basic.Properties(
+            headers=dict(
                 expiration=str(int(ttl * 1000)) if ttl is not None else None,
                 delivery_mode=2,  # persistent messages
             ),
         )
 
-        return conf
+        return await exchange.publish(message=message, routing_key=queue_name)
 
     async def recv(
         self,
-        message: aiormq.abc.DeliveredMessage,
+        message: AbstractIncomingMessage,
         message_type,
         publish_err: callable,
         dispatch_err: callable,
@@ -220,7 +223,7 @@ class Broker:
 
             # if this command is set up to requeue, only do it once (before it's redelivered)
             if requeue and not message.redelivered:
-                await self.nack(message, requeue=True)
+                await message.nack(requeue=True)
 
             # if we're unable to requeue...
             else:
@@ -233,32 +236,21 @@ class Broker:
                     await self.bus.dispatch(dispatch_err(msg, str(exc) if is_ok else None))
 
                 # and ack the command
-                await self.ack(message)
+                await message.ack()
 
             raise exc
 
         # if the command handler didn't except, ack the message
         else:
-            await self.ack(message)
+            await message.ack()
 
-    async def recv_dead(self, message: aiormq.abc.DeliveredMessage, message_type, dead_event):
+    async def recv_dead(self, message: AbstractIncomingMessage, message_type, dead_event):
         command = message_type(**loads(message.body))
-        reason = message.header.properties.headers["x-first-death-reason"]
+        reason = message.properties.headers["x-first-death-reason"]
         event = dead_event(command=command, reason=reason)
 
         log.info("Consuming dead letter %s", event)
 
         # immediately ack
-        await self.ack(message)
+        await message.ack()
         await self.bus.dispatch(event)
-
-    async def ack(self, message: aiormq.abc.DeliveredMessage):
-        log.debug("ACK %s", message.delivery.delivery_tag)
-        await self.channel.basic_ack(message.delivery.delivery_tag)
-
-    async def nack(self, message: aiormq.abc.DeliveredMessage, requeue: bool):
-        log.debug("NACK %s requeue=%s", message.delivery.delivery_tag, requeue)
-        await self.channel.basic_nack(
-            message.delivery.delivery_tag,
-            requeue=requeue,
-        )
