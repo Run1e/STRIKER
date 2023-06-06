@@ -81,7 +81,7 @@ Located at `microservices/uploader/config.py`
 
 ### Recorder config
 
-Located at `microservices/recorder/config.py`
+Located at `recorders/csgo/config.py`
 
 Download the latest release of [HLAE](https://github.com/advancedfx/advancedfx/releases),
 and extract it somewhere.
@@ -106,7 +106,7 @@ pip install -r bot/requirements.txt
 pip install -r microservices/demoparse/requirements.txt
 pip install -r microservices/gateway/requirements.txt
 pip install -r microservices/uploader/requirements.txt
-pip install -r microservices/recorder/requirements.txt
+pip install -r recorders/csgo/requirements.txt
 ```
 
 ## Final steps
@@ -155,7 +155,7 @@ If you're using something else, make sure to pay attention to the working direct
             "type": "python",
             "request": "launch",
             "program": "recorder.py",
-            "cwd": "${workspaceFolder}/microservices/recorder",
+            "cwd": "${workspaceFolder}/recorders/csgo",
             "console": "integratedTerminal",
             "justMyCode": true
         },
