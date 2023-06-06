@@ -87,6 +87,7 @@ def main():
 
     loop = asyncio.get_event_loop()
 
+    logging.getLogger("aio_pika").setLevel(logging.INFO)
     logging.getLogger("aiormq.connection").setLevel(logging.INFO)
 
     coro = bootstrap(

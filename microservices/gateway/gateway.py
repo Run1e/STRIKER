@@ -229,7 +229,8 @@ async def main():
     if config.SENTRY_DSN:
         sentry_init(config.SENTRY_DSN)
 
-    logging.getLogger("aiormq").setLevel(logging.INFO)
+    logging.getLogger("aio_pika").setLevel(logging.INFO)
+    logging.getLogger("aiormq.connection").setLevel(logging.INFO)
 
     if not config.DEBUG:
         logging.getLogger("websockets").setLevel(logging.INFO)

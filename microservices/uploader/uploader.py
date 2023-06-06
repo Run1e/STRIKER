@@ -108,7 +108,8 @@ async def main(injectables):
     if config.SENTRY_DSN:
         sentry_init(config.SENTRY_DSN)
 
-    logging.getLogger("aiormq").setLevel(logging.INFO)
+    logging.getLogger("aio_pika").setLevel(logging.INFO)
+    logging.getLogger("aiormq.connection").setLevel(logging.INFO)
 
     client = disnake.AutoShardedClient(intents=disnake.Intents.none())
     bus = MessageBus()

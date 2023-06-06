@@ -188,7 +188,8 @@ async def main():
     if config.SENTRY_DSN:
         sentry_init(config.SENTRY_DSN)
 
-    logging.getLogger("aiormq").setLevel(logging.INFO)
+    logging.getLogger("aio_pika").setLevel(logging.INFO)
+    logging.getLogger("aiormq.connection").setLevel(logging.INFO)
     logging.getLogger("botocore").setLevel(logging.INFO)
     logging.getLogger("aiobotocore").setLevel(logging.INFO)
     logging.getLogger("aioboto3").setLevel(logging.INFO)
