@@ -10,11 +10,11 @@ microservices/demoparse/config.py
 microservices/demoparse/data
 
 # recorder microservice
-microservices/recorder/demo
-microservices/recorder/temp
-microservices/recorder/mmcfg
-microservices/recorder/hlae
-microservices/recorder/config.py
+recorders/csgo/demo
+recorders/csgo/temp
+recorders/csgo/mmcfg
+recorders/csgo/hlae
+recorders/csgo/config.py
 
 # uploader microservice
 microservices/uploader/config.py
