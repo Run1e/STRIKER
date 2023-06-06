@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from dataclasses import asdict
 from functools import partial
@@ -7,12 +6,12 @@ from typing import Mapping
 from uuid import uuid4
 
 import aio_pika
-import aio_pika.abc
 from aio_pika.abc import (
     AbstractChannel,
     AbstractConnection,
     AbstractExchange,
     AbstractIncomingMessage,
+    AbstractQueue,
 )
 
 from . import bus, commands, deco, events
@@ -37,7 +36,9 @@ class Broker:
 
         self.connection: AbstractConnection = None
         self.channel: AbstractChannel = None
+
         self.exchanges: Mapping[str, AbstractExchange] = {}
+        self.queues: Mapping[str, AbstractQueue] = {}
         self.identifier = identifier or str(uuid4())[:8]
 
         self._publish_commands = publish_commands or set()
@@ -81,11 +82,16 @@ class Broker:
         elif issubclass(message_type, commands.Command):
             return f"cmd-{message_type.__name__}"
 
+    async def create_queue(self, name, *args, **kwargs):
+        queue = await self.channel.declare_queue(name=name, *args, **kwargs)
+        self.queues[name] = queue
+        return queue
+
     async def prepare_event(self, message_type):
         routing_key = message_type.__name__
         queue_name = self.message_type_to_queue_name(message_type)
 
-        queue = await self.channel.declare_queue(
+        queue = await self.create_queue(
             name=queue_name,
             durable=self._identified,
             exclusive=not self._identified,
@@ -114,7 +120,7 @@ class Broker:
         dead_event = publish_args["dead_event"]
 
         if dead_event:
-            dead_queue = await self.channel.declare_queue(
+            dead_queue = await self.create_queue(
                 name=dlx_queue_name,
                 durable=True,
                 exclusive=False,
@@ -140,7 +146,7 @@ class Broker:
                 )
 
         # create the message queue
-        queue = await self.channel.declare_queue(
+        queue = await self.create_queue(
             name=queue_name,
             durable=True,
             exclusive=False,
