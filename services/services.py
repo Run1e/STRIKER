@@ -347,7 +347,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
             timeout=4.0,
         )
 
-        await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier, 5.0))
+        await publish(commands.RequestPresignedUrl(demo.origin.name, demo.identifier, 60 * 60))
         result: events.PresignedUrlGenerated | None = await task
 
         if result is None:
@@ -359,7 +359,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         data["demo_url"] = result.presigned_url
 
         task = wait_for(
-            events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=2.0
+            events.RecordingProgression, check=lambda e: e.job_id == job_id, timeout=4.0
         )
 
         await publish(commands.RequestRecording(**data))

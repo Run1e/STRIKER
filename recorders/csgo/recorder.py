@@ -283,7 +283,7 @@ async def handle_recording_request(
     archive_name = os.path.basename(parse.urlparse(command.demo_url).path)
 
     archive_path = config.DEMO_DIR / f"{origin_lower}_{archive_name}"
-    temp_archive_path = config.TEMP_DIR / f"{command.job_id}.dem.{archive_path.suffix}"
+    temp_archive_path = config.TEMP_DIR / f"{command.job_id}.dem{archive_path.suffix}"
     demo_path = config.TEMP_DIR / f"{command.job_id}.dem"
 
     cleanup_files.append(demo_path)
@@ -292,9 +292,9 @@ async def handle_recording_request(
     if not archive_path.is_file():
         try:
             log.info("Download demo archive...")
-            await download_file(command.demo_url, temp_archive_path, timeout=20.0)
+            await download_file(command.demo_url, temp_archive_path, timeout=32.0)
         except (asyncio.TimeoutError, RunError) as exc:
-            raise MessageError("Failed downloading demo archive.")
+            raise MessageError("Failed downloading demo archive.") from exc
 
         if not archive_path.is_file():
             rename_file(temp_archive_path, archive_path)
