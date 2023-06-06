@@ -151,6 +151,8 @@ demoFile.gameEvents.on("player_death", e => {
   if (e.attacker == 0) return;
 
   const attacker = demoFile.entities.getByUserId(e.attacker);
+  if (attacker == null) return; // I've observed this happen ONCE lmao
+
   var pos = attacker.position;
 
   addEvent({
