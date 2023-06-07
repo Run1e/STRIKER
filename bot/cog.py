@@ -216,9 +216,10 @@ class RecorderCog(commands.Cog):
             if not is_valid_sharecode(sharecode):
                 raise commands.UserInputError(
                     "Sorry, that's not a valid sharecode or FACEIT url.\n\n"
-                    "You can give the bot matchmaking sharecodes:\n"
+                    "You can give the bot matchmaking sharecodes from the CS:GO client:\n"
                     "`steam://rungame/730/76561202255233023/+csgo_download_match%20CSGO-3VocL-obGr4-SjkBU-DjHhz-KWtrD`\n\n"
-                    "Or FACEIT links:\n"
+                    "(or just the sharecode itself: `CSGO-3VocL-obGr4-SjkBU-DjHhz-KWtrD`)\n\n"
+                    "The bot also supports FACEIT matches:\n"
                     "`https://www.faceit.com/en/csgo/room/1-9fa1db69-5f1a-4ea3-a37c-3ab84fbd416a`"
                 )
 

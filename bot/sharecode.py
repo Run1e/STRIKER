@@ -1,12 +1,13 @@
 import re
 
 dictionary = "ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789"
+sharecode_re =r"^CSGO(-[" + dictionary + r"]{5}){5}$"
 
 _bitmask64 = 2**64 - 1
 
 
 def is_valid_sharecode(code):
-    return bool(re.match(r"^(CSGO)?(-?[%s]{5}){5}$" % dictionary, code))
+    return bool(re.match(sharecode_re, code))
 
 
 def _swap_endianness(number):
