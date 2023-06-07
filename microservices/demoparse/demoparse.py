@@ -19,6 +19,7 @@ from messages.deco import handler
 from shared.const import DEMOPARSE_VERSION
 from shared.log import logging_config
 from shared.utils import (
+    CurlError,
     RunError,
     decompress,
     delete_file,
@@ -126,8 +127,10 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
         await download_file(download_url, archive_path, timeout=45.0)
     except asyncio.TimeoutError as exc:
         raise MessageError("Fetching demo timed out.") from exc
-    except RunError as exc:
-        raise MessageError("Failed fetching demo.") from exc
+    except CurlError as exc:
+        raise MessageError(
+            "Demo not found (404)" if exc.http_code == 404 else "Failed fetching demo."
+        ) from exc
 
     log.info(end())
 

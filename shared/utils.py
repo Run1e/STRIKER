@@ -28,6 +28,12 @@ class RunError(Exception):
         self.code = code
 
 
+class CurlError(RunError):
+    def __init__(self, *args: object, code: int = None, http_code: int = None) -> None:
+        super().__init__(*args, code=code)
+        self.http_code = http_code
+
+
 async def run(program: str, *args, timeout: float = 8.0):
     proc = None
 
@@ -65,7 +71,12 @@ async def download_file(url: str, file: Path, timeout: float = 8.0) -> bool:
     )
 
     if code != 0 or stdout != "200":
-        raise RunError(code=code)
+        try:
+            http_code = int(stdout.strip())
+        except ValueError:
+            http_code = 0
+
+        raise CurlError(code=code, http_code=http_code)
 
 
 async def decompress(archive: Path, file: Path):
