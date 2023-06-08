@@ -278,7 +278,7 @@ async def test_new_job_demo_id_not_up_to_date(new_job_junk):
     assert job.state is JobState.WAITING
 
     publish.assert_awaited_once_with(
-        commands.RequestDemoParse(origin=ANY, identifier=ANY, download_url=ANY)
+        commands.RequestDemoParse(origin=ANY, identifier=ANY, download_url=ANY, data_version=ANY)
     )
 
 
@@ -348,7 +348,7 @@ async def test_demoparse_success(valve):
     job.demo = demo
     job.demo_id = demo.id
 
-    version = 1
+    version = DEMOPARSE_VERSION
     event = events.DemoParseSuccess(
         origin=demo.origin.name, identifier=demo.identifier, data=valve, version=version
     )
@@ -394,7 +394,7 @@ async def test_demoparse_success_outdated():
     assert demo.state is DemoState.PROCESSING
 
     publish.assert_awaited_once_with(
-        commands.RequestDemoParse(origin=ANY, identifier=ANY, download_url=ANY)
+        commands.RequestDemoParse(origin=ANY, identifier=ANY, download_url=ANY, data_version=ANY)
     )
 
     assert job.state is JobState.WAITING
