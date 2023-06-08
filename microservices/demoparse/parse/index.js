@@ -36,13 +36,13 @@ demoFile.on('start', e => {
 });
 
 demoFile.gameEvents.on('player_team', e => {
-  if (seenTeam.has(e.userid)) return;
+  if (seenTeam.has(e.xuid)) return;
   const player = demoFile.entities.getByUserId(e.userid);
   if (!player) return;
   if (player.isFakePlayer) return;
   if (e.disconnect || e.isbot) return;
 
-  seenTeam.add(e.userid);
+  seenTeam.add(e.xuid);
 
   addEvent({
     "event": "player_team",
@@ -132,13 +132,14 @@ demoFile.gameEvents.on('round_start', e => {
   [demoFile.teams[2], demoFile.teams[3]].forEach(team => {
     team.members.forEach(player => {
       var userid = player.userInfo.userId;
-      if (!seenTeam.has(userid)) {
+      var xuid = player.userInfo.xuid;
+      if (!seenTeam.has(xuid)) {
         addEvent({
           "event": "player_team",
           "userid": userid,
           "team": team.teamNumber,
         });
-        seenTeam.add(userid);
+        seenTeam.add(xuid);
       }
     });
   });

@@ -1,7 +1,7 @@
+import logging
 from collections import Counter, defaultdict, namedtuple
 from copy import deepcopy
 from typing import List
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -268,5 +268,3 @@ class Match:
             self._players[player.userid] = player
         else:
             self._id_mapper[player.userid] = actual_player.userid
-
-    # remaining stuff is presentation related
