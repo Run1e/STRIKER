@@ -148,6 +148,7 @@ async def handle_demo_step(demo: Demo, publish):
                 origin=demo.origin.name,
                 identifier=demo.identifier,
                 download_url=demo.download_url,
+                data_version=demo.data_version,
             )
         )
 

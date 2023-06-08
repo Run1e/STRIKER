@@ -40,6 +40,7 @@ class RequestDemoParse(Command):
     origin: str
     identifier: str
     download_url: str
+    data_version: int
 
 
 @dataclass(frozen=True)

@@ -99,7 +99,7 @@ async def parse_demo(demofile) -> str:
 
 
 @handler(RequestDemoParse)
-async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
+async def request_demo_parse(command: RequestDemoParse, publish, upload_demo, get_url):
     origin = command.origin
     identifier = command.identifier
     download_url = command.download_url
@@ -117,6 +117,14 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
     # clear if they already exist
     delete_file(demo_path)
     delete_file(archive_path)
+
+    if command.data_version:
+        # if the caller says they already have a version,
+        # that means we already have the demo in our s3 bucket,
+        # and we basically want to reparse it (likely DEMOPARSE_VERSION increment)
+        # as such, set the download_url to the output of s3.get_url
+        log.info("Setting download_url to own s3 presigned url")
+        download_url = await get_url(origin, identifier, 60 * 60)
 
     # if archive and demo does not exist, download the archive
     log.info("downloading %s", archive_path)
@@ -159,7 +167,10 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo):
 
     async with asyncio.TaskGroup() as tg:
         parse_task = tg.create_task(parser())
-        tg.create_task(uploader())
+        if command.data_version is None:
+            tg.create_task(uploader())
+        else:
+            log.info("Skipping demo upload since data_version=%s", command.data_version)
 
     # everything after the tg above will have hidden exception stack traces
     # because of an obscure bug caused by weird asyncio stuff and aiormq weirdness
