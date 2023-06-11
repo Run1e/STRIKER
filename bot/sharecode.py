@@ -1,7 +1,7 @@
 import re
 
 dictionary = "ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789"
-sharecode_re =r"^CSGO(-[" + dictionary + r"]{5}){5}$"
+sharecode_re = r"^CSGO(-[" + dictionary + r"]{5}){5}$"
 
 _bitmask64 = 2**64 - 1
 

@@ -1,7 +1,7 @@
 import logging
 from dataclasses import asdict
 from functools import partial
-from json import dumps, loads
+from json import JSONDecodeError, dumps, loads
 from typing import Mapping
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ from aio_pika.abc import (
     AbstractIncomingMessage,
     AbstractQueue,
 )
+from pamqp.commands import Basic
 
 from . import bus, commands, deco, events
 
@@ -208,7 +209,25 @@ class Broker:
             ),
         )
 
-        return await exchange.publish(message=message, routing_key=queue_name)
+        # TODO: https://www.rabbitmq.com/confirms.html#publisher-confirms-latency
+        result = await exchange.publish(message=message, routing_key=queue_name)
+
+        log.info("Publish result: %s", result.name)
+        assert isinstance(result, Basic.Ack)
+
+    async def _load_message(self, message: AbstractIncomingMessage, message_type: type):
+        log.info("Consuming %s", message_type)
+
+        try:
+            return message_type(**loads(message.body))
+        except (JSONDecodeError, TypeError):
+            log.error(
+                "Tried to consume %s, but failed parsing json or loading into dataclass",
+                message_type,
+            )
+            log.error(message.body)
+            await message.ack()
+            raise
 
     async def recv(
         self,
@@ -218,10 +237,9 @@ class Broker:
         dispatch_err: callable,
         requeue: bool,
     ):
-        log.info("Consuming %s", message_type)
+        msg = await self._load_message(message, message_type)
 
         try:
-            msg = message_type(**loads(message.body))
             await self.bus.dispatch(msg)
         except Exception as exc:
             # MessageError is used to specify an error reason for the DTO, usually anyway
@@ -251,9 +269,10 @@ class Broker:
             await message.ack()
 
     async def recv_dead(self, message: AbstractIncomingMessage, message_type, dead_event):
-        command = message_type(**loads(message.body))
+        msg = await self._load_message(message, message_type)
+
         reason = message.properties.headers["x-first-death-reason"]
-        event = dead_event(command=command, reason=reason)
+        event = dead_event(command=msg, reason=reason)
 
         log.info("Consuming dead letter %s", event)
 
