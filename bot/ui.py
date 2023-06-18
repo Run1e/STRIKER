@@ -141,7 +141,7 @@ class RoundView(disnake.ui.View):
             teamnum = half.get_player_teamnum(player)
             emoji = coin_lookup(teamnum)
 
-            # faceit does some weird ass shit with their teamnums,
+            # TODO: faceit does some weird ass shit with their teamnums,
             # I genuinely don't know which team starts as CT/T and
             # when it switches. I'll have to investigate
             if match.origin == "faceit":

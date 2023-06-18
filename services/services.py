@@ -13,9 +13,11 @@ from messages.deco import handler, listener
 from services import views
 from services.uow import SqlUnitOfWork
 from shared.const import DEMOPARSE_VERSION
+from shared.lockstore import LockStore
 from shared.utils import utcnow
 
 DEMO_LOCK = asyncio.Lock()
+demo_locks = LockStore()
 log = logging.getLogger(__name__)
 
 
@@ -37,6 +39,7 @@ async def create_job(
 
             if command.demo_id is not None:
                 demo = await uow.demos.get(command.demo_id)
+                log.info("demo_id %s found", command.demo_id)
             else:
                 if command.sharecode is not None:
                     # see if demo already exists
@@ -57,6 +60,14 @@ async def create_job(
                         )
 
                         uow.demos.add(demo)
+                        log.info("created new demo from sharecode %s", command.sharecode)
+                    else:
+                        log.info(
+                            "found existing demo %s (state: %s) from sharecode %s",
+                            demo.id,
+                            demo.state,
+                            command.sharecode,
+                        )
 
                 elif command.origin == "FACEIT":
                     origin = DemoOrigin.FACEIT
@@ -82,6 +93,14 @@ async def create_job(
                         )
 
                         uow.demos.add(demo)
+                        log.info("created new demo from faceit ident %s", command.identifier)
+                    else:
+                        log.info(
+                            "found existing demo %s (state: %s) from faceit ident %s",
+                            demo.id,
+                            demo.state,
+                            command.identifier,
+                        )
 
                 elif command.origin == "VALVE":
                     # if no sharecode but origin is still valve, the identifier holds a demo url
@@ -99,37 +118,48 @@ async def create_job(
                         )
 
                         uow.demos.add(demo)
+                        log.info("created new demo from valve ident %s", command.identifier)
+                    else:
+                        log.info(
+                            "found existing demo %s (state: %s) from valve ident %s",
+                            demo.id,
+                            demo.state,
+                            command.identifier,
+                        )
 
-            if not new_demo and demo.state is DemoState.DELETED:
-                raise ServiceError("Demo has been deleted.")
+            # at this point we've created a demo, and can use the LockStore
+            async with demo_locks.get((demo.origin, demo.identifier)):
+                if not new_demo and demo.state is DemoState.DELETED:
+                    raise ServiceError("Demo has been deleted.")
 
-            job = Job(
-                state=JobState.WAITING,
-                guild_id=command.guild_id,
-                channel_id=command.channel_id,
-                started_at=utcnow(),
-                user_id=command.user_id,
-                inter_payload=command.inter_payload,
-            )
+                job = Job(
+                    state=JobState.WAITING,
+                    guild_id=command.guild_id,
+                    channel_id=command.channel_id,
+                    started_at=utcnow(),
+                    user_id=command.user_id,
+                    inter_payload=command.inter_payload,
+                )
 
-            uow.jobs.add(job)
+                uow.jobs.add(job)
 
-            # force id for job
-            # not sure this is needed anymore?
-            await uow.flush()
+                # force id for job
+                # not sure this is needed anymore?
+                await uow.flush()
 
-            job.set_demo(demo)
+                job.set_demo(demo)
 
-            # new demo? check next step
-            # old demo and not currenly processing? double check!
-            # basically has the effect of not rehandling demos that aren't new but are already processing
-            # another way of thinking about it, there's two cases where nothing has been queued:
-            # 1. the demo is new
-            # 2. the demo is not processing anymore (READY (might have old parsed version), or FAILED)
-            if new_demo or demo.state is not DemoState.PROCESSING:
-                await handle_demo_step(demo, publish=publish)
+                # new demo? check next step
+                # old demo and not currenly processing? double check!
+                # basically has the effect of not rehandling demos that aren't new but are already processing
+                # another way of thinking about it, there's two cases where nothing has been queued:
+                # 1. the demo is new
+                # 2. the demo is not processing anymore (READY (might have old parsed version), or FAILED)
+                if new_demo or demo.state is not DemoState.PROCESSING:
+                    log.info("passing to handle_demo_step: new_demo=%s state=%s", new_demo, demo.state)
+                    await handle_demo_step(demo, publish=publish)
 
-            await uow.commit()
+                await uow.commit()
 
 
 async def handle_demo_step(demo: Demo, publish):
@@ -139,7 +169,7 @@ async def handle_demo_step(demo: Demo, publish):
         # 1. the demo has not been parsed yet
         # 2. the demo has been parsed but is out of date
         # in both cases we need to send it on to the demoparser
-        log.info("Demo %s needs to be parsed, requesting demo to be parsed", demo.id)
+        log.info("Demo %s needs to be parsed", demo.id)
 
         demo.processing()
 
@@ -154,7 +184,7 @@ async def handle_demo_step(demo: Demo, publish):
 
     else:
         # otherwise, demo *should* be fine
-        log.info("Demo %s seems fine to use", demo.id)
+        log.info("Demo %s ok", demo.id)
         demo.ready()
 
 
@@ -222,45 +252,65 @@ async def job_failure(event: events.JobFailed, uow: SqlUnitOfWork):
 
 @listener(events.DemoParseSuccess)
 async def demoparse_success(event: events.DemoParseSuccess, uow: SqlUnitOfWork, publish):
-    async with uow:
-        demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
-        if demo is None:
-            return
+    ident = (DemoOrigin[event.origin], event.identifier)
 
-        if event.version != DEMOPARSE_VERSION:
-            await handle_demo_step(demo=demo, publish=publish)
-        else:
-            demo.set_demo_data(loads(event.data), event.version)
-            demo.ready()
+    async with demo_locks.get(ident):
+        async with uow:
+            demo = await uow.demos.from_identifier(*ident)
+            if demo is None:
+                log.error(
+                    "Demo with origin %s and identifier %s succeeded but not found in database",
+                    event.origin,
+                    event.identifier,
+                )
+                return
 
-        await uow.commit()
+            if event.version != DEMOPARSE_VERSION:
+                await handle_demo_step(demo=demo, publish=publish)
+            else:
+                demo.set_demo_data(loads(event.data), event.version)
+                demo.ready()
+
+            await uow.commit()
 
 
 @listener(events.DemoParseFailure)
 async def demoparse_failure(event: events.DemoParseFailure, uow: SqlUnitOfWork):
-    async with uow:
-        demo: Demo = await uow.demos.from_identifier(DemoOrigin[event.origin], event.identifier)
-        if demo is None:
-            return
+    ident = (DemoOrigin[event.origin], event.identifier)
 
-        demo.failed(event.reason)
-        await uow.commit()
+    async with demo_locks.get(ident):
+        async with uow:
+            demo: Demo = await uow.demos.from_identifier(*ident)
+            if demo is None:
+                log.error(
+                    "Demo with origin %s and identifier %s failed but not found in database",
+                    event.origin,
+                    event.identifier,
+                )
+                return
+
+            demo.failed(event.reason)
+            await uow.commit()
 
 
 @listener(events.DemoParseDL)
 async def demoparse_died(event: events.DemoParseDL, uow: SqlUnitOfWork):
-    async with uow:
-        command: commands.RequestDemoParse = event.command
-        reason = event.reason
+    command: commands.RequestDemoParse = event.command
+    ident = (DemoOrigin[command.origin], command.identifier)
 
-        prose_version = dict(
-            rejected="The demo parse service was unable to process your request.",
-            expired="The demo parse service request timed out.",
-        ).get(reason, "The demo parse service request failed.")
+    async with demo_locks.get(ident):
+        async with uow:
+            command: commands.RequestDemoParse = event.command
+            reason = event.reason
 
-        uow.add_message(
-            events.DemoParseFailure(command.origin, command.identifier, reason=prose_version)
-        )
+            prose_version = dict(
+                rejected="The demo parse service was unable to process your request.",
+                expired="The demo parse service request timed out.",
+            ).get(reason, "The demo parse service request failed.")
+
+            uow.add_message(
+                events.DemoParseFailure(command.origin, command.identifier, reason=prose_version)
+            )
 
 
 @handler(commands.GetPresignedUrlDTO)

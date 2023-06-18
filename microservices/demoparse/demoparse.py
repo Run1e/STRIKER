@@ -165,20 +165,24 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo, ge
         await upload_demo(archive_path, origin, identifier)
         log.info(end())
 
-    async with asyncio.TaskGroup() as tg:
-        parse_task = tg.create_task(parser())
-        if command.data_version is None:
-            tg.create_task(uploader())
-        else:
-            log.info("Skipping demo upload since data_version=%s", command.data_version)
+    tasks = [asyncio.create_task(parser())]
 
-    # everything after the tg above will have hidden exception stack traces
-    # because of an obscure bug caused by weird asyncio stuff and aiormq weirdness
+    if command.data_version is None:
+        tasks.append(asyncio.create_task(uploader()))
+    else:
+        log.info("Skipping demo upload since data_version=%s", command.data_version)
+
+    try:
+        parser_result, *junk = await asyncio.gather(*tasks)
+    except Exception:
+        for task in tasks:
+            task.cancel()
+        raise
 
     delete_file(demo_path)
     delete_file(archive_path)
 
-    data = parse_task.result()
+    data = parser_result
     if not data:
         raise MessageError("Failed parsing demo.")
 
