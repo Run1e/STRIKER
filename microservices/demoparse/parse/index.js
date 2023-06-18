@@ -104,6 +104,7 @@ demoFile.gameEvents.on('round_announce_match_start', e => {
 
   inWarmup = false;
   matchStarted = true;
+  seenTeam.clear();
 });
 
 demoFile.gameEvents.on('round_announce_warmup', e => {
