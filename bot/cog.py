@@ -67,10 +67,10 @@ class EmbedBuilder:
         )
 
     def recording(self, job_id: str = None, title: str = None):
-        return self.build(title or "Recording queued!", disnake.Color.orange(), job_id)
+        return self.build(title or "Recording queued", disnake.Color.orange(), job_id)
 
     def success(self, job_id: str = None, title: str = None):
-        return self.build(title or "Job completed!", disnake.Color.green(), job_id)
+        return self.build(title or "Job completed", disnake.Color.green(), job_id)
 
     def failed(self, job_id: str = None, title: str = None):
         return self.build(title or "Oops!", disnake.Color.red(), job_id)
@@ -98,11 +98,12 @@ async def job_limit_checker(inter: disnake.AppCmdInter, limit: int):
     if job_count < limit:
         return True
 
-    job_word = "job" if limit == 1 else "jobs"
+    job_word = "jobs" if limit > 1 else "job"
+    one_of = "one of " if limit > 1 else ""
 
     raise commands.CheckFailure(
         f"You can only have {limit} {job_word} queued at a time. "
-        "Please wait for one of your previous jobs to complete before starting a new one."
+        f"Please wait for {one_of}your previous {job_word} to complete before starting a new one."
     )
 
 
