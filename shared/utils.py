@@ -89,6 +89,9 @@ async def decompress(archive: Path, file: Path):
     else:
         raise RunError("Unknown archive suffix")
 
+    if file.is_file():
+        delete_file(file)
+
     code, stdout, stderr = await run(program, "-dk", archive, timeout=32.0)
 
     if code != 0:
