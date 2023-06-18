@@ -27,6 +27,19 @@ function addStringTable(data) {
   r['stringtables'].push(data);
 }
 
+function setPlayerTeam(player, teamnum) {
+  if (player.isFakePlayer) return;
+
+  if (seenTeam.has(player.steamId)) return;
+  seenTeam.add(player.steamId);
+
+  addEvent({
+    "event": "player_team",
+    "userid": player.userId,
+    "team": teamnum,
+  });
+}
+
 demoFile.on('start', e => {
   r['demoheader'] = {
     mapname: demoFile.header.mapName,
@@ -36,20 +49,15 @@ demoFile.on('start', e => {
 });
 
 demoFile.gameEvents.on('player_team', e => {
-  if (seenTeam.has(e.xuid)) return;
   const player = demoFile.entities.getByUserId(e.userid);
   if (!player) return;
-  if (player.isFakePlayer) return;
   if (e.disconnect || e.isbot) return;
+  setPlayerTeam(player, e.team);
+});
 
-  seenTeam.add(e.xuid);
-
-  addEvent({
-    "event": "player_team",
-    "userid": e.userid,
-    "team": e.team,
-    // "oldteam": e.oldteam,
-  });
+demoFile.gameEvents.on('player_spawn', e => {
+  if (!e.player) return;
+  setPlayerTeam(e.player, e.teamnum);
 });
 
 demoFile.conVars.on('change', e => {
@@ -112,6 +120,7 @@ demoFile.gameEvents.on('round_end', e => {
   });
 });
 
+
 demoFile.gameEvents.on('round_officially_ended', e => {
   addEvent({
     event: 'round_officially_ended',
@@ -127,21 +136,6 @@ demoFile.gameEvents.on('round_start', e => {
   addEvent({
     event: 'round_start',
     round: demoFile.gameRules.roundsPlayed + 1,
-  });
-
-  [demoFile.teams[2], demoFile.teams[3]].forEach(team => {
-    team.members.forEach(player => {
-      var userid = player.userInfo.userId;
-      var xuid = player.userInfo.xuid;
-      if (!seenTeam.has(xuid)) {
-        addEvent({
-          "event": "player_team",
-          "userid": userid,
-          "team": team.teamNumber,
-        });
-        seenTeam.add(xuid);
-      }
-    });
   });
 });
 

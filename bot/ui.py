@@ -1,16 +1,17 @@
 import asyncio
-from collections import Counter
 from functools import partial
-from typing import List
+import logging
 
 import disnake
 from tabulate import tabulate
 
-from domain.match import Death, Match, MatchHalf, Player
+from domain.match import Match, MatchHalf, Player
 
 from .area import places
 from .config import CT_COIN, T_COIN
 from .sharecode import is_valid_sharecode
+
+log = logging.getLogger(__name__)
 
 
 class AbortButton(disnake.ui.Button):
@@ -139,12 +140,9 @@ class RoundView(disnake.ui.View):
             row = half_num // 5
 
             teamnum = half.get_player_teamnum(player)
-            emoji = coin_lookup(teamnum)
-
-            # TODO: faceit does some weird ass shit with their teamnums,
-            # I genuinely don't know which team starts as CT/T and
-            # when it switches. I'll have to investigate
-            if match.origin == "faceit":
+            if half.name == "REG":
+                emoji = coin_lookup(teamnum)
+            else:
                 emoji = None
 
             button = HalfButton(
