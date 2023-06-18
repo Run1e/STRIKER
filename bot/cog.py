@@ -426,12 +426,13 @@ class RecorderCog(commands.Cog):
 
         await inter.response.edit_message(content=None, embed=embed, view=None)
 
-    async def view_timeout(self, event: dto.JobSelectable, inter: disnake.Interaction):
+    async def view_timeout(self, event: dto.JobSelectable):
         await self.bus.dispatch(cmds.AbortJob(event.job_id))
 
         embed = self.embed.aborted(event.job_id)
         embed.description = "Command timed out."
 
+        inter = make_inter(event.job_inter, self.bot)
         message = await inter.original_message()
         await message.edit(content=None, embed=embed, view=None)
 
