@@ -53,7 +53,7 @@ cp bot/example_config.py bot/config.py
 cp microservices/demoparse/example_config.py microservices/demoparse/config.py
 cp microservices/gateway/example_config.py microservices/gateway/config.py
 cp microservices/uploader/example_config.py microservices/uploader/config.py
-cp microservices/recorder/example_config.py microservices/recorder/config.py
+cp recorders/csgo/example_config.py recorders/csgo/config.py
 ```
 
 ### Bot config
