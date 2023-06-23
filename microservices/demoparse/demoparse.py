@@ -132,12 +132,15 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo, ge
 
     # if not archive_path.is_file():
     try:
+        raise CurlError(code=0, http_code=404)
         await download_file(download_url, archive_path, timeout=45.0)
     except asyncio.TimeoutError as exc:
         raise MessageError("Fetching demo timed out.") from exc
     except CurlError as exc:
         raise MessageError(
-            "Demo not found (404)" if exc.http_code == 404 else "Failed fetching demo."
+            ("Demo not found (404)." if exc.http_code == 404 else "Failed fetching demo.") + "\n\n"
+            "If you just finished this match, please wait a couple of minutes and try again.\n"
+            "Otherwise, this demo might have been deleted."
         ) from exc
 
     log.info(end())
