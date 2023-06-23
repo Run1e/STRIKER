@@ -156,7 +156,9 @@ async def create_job(
                 # 1. the demo is new
                 # 2. the demo is not processing anymore (READY (might have old parsed version), or FAILED)
                 if new_demo or demo.state is not DemoState.PROCESSING:
-                    log.info("passing to handle_demo_step: new_demo=%s state=%s", new_demo, demo.state)
+                    log.info(
+                        "passing to handle_demo_step: new_demo=%s state=%s", new_demo, demo.state
+                    )
                     await handle_demo_step(demo, publish=publish)
 
                 await uow.commit()

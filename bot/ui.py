@@ -1,6 +1,7 @@
 import asyncio
-from functools import partial
 import logging
+from functools import partial
+from typing import Coroutine
 
 import disnake
 from tabulate import tabulate
@@ -20,6 +21,7 @@ class AbortButton(disnake.ui.Button):
         self._callback = callback
 
     async def callback(self, inter: disnake.MessageInteraction):
+        self.view.stop()
         asyncio.create_task(self._callback(inter))
 
 
@@ -46,8 +48,6 @@ class PlayerView(disnake.ui.View):
     ):
         super().__init__(timeout=timeout)
         self.match = match
-        self.player_callback = player_callback
-        self.abort_callback = abort_callback
         self.on_timeout = timeout_callback
 
         half = self.match.halves[0]
@@ -78,7 +78,7 @@ class PlayerView(disnake.ui.View):
                     )
                 )
 
-        self.add_item(AbortButton(callback=self.abort_callback, row=4))
+        self.add_item(AbortButton(callback=abort_callback, row=4))
 
 
 class HalfButton(disnake.ui.Button):
@@ -126,7 +126,6 @@ class RoundView(disnake.ui.View):
         self.match = match
         self.round_callback = round_callback
         self.reselect_callback = reselect_callback
-        self.abort_callback = abort_callback
         self.on_timeout = timeout_callback
         self.timeout_callback = timeout_callback
 
@@ -168,23 +167,17 @@ class RoundView(disnake.ui.View):
         )
         reselect_button.callback = self.reselect_click
 
-        abort_button = disnake.ui.Button(
-            style=disnake.ButtonStyle.danger,
-            label="Abort",
-            row=row,
-        )
-        abort_button.callback = self.abort_click
-
         self.add_item(reselect_button)
-        self.add_item(abort_button)
+        self.add_item(
+            AbortButton(
+                callback=abort_callback,
+                row=row,
+            )
+        )
 
     async def reselect_click(self, inter: disnake.MessageInteraction):
         self.stop()
         asyncio.create_task(self.reselect_callback(inter))
-
-    async def abort_click(self, inter: disnake.MessageInteraction):
-        self.stop()
-        asyncio.create_task(self.abort_callback(inter))
 
     async def half_callback(self, inter: disnake.MessageInteraction, n):
         embed = self.set_half(n)
