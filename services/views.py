@@ -16,7 +16,7 @@ async def get_user_demo_formats(user_id: int, uow: SqlUnitOfWork):
         stmt = text(
             "SELECT d.id, d.game, d.origin, d.time, d.map, d.score, d.downloaded_at "
             "FROM demo AS d JOIN job AS j ON j.demo_id=d.id "
-            "WHERE d.state='READY' AND j.user_id=:user_id "
+            "WHERE j.user_id=:user_id AND (d.state='READY' OR (d.state='FAILED' AND d.data_version IS NOT NULL)) "
             "ORDER BY j.started_at DESC"
         ).bindparams(user_id=user_id)
         result = await uow.session.execute(stmt)
