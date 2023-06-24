@@ -94,7 +94,19 @@ def make_script(
 
     for start, end in skips:
         c.tick(start)
-        c.skip(end)
+        c.run("mirv_streams record end")
+        
+        # only ff if there's at least three seconds to ff
+        if end - start > tickrate * 3:
+            c.delta(tickrate * 0.5)
+            c.run("mirv_time drive 8.0")
+
+        # reset drive one second before next segment
+        c.tick(end - tickrate)
+        c.run("mirv_time drive 1.0")
+
+        c.tick(end)
+        c.run("mirv_streams record start")
 
     # stop recording!
     c.tick(end_tick)

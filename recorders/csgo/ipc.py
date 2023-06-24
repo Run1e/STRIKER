@@ -169,7 +169,7 @@ class CSGO:
             self.assumed_resolution = (w, h)
             await asyncio.sleep(12.0)
 
-    async def playdemo(self, demo, unblock_string, start_at=None):
+    async def playdemo(self, demo, start_at=None):
         # disconnect in case we're stuck in another demo playback
         await self.run("disconnect")
 
@@ -179,36 +179,7 @@ class CSGO:
             command += f"@{start_at}"
 
         command += '"'
-
-        task = asyncio.create_task(
-            self.wait_for_many(
-                rec=lambda line: line.startswith('Recording to "'),
-                missingmap=lambda line: re.match(r"^Missing map .*, disconnecting$", line),
-                timeout=120.0,
-            )
-        )
-
         await self.run(command)
-
-        self.log("Waiting for recording to start...")
-        result, line = await task
-
-        take = None
-
-        if result == "rec":
-            match = re.findall(r"Recording to \"(.*)\"\.", line)
-            take = match[0]
-            self.log(f"Recording to {take}")
-
-        elif result == "missingmap":
-            # TODO: this should be RecoverableRecordingError or something
-            raise RecordingError("Demos that require old maps are not supported.")
-
-        await self.wait_for(lambda line: line == unblock_string + " ", timeout=200.0)
-
-        self.log("Recording completed")
-
-        return take
 
 
 class SandboxedCSGO(CSGO):

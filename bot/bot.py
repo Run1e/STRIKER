@@ -5,6 +5,7 @@ import disnake
 from disnake.ext import commands
 
 from bot import config
+from shared.const import BOT_PERMISSIONS, BOT_SCOPES
 from messages.bus import MessageBus
 
 EXTENSIONS = ("checks", "errors", "cog", "owner")
@@ -18,8 +19,8 @@ class Bot(commands.AutoShardedInteractionBot):
         self.gather = gather
 
         self.maintenance = False
-        self.invite_permissions = disnake.Permissions(274878286912)
-        self.invite_scopes = {"applications.commands", "bot"}
+        self.invite_permissions = disnake.Permissions(BOT_PERMISSIONS)
+        self.invite_scopes = BOT_SCOPES
 
     async def on_ready(self):
         await self.change_presence()

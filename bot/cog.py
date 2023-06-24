@@ -337,7 +337,7 @@ class RecorderCog(commands.Cog):
         embed = self.embed.recording(event.job_id)
 
         if event.infront is None:  # gateway nonresponsive or no getters in gateway
-            embed.description = "Waiting for gateway..."
+            embed.description = "Waiting for gateway/recorder..."
         elif event.infront == 0:  # currently recording
             embed.description = f"{config.SPINNER} Recording your highlight now!"
         else:  # queued
@@ -353,7 +353,7 @@ class RecorderCog(commands.Cog):
                     "- Record scrimmage/wingman demos\n"
                     "- Record 1080p video\n"
                     "- Remove HUD, change crosshair\n"
-                    "- Bot keeps your demos for 30 days"
+                    "- Support the project! :partying_face:"
                 ),
             )
 

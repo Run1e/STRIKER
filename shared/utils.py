@@ -39,6 +39,8 @@ async def run(program: str, *args, timeout: float = 8.0):
 
     try:
         async with asyncio.timeout(timeout):
+            log.info("%s %s", program, " ".join(str(arg) for arg in args))
+
             proc = await asyncio.create_subprocess_exec(
                 program,
                 *args,

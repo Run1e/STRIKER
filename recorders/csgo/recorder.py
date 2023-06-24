@@ -5,6 +5,7 @@ sys.path.append("../..")
 import asyncio
 import logging
 import os
+import re
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from distutils.dir_util import copy_tree
@@ -34,6 +35,7 @@ from shared.utils import (
     download_file,
     make_folder,
     rename_file,
+    run,
     sentry_init,
 )
 
@@ -116,22 +118,48 @@ async def record(
     else:
         await csgo.set_resolution(1280, 854)
 
-    take_folder = await csgo.playdemo(
+    result = asyncio.Future()
+    take_folders = list()
+
+    def checker(line):
+        if line.startswith('Recording to "'):
+            match = re.findall(r"Recording to \"(.*)\"\.", line)
+            folder = match[0]
+            log.info("Found take folder: %s", folder)
+            take_folders.append(config.TEMP_DIR / folder)
+
+        elif re.match(r"^Missing map .*, disconnecting$", line):
+            result.set_exception(RecordingError("Demos that require old maps are not supported."))
+
+        elif line == unblock_string + " ":
+            result.set_result(None)
+            return True
+
+        return False
+
+    task = asyncio.create_task(csgo.wait_for(check=checker, timeout=240.0))
+
+    await csgo.playdemo(
         demo=demo.absolute(),
-        unblock_string=unblock_string,
         start_at=command.start_tick - (6 * command.tickrate),
     )
 
+    try:
+        await result
+    finally:
+        task.cancel()
+
     delete_file(script_file)
 
-    log.info("Muxing in folder %s", take_folder)
-
-    take_folder = config.TEMP_DIR / take_folder
-
+    parts = list()
+    coros = []
     # mux audio
-    wav = list(take_folder.glob("*.wav"))[0]
-    subprocess.run(
-        [
+    for idx, take_folder in enumerate(take_folders):
+        take_output = take_folder / f"{command.job_id}-{idx}.mp4"
+        parts.append(take_output)
+        log.info("Muxing in %s", take_folder)
+        wav = list(take_folder.glob("*.wav"))[0]
+        coro = run(
             config.FFMPEG_BIN,
             "-i",
             take_folder / "normal/video.mp4",
@@ -144,12 +172,35 @@ async def record(
             "-b:a",
             f"{command.audio_bitrate}k",
             "-y",
-            output,
-        ],
-        capture_output=True,
+            take_output,
+        )
+
+        coros.append(coro)
+
+    await asyncio.gather(*coros)
+
+    part_file = config.TEMP_DIR / f"{command.job_id}-parts.txt"
+    with open(part_file, "w") as f:
+        f.write("\n".join(f"file '{part.absolute()}'" for part in parts))
+
+    await run(
+        config.FFMPEG_BIN,
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        part_file.absolute(),
+        "-c",
+        "copy",
+        output.absolute(),
     )
 
-    delete_folder(take_folder)
+    delete_file(part_file)
+
+    for take_folder in take_folders:
+        delete_folder(take_folder)
+
     return output
 
 

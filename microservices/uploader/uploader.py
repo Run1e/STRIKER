@@ -15,6 +15,7 @@ from aiohttp import web
 from messages import commands, events
 from messages.broker import Broker
 from messages.bus import MessageBus
+from shared.const import BOT_PERMISSIONS, BOT_SCOPES
 from shared.log import logging_config
 from shared.utils import sentry_init
 
@@ -37,14 +38,29 @@ async def perform_upload(
 
     channel = await client.fetch_channel(channel_id)
 
+    invite_link = disnake.utils.oauth_url(
+        client.user.id,
+        permissions=disnake.Permissions(BOT_PERMISSIONS),
+        scopes=BOT_SCOPES,
+    )
+
     buttons = list()
 
     buttons.append(
         disnake.ui.Button(
             style=disnake.ButtonStyle.secondary,
-            label="How to use the bot",
+            label="Tutorial",
             emoji="\N{Black Question Mark Ornament}",
             custom_id="howtouse",
+        )
+    )
+
+    buttons.append(
+        disnake.ui.Button(
+            style=disnake.ButtonStyle.url,
+            label="Invite the bot",
+            emoji="🎉",
+            url=invite_link,
         )
     )
 
