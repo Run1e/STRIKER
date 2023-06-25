@@ -40,11 +40,21 @@ disnake.ApplicationCommandInteraction.__init__ = patched_init(
     disnake.ApplicationCommandInteraction.__init__
 )
 
+disnake.MessageInteraction.__init__ = patched_init(disnake.MessageInteraction.__init__)
 
-def make_inter(inter_payload: bytes, bot: commands.InteractionBot) -> disnake.AppCommandInteraction:
-    return disnake.ApplicationCommandInteraction(
-        data=pickle.loads(inter_payload), state=bot._connection
-    )
+
+def make_inter(
+    inter_payload: bytes, bot: commands.InteractionBot
+) -> disnake.AppCommandInteraction | disnake.MessageInteraction:
+    data = pickle.loads(inter_payload)
+    type_value = data["type"]
+
+    if type_value == 2:
+        inter = disnake.ApplicationCommandInteraction(data=data, state=bot._connection)
+    elif type_value == 3:
+        inter = disnake.MessageInteraction(data=data, state=bot._connection)
+
+    return inter
 
 
 class EmbedBuilder:
@@ -313,6 +323,29 @@ class RecorderCog(commands.Cog):
     async def demos_autocomplete(self, inter: disnake.AppCmdInter, search: str):
         return await self._search_demos(inter.author.id, search, limit=5)
 
+    async def _record_another(self, inter: disnake.MessageInteraction):
+        message = inter.message
+
+        if not message.embeds:
+            return
+
+        embed = message.embeds[0]
+        job_id = embed.footer.text[4:]
+
+        demo_id = await views.get_job_demo_id(UUID(job_id), uow=SqlUnitOfWork())
+        if demo_id is None:
+            return
+
+        await self.bus.dispatch(
+            cmds.CreateJob(
+                guild_id=inter.guild.id,
+                channel_id=inter.channel.id,
+                user_id=inter.author.id,
+                inter_payload=pickle.dumps(inter._payload),
+                demo_id=demo_id,
+            )
+        )
+
     # DTOs
 
     async def job_processing(self, event: dto.DTO):
@@ -368,10 +401,19 @@ class RecorderCog(commands.Cog):
 
         embed = self.embed.success(event.job_id)
         embed.description = (
-            "Enjoy the clip!\n\nCheck out `/config` to tweak your recording settings!"
+            "Enjoy the clip!\n\n"
+            "Check out `/config` to tweak your recording settings!\n"
+            "To record another highlight from a previously used demo, use `/demos`"
         )
 
-        await inter.edit_original_response(embed=embed, content=None, components=None)
+        button = disnake.ui.Button(
+            style=disnake.ButtonStyle.secondary,
+            label="Record another one?",
+            emoji="\N{Clapper Board}",
+            custom_id="recordanother",
+        )
+
+        await inter.edit_original_response(embed=embed, content=None, components=[button])
 
     async def job_selectable(self, event: dto.JobSelectable):
         inter = make_inter(event.job_inter, self.bot)
@@ -636,6 +678,8 @@ class RecorderCog(commands.Cog):
             await self._send_donate(inter)
         elif custom_id == "alternateoriginhelp":
             await self._send_alternate_origin_help(inter)
+        elif custom_id == "recordanother":
+            await self._record_another(inter)
 
     async def _send_help_embed(self, inter: disnake.Interaction):
         e = self.embed.build("STRIKER")
