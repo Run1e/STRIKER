@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from shutil import rmtree
+import signal
 from time import monotonic
 
 import sentry_sdk
@@ -145,6 +146,46 @@ def utcnow():
 def timer(name):
     start = monotonic()
     return lambda: f"{name} took {monotonic() - start:0.2f} seconds"
+
+
+def add_signal_handlers():
+    if os.name == "nt":
+        return []
+
+    loop = asyncio.get_event_loop()
+    close_tasks = []
+
+    async def shutdown(sig: signal.Signals) -> None:
+        """
+        Cancel all running async tasks (other than this one) when called.
+        By catching asyncio.CancelledError, any running task can perform
+        any necessary cleanup when it's cancelled.
+        """
+        nonlocal close_tasks
+
+        log.info("Got shutdown signal: %s", sig)
+        log.info("Running %s close tasks", len(close_tasks))
+
+        await asyncio.gather(*[coro() for coro in close_tasks], return_exceptions=True)
+
+        log.info("Finished running close tasks")
+
+        tasks = []
+        for task in asyncio.all_tasks(loop):
+            if task is not asyncio.current_task(loop):
+                task.cancel()
+                tasks.append(task)
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        log.info("Finished awaiting tasks, stopping loop")
+        loop.stop()
+
+    for sig in [signal.SIGINT, signal.SIGTERM]:
+        log.info("Adding signal handler for %s", sig)
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown(sig)))
+
+    return close_tasks
 
 
 ordinal = lambda n: "%d%s" % (

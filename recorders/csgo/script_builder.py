@@ -95,7 +95,7 @@ def make_script(
     for start, end in skips:
         c.tick(start)
         c.run("mirv_streams record end")
-        
+
         # only ff if there's at least three seconds to ff
         if end - start > tickrate * 3:
             c.delta(tickrate * 0.5)

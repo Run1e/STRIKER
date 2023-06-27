@@ -77,6 +77,9 @@ class Broker:
             for event_type in self._consume_events:
                 await self.prepare_event(event_type)
 
+    async def close(self):
+        self.connection.close()
+
     def message_type_to_queue_name(self, message_type):
         if issubclass(message_type, events.Event):
             return f"event-{message_type.__name__}-{self.identifier}"

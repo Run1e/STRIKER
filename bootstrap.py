@@ -9,7 +9,7 @@ from messages.broker import Broker
 from messages.bus import MessageBus
 from services.uow import SqlUnitOfWork
 from shared.log import logging_config
-from shared.utils import sentry_init
+from shared.utils import add_signal_handlers, sentry_init
 
 logging_config(config.DEBUG)
 
@@ -24,6 +24,9 @@ async def bootstrap(
     start_bot: bool,
     restore: bool,
 ) -> MessageBus:
+    # close_tasks = add_signal_handlers()
+    close_tasks = []
+
     if start_orm:
         await orm.start_orm()
 
@@ -49,7 +52,8 @@ async def bootstrap(
     waiters = list()
 
     if start_steam:
-        fetcher, steam_waiter = await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
+        client, fetcher, steam_waiter = await steam.get_match_fetcher(config.STEAM_REFRESH_TOKEN)
+        close_tasks.append(client.close)
         bus.add_dependencies(sharecode_resolver=fetcher)
         waiters.append(steam_waiter)
     else:
@@ -64,11 +68,14 @@ async def bootstrap(
 
     if start_bot:
         bot_instance = bot.start_bot(bus, gather)
+        close_tasks.append(bot_instance.close)
         waiters.append(bot_instance.wait_until_ready())
 
     await asyncio.gather(*waiters)
     await broker.start(config.RABBITMQ_HOST)
     gather.set()
+
+    close_tasks.append(broker.connection.close)
 
     log.info("Ready to bot!")
 

@@ -25,4 +25,4 @@ async def get_match_fetcher(refresh_token):
         match = await client.fetch_match(**v)
         return match.id, match.created_at, match.rounds[-1].map
 
-    return fetcher, client.wait_for_gc_ready()
+    return client, fetcher, client.wait_for_gc_ready()
