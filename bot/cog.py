@@ -346,6 +346,12 @@ class RecorderCog(commands.Cog):
             )
         )
 
+    async def edit_inter(self, inter: disnake.Interaction, **kwargs):
+        try:
+            await inter.edit_original_response(**kwargs)
+        except disnake.HTTPException as e:
+            log.info("Editing interaction message failed with code %s: %s", e.code, e.text)
+
     # DTOs
 
     async def job_processing(self, event: dto.DTO):
@@ -354,7 +360,7 @@ class RecorderCog(commands.Cog):
         embed = self.embed.waiting(event.job_id)
         embed.description = f"{config.SPINNER} Please wait..."
 
-        await inter.edit_original_response(embed=embed, content=None, components=None)
+        await self.edit_inter(inter, embed=embed, content=None, components=None)
 
     async def job_failed(self, event: dto.JobFailed):
         inter = make_inter(event.job_inter, self.bot)
@@ -362,7 +368,7 @@ class RecorderCog(commands.Cog):
         embed = self.embed.failed(event.job_id)
         embed.description = event.reason
 
-        await inter.edit_original_response(embed=embed, content=None, components=None)
+        await self.edit_inter(inter, embed=embed, content=None, components=None)
 
     async def job_recording(self, event: dto.JobRecording):
         inter = make_inter(event.job_inter, self.bot)
@@ -394,7 +400,7 @@ class RecorderCog(commands.Cog):
         else:
             components = None
 
-        await inter.edit_original_response(embed=embed, content=None, components=components)
+        await self.edit_inter(inter, embed=embed, content=None, components=components)
 
     async def job_success(self, event: dto.JobSuccess):
         inter = make_inter(event.job_inter, self.bot)
@@ -413,7 +419,7 @@ class RecorderCog(commands.Cog):
             custom_id="recordanother",
         )
 
-        await inter.edit_original_response(embed=embed, content=None, components=[button])
+        await self.edit_inter(inter, embed=embed, content=None, components=[button])
 
     async def job_selectable(self, event: dto.JobSelectable):
         inter = make_inter(event.job_inter, self.bot)
@@ -423,6 +429,8 @@ class RecorderCog(commands.Cog):
             del self._demo_view_cache[inter.author.id]
 
         await self.select_player(event, inter)
+
+    # interactable views/embeds
 
     async def select_player(self, event: dto.JobSelectable, inter: disnake.AppCmdInter):
         view = PlayerView(
