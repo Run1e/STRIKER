@@ -352,8 +352,8 @@ class ConfigView(disnake.ui.View):
         return dict(
             righthand="cl_righthand",
             color_filter="Vibrancy filter",
-            hq="High quality",
             fragmovie="Clean HUD",
+            hq="High quality",
             use_demo_crosshair="Use demo crosshair",
             crosshair_code="Change crosshair",
         ).get(k, k)
@@ -382,12 +382,12 @@ class ConfigView(disnake.ui.View):
 
         e.add_field(name="cl_righthand", value="Toggle gun wielding hand", inline=False)
         e.add_field(name="Vibrancy filter", value="Toggle the video filter", inline=False)
-        e.add_field(name="High quality", value="Record at 1080p", inline=False)
         e.add_field(
             name="Clean HUD",
             value="Hide HUD except for killfeed and crosshair",
             inline=False,
         )
+        e.add_field(name="High quality", value="Record at 1080p", inline=False)
         e.add_field(
             name="Use demo crosshair",
             value="Use the crosshair of the player being recorded",

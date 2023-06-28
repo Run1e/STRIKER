@@ -149,8 +149,8 @@ class UserSettings(Entity):
     toggleable_values = {
         "righthand": True,
         "color_filter": True,
+        "fragmovie": True,
         "hq": False,
-        "fragmovie": False,
         "use_demo_crosshair": False,
     }
 
@@ -161,8 +161,8 @@ class UserSettings(Entity):
     value_tiers = {
         "righthand": 0,
         "color_filter": 0,
+        "fragmovie": 0,
         "hq": 2,
-        "fragmovie": 1,
         "use_demo_crosshair": 1,
         "crosshair_code": 1,
     }
