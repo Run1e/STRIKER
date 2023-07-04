@@ -358,6 +358,13 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
         # get all player kills
         player = match.get_player_by_xuid(command.player_xuid)
 
+        for half in match.halves:
+            if command.round_id in half.rounds:
+                kills = match.get_player_round_kills(command.round_id)
+                break
+        else:
+            raise ValueError("Match (demo %s, %s) does not have round id %s", demo.origin, demo.identifier, command.round_id)
+
         half = match.halves[command.half]
         kills = half.get_player_kills_round(player, command.round_id)
 

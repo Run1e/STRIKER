@@ -67,7 +67,6 @@ class Restore(Command):
 class Record(Command):
     job_id: UUID
     player_xuid: int
-    half: int
     round_id: int
     tier: int
 

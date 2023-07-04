@@ -197,7 +197,7 @@ class RoundView(disnake.ui.View):
 
         for idx, (round_num, kills) in enumerate(all_kills.items()):
             button = RoundButton(
-                partial(self.round_callback, half=n, round_id=round_num),
+                partial(self.round_callback, round_id=round_num),
                 style=disnake.ButtonStyle.primary,
                 label=round_num,
                 row=(idx // 5) + self.min_row + 1,

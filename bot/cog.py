@@ -511,7 +511,6 @@ class RecorderCog(commands.Cog):
         player: Player,
         inter: disnake.AppCmdInter,
         round_id: int,
-        half: int,
     ):
         await inter.response.defer()
 
@@ -528,7 +527,6 @@ class RecorderCog(commands.Cog):
             cmds.Record(
                 job_id=event.job_id,
                 player_xuid=player.xuid,
-                half=half,
                 round_id=round_id,
                 tier=tier,
             )
