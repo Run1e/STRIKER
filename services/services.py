@@ -6,8 +6,7 @@ from uuid import UUID
 from adapters.faceit import HTTPException, NotFound
 from domain import sequencer
 from domain.domain import Demo, Job, UserSettings, calculate_bitrate
-from domain.enums import (DemoGame, DemoOrigin, DemoState, JobState,
-                          RecordingType)
+from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
 from domain.match import Match
 from messages import commands, dto, events
 from messages.deco import handler, listener
@@ -361,7 +360,8 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
 
         for half in match.halves:
             if command.round_id in half.rounds:
-                kills = match.get_player_round_kills(command.round_id)
+                kills = half.get_player_kills_round(player, command.round_id)
+                info = half.kills_info(command.round_id, kills)
                 break
         else:
             raise ValueError(
@@ -371,11 +371,6 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
                 command.round_id,
             )
 
-        half = match.halves[command.half]
-        kills = half.get_player_kills_round(player, command.round_id)
-
-        # get the kills info to make video title
-        info = half.kills_info(command.round_id, kills)
         job.video_title = " ".join([info[0], player.name, info[1]])
 
         start_tick, end_tick, skips, total_seconds = sequencer.single_highlight(

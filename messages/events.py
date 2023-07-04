@@ -123,6 +123,21 @@ class RecorderDL(Event):
     reason: str
 
 
+# gateway shit
+
+
+@dataclass(frozen=True)
+class GatewayClientHello(Event):
+    client_name: str
+    job_ids: list[str]
+
+
+@dataclass(frozen=True)
+class GatewayClientWaiting(Event):
+    client_name: str
+    game: str
+
+
 # uploader
 
 

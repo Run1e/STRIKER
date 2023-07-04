@@ -25,191 +25,197 @@ logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
 
 
+class RecorderError(Exception):
+    pass
+
+
+class ClientMissingError(Exception):
+    pass
+
+
 class GatewayServer:
-    def __init__(self, bus: MessageBus, broker: Broker, waiter: asyncio.Event) -> None:
+    def __init__(self, bus: MessageBus, publish, waiter: asyncio.Event) -> None:
         self.bus = bus
-        self.broker = broker
+        self.publish = publish
         self.waiter = waiter
 
-        self.clients = set()
-
-        self.queue = asyncio.Queue()
-        self.futures = dict()
-        self.client_futures = defaultdict(set)
-
-        # job ids that newly connecting workers are already working on
-        self.recording_job_ids = set()
+        self.clients: dict[str, server.WebSocketServerProtocol] = {}
+        self.queues: dict[str, asyncio.Queue] = defaultdict(asyncio.Queue)
+        self.futures: dict[str, asyncio.Future] = {}
+        self.client_jobs: dict[str, set] = defaultdict(set)
+        self.reported_recording_job_ids = set()
 
         self.bus.add_command_handler(commands.RequestRecording, self.request_recording)
 
-        self.action_handlers = dict(
-            request=self.action_request,
-            success=self.action_success,
-            failure=self.action_failure,
-        )
+        self.message_type_lookup: dict[str, events.Event] = {
+            msg.__name__: msg
+            for msg in [
+                events.RecorderSuccess,
+                events.RecorderFailure,
+                events.RecordingProgression,
+                events.GatewayClientWaiting,
+            ]
+        }
+
+    def post_add_listeners(self):
+        self.bus.add_event_listener(events.RecorderSuccess, self.recorder_success)
+        self.bus.add_event_listener(events.RecorderFailure, self.recorder_failure)
+        self.bus.add_event_listener(events.RecordingProgression, self.recorder_progression)
+        self.bus.add_event_listener(events.GatewayClientWaiting, self.client_waiting)
 
     async def new_connection(self, websocket: server.WebSocketServerProtocol):
-        self.clients.add(websocket)
-
         hello_pkt = await websocket.recv()
-        client_job_ids = loads(hello_pkt)
+        _type, data = loads(hello_pkt)
+        hello = events.GatewayClientHello(**data)
+        client_name = hello.client_name
 
-        self.recording_job_ids.update(client_job_ids)
+        self.reported_recording_job_ids.update(hello.job_ids)
+        self.clients[client_name] = websocket
 
-        log.info("Client added (total: %s). Job count: %s", len(self.clients), len(client_job_ids))
+        log.info("Added client %s job_ids: %s", client_name, len(hello.job_ids))
 
         tasks = set()
 
         try:
             async for message in websocket:
-                task = asyncio.create_task(self.recv(websocket, message))
+                _type, data = loads(message)
+                message_type = self.message_type_lookup[_type]
+                msg = message_type(**data)
+                task = asyncio.create_task(self.bus.dispatch(msg))
                 tasks.add(task)
                 task.add_done_callback(lambda task: tasks.remove(task))
+
         except ConnectionClosed:
-            pass  # cleanup comes after here, no need to
+            log.info("Lost connection to client %s", client_name)
 
-        self.clients.remove(websocket)
-        log.info("Client removed (total: %s). Tasks: %s", len(self.clients), len(tasks))
+            log.info("Clearing futures...")
+            if client_name in self.client_jobs:
+                for job_id in self.client_jobs[client_name]:
+                    future = self.futures.get(job_id)
+                    if future is None:
+                        continue
 
-        for task in tasks:
-            if not task.done():
-                log.info("Cancelling task")
+                    log.info("Future state is %s", future._state)
+                    if not future.done():
+                        log.info("Excepting future for job %s", job_id)
+                        future.set_exception(
+                            RuntimeError(f"Client close exception for job {job_id}")
+                        )
+
+            log.info("Cancelling %s tasks...", len(tasks))
+
+            for task in tasks:
                 task.cancel()
 
-        futures = self.client_futures.get(websocket, [])
-        for future in futures:
-            future.cancel()
+            del self.clients[client_name]
 
-    async def recv(self, client: server.WebSocketServerProtocol, message: str):
-        action, data = loads(message)
+            try:
+                del self.client_jobs[client_name]
+            except KeyError:
+                pass
 
-        log.info("Recv action %s", action)
+            log.info("Removed client %s", client_name)
 
-        handler = self.action_handlers.get(action)
-        if not handler:
-            raise ValueError(f"Action {action} has no handler")
+    async def send(self, client_name: str, message: commands.Command | events.Event):
+        websocket = self.clients.get(client_name)
+        if websocket is None:
+            raise ClientMissingError(
+                f"Client {client_name} has disconnected, unable to send message"
+            )
 
-        await handler(client, data)
+        name = message.__class__.__name__
+        dictified = asdict(message)
 
-    async def action_success(self, client, data):
-        job_id = data["job_id"]
-        await self.set_result(job_id, events.RecorderSuccess(**data))
-
-    async def action_failure(self, client, data):
-        job_id = data["job_id"]
-        await self.set_result(job_id, events.RecorderFailure(**data))
-
-    async def action_request(self, client, data):
-        log.info("Waiting for job...")
-        command, started, future = await self.queue.get()
-
-        # I hate that I have to keep state here for this
-        self.client_futures[client].add(future)
-
-        log.info("Job found, sending")
-        await client.send(dumps(asdict(command)))
-
-        started.set()
+        await websocket.send(dumps([name, dictified]))
 
     def get_future(self, job_id):
-        future = self.futures.get(job_id)
-        if future is None:
-            log.info("Creating new future for job %s", job_id)
+        if job_id not in self.futures:
             future = asyncio.Future()
             self.futures[job_id] = future
 
-        return future
+        return self.futures[job_id]
 
-    def remove_future(self, job_id):
-        log.info("Removing future for job %s", job_id)
-        future = self.futures.pop(job_id, None)
-        if not future:
+    def delete_future(self, job_id):
+        return self.futures.pop(job_id, None)
+
+    def forget_job(self, job_id):
+        self.delete_future(job_id)
+
+        for job_ids in self.client_jobs.values():
+            if job_id in job_ids:
+                job_ids.remove(job_id)
+
+        try:
+            self.reported_recording_job_ids.remove(job_id)
+        except KeyError:
+            pass
+
+    async def client_waiting(self, event: events.GatewayClientWaiting):
+        command: commands.RequestRecording
+
+        queue = self.queues[event.game]
+
+        log.info("Client %s waiting for %s job", event.client_name, event.game)
+        command = await queue.get()
+
+        log.info("Sending %s to client %s", command.job_id, event.client_name)
+
+        try:
+            await self.send(event.client_name, command)
+        except ClientMissingError:
+            log.info("Client %s removed, requeuing job")
+            await queue.put(command)
             return
 
-        # can leave a dangling key but I'm over it
-        for futures in self.client_futures.values():
-            if future in futures:
-                futures.remove(future)
-                break
+        self.client_jobs[event.client_name].add(command.job_id)
 
-    async def set_result(self, job_id, event):
-        log.info(f"Setting future: {event}")
-        future = self.get_future(job_id)
-        future.set_result(event)
-
-    async def request_recording(self, command: commands.RequestRecording, retry=False):
-        # this method runs for the entire lifecycle of the recording.
-        # it's dispatched by the broker into here, and the asyncio.Event
-        # that's created waits for the job to get picked up off the queue.
-        # after that we wait for the future to be set, which should contain
-        # either a events.RecordingSuccess or ...Failure.
-        # we then publish that back to whatever is listening to
-        # that event. (upd: with some retry logic as well)
-        #
-        # in the case where a recording node is working on a recording and
-        # the gateway (this process) restarts, we rely on the GatewayClient
-        # "hello" action packet to self-report which recordings its pool is
-        # currently working on. that means we *DON'T* put this job on the queue
-        # as that would make it be recorded twice. we do however still have to
-        # make the future and await it, so that we can properly ack the
-        # DeliveredMessage and publish a Recorder* event.
-        # it's kind of dumb and messy, but it's what we have to do because of
-        # the high level of decoupling here, and different states between
-        # different services
-
+    async def request_recording(self, command: commands.RequestRecording, retry=True):
         if not self.waiter.is_set():
             await self.waiter.wait()
 
-        queue_size = self.queue.qsize()
-        getter_count = len(self.queue._getters)
+        game = command.game
+        job_id = command.job_id
+        queue = self.queues[game]
+        future = self.get_future(job_id)
+
         client_count = len(self.clients)
+        queue_size = queue.qsize()
+        getter_count = len(queue._getters)
 
-        # print(queue_size, getter_count, client_count)
+        if command.job_id not in self.reported_recording_job_ids:
+            await queue.put(command)
 
-        future = self.get_future(command.job_id)
+            if not client_count:
+                await self.publish(events.RecordingProgression(command.job_id, None))
+            elif queue_size >= getter_count:
+                await self.publish(
+                    events.RecordingProgression(command.job_id, queue_size - getter_count + 1)
+                )
 
-        if command.job_id in self.recording_job_ids:
-            log.info(f"Job already being processed: {command.job_id}")
+        if retry:
+            try:
+                await future
+            except Exception:
+                log.info("Job %s failed once, requeueing it...", job_id)
+                self.forget_job(job_id)
+                await self.request_recording(command, retry=False)
+
         else:
-            started = asyncio.Event()
+            await future
 
-            await self.queue.put((command, started, future))
+    async def recorder_success(self, event: events.RecorderSuccess):
+        await self.publish(event)
+        future = self.get_future(event.job_id)
+        future.set_result(None)
+        self.delete_future(event.job_id)
 
-            if not retry:
-                if not client_count:  # no clients, send with None
-                    await self.broker.publish(events.RecordingProgression(command.job_id, None))
-                elif queue_size >= getter_count:  # more waiting in queue than clients doing .get()
-                    await self.broker.publish(
-                        events.RecordingProgression(command.job_id, queue_size - getter_count + 1)
-                    )
+    async def recorder_failure(self, event: events.RecorderFailure):
+        future = self.get_future(event.job_id)
+        future.set_exception(RecorderError(event.reason))
+        self.delete_future(event.job_id)
 
-                # wait for connection handler to .get() this request
-                await started.wait()
-
-                # this request is currently being processed
-                await self.broker.publish(events.RecordingProgression(command.job_id, 0))
-
-        # wait for recording to finish, then ack the message
-        try:
-            event = await future
-        except asyncio.CancelledError:
-            # client most likely died, set a failure event
-            # which might requeue depending on the value of retry
-            event = events.RecorderFailure(
-                command.job_id, "Recording node disconnected while recording."
-            )
-
-        # remove future
-        self.remove_future(command.job_id)
-
-        if isinstance(event, events.RecorderSuccess):
-            await self.broker.publish(event)
-        elif isinstance(event, events.RecorderFailure):
-            if not retry:
-                log.info("Retrying %s because %s", command.job_id, event)
-                await self.request_recording(command, retry=True)
-            else:
-                await self.broker.publish(event)
+    async def recorder_progression(self, event: events.RecordingProgression):
+        await self.publish(event)
 
 
 async def process_request(path: str, request_headers: Headers, tokens: set):
@@ -239,10 +245,11 @@ async def main():
 
     bus = MessageBus()
     broker = Broker(bus, publish_commands={commands.RequestTokens}, consume_events={events.Tokens})
-    g = GatewayServer(bus, broker, waiter)
+    g = GatewayServer(bus, broker.publish, waiter)
     await broker.start(config.RABBITMQ_HOST)
+    g.post_add_listeners()  # omggggg so fucking dumb
 
-    token_waiter = bus.wait_for(events.Tokens, timeout=12.0)
+    token_waiter = bus.wait_for(events.Tokens, timeout=32.0)
     await broker.publish(commands.RequestTokens())
     event: events.Tokens | None = await token_waiter
 

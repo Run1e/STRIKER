@@ -7,25 +7,28 @@ import logging
 import os
 import re
 import subprocess
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from dataclasses import asdict
 from distutils.dir_util import copy_tree
 from json import dumps, loads
 from pathlib import Path
 from urllib import parse
+from uuid import uuid4
 
 import aiofiles
 import aiohttp
 import config
 from ipc import CSGO, RecordingError, SandboxedCSGO, random_string
-from resource_semaphore import ResourcePool, ResourceRequest
 from sandboxie import Sandboxie
 from sandboxie_config import make_config
 from script_builder import make_script
 from websockets import InvalidStatusCode, client
 from websockets.exceptions import ConnectionClosed
 
-from messages import commands
+from messages import commands, events
 from messages.broker import MessageError
+from messages.bus import MessageBus
 from shared.log import logging_config
 from shared.utils import (
     RunError,
@@ -53,8 +56,6 @@ def count(start: int):
 
 new_port = iter(count(41920))
 CHUNK_SIZE = 1024 * 1024
-
-sb = Sandboxie(config.SANDBOXIE_START)
 
 
 class RecordingError(Exception):
@@ -118,26 +119,30 @@ async def record(
     else:
         await csgo.set_resolution(1280, 854)
 
-    result = asyncio.Future()
+    error = None
     take_folders = list()
 
-    def checker(line):
+    def folder_checker(line):
         if line.startswith('Recording to "'):
             match = re.findall(r"Recording to \"(.*)\"\.", line)
             folder = match[0]
             log.info("Found take folder: %s", folder)
             take_folders.append(config.TEMP_DIR / folder)
 
-        elif re.match(r"^Missing map .*, disconnecting$", line):
-            result.set_exception(RecordingError("Demos that require old maps are not supported."))
+        return False
+
+    def checker(line):
+        nonlocal error
+        if re.match(r"^Missing map .*, disconnecting$", line):
+            error = RecordingError("Demos that require old maps are not supported.")
+            return True
 
         elif line == unblock_string + " ":
-            result.set_result(None)
             return True
 
         return False
 
-    task = asyncio.create_task(csgo.wait_for(check=checker, timeout=240.0))
+    take_folder_task = asyncio.create_task(csgo.wait_for(check=folder_checker, timeout=250.0))
 
     await csgo.playdemo(
         demo=demo.absolute(),
@@ -145,14 +150,20 @@ async def record(
     )
 
     try:
-        await result
+        await csgo.wait_for(check=checker, timeout=240.0)
+    except:
+        raise
     finally:
-        task.cancel()
+        take_folder_task.cancel()
+
+    if error:
+        raise error
 
     delete_file(script_file)
 
     parts = list()
     coros = []
+
     # mux audio
     for idx, take_folder in enumerate(take_folders):
         take_output = take_folder / f"{command.job_id}-{idx}.mp4"
@@ -263,22 +274,6 @@ def make_csgo(port):
     return CSGO("localhost", port=port)
 
 
-async def on_csgo_error(pool: ResourcePool, csgo: CSGO, exc: Exception):
-    if not isinstance(csgo, SandboxedCSGO):
-        log.error("Recovering CSGO instances is only supported for sandboxed CSGO instances.")
-        return
-
-    box_name = csgo.box
-
-    # cleanup the box
-    await sb.cleanup(box_name)
-
-    new_csgo = await make_sandboxed_csgo(sb, box=box_name, sleep=None)
-    await prepare_csgo(new_csgo)
-
-    pool.add(new_csgo)
-
-
 async def prepare_csgo(csgo: CSGO):
     await csgo.connect()
 
@@ -327,7 +322,7 @@ def ensure_cleanup(f):
 async def handle_recording_request(
     command: commands.RequestRecording,
     session: aiohttp.ClientSession,
-    pool: ResourcePool,
+    csgo: CSGO,
     cleanup_files: list,
 ):
     origin_lower = command.demo_origin.lower()
@@ -359,11 +354,9 @@ async def handle_recording_request(
         cleanup_files.append(archive_path)
         raise MessageError("Failed extracting demo archive.") from exc
 
-    log.info("Getting CSGO instance and starting recording...")
-    async with ResourceRequest(pool) as csgo:
-        log.info("Got CSGO instance: %s", csgo)
-        video_file = await record(csgo, demo_path, command)
-        cleanup_files.append(video_file)
+    log.info("CSGO instance: %s", csgo)
+    video_file = await record(csgo, demo_path, command)
+    cleanup_files.append(video_file)
 
     log.info("Uploading to uploader service...")
 
@@ -384,51 +377,31 @@ async def handle_recording_request(
 
 
 class GatewayClient:
-    def __init__(self, pool: ResourcePool) -> None:
-        self.pool = pool
-        self.session = aiohttp.ClientSession()
+    def __init__(self, sandboxed: bool) -> None:
+        self.name = str(uuid4())[:8]
+        self.sandboxed = sandboxed
 
-        self.queue = asyncio.Queue()
+        self.bus = MessageBus()
+        self.bus.add_command_handler(commands.RequestRecording, self.request_recording)
+
+        self.instances = defaultdict(set)
+        self.instance_stop_event = defaultdict(asyncio.Event)
+
+        self.recording_job_ids = set()
+
+        self.sb: Sandboxie | None = Sandboxie(config.SANDBOXIE_START) if sandboxed else None
+
+        self.session = aiohttp.ClientSession()
+        self.queues: dict[str, asyncio.Queue] = defaultdict(asyncio.Queue)
 
         self.websocket = None
         self.connected_event = asyncio.Event()
 
-        self.job_ids = set()
-
-    async def looper(self):
-        while True:
-            future = asyncio.Future()
-            await self.queue.put(future)
-
-            command: commands.RequestRecording = await future
-            log.info("Received recording request %s", command)
-
-            self.job_ids.add(command.job_id)
-
-            try:
-                await handle_recording_request(command, self.session, self.pool)
-            except Exception as exc:
-                log.exception(exc)
-                reason = str(exc) if isinstance(exc, RecordingError) else "Recorder failed."
-                await self.send("failure", dict(job_id=command.job_id, reason=reason))
-            else:
-                await self.send("success", dict(job_id=command.job_id))
-            finally:
-                try:
-                    self.job_ids.remove(command.job_id)
-                except KeyError:
-                    pass
-
-    async def send(self, *data):
-        if not self.connected_event.is_set():
-            await self.connected_event.wait()
-
-        await self.websocket.send(dumps(data))
+        self.message_type_lookup = {
+            "RequestRecording": commands.RequestRecording,
+        }
 
     async def connect(self, endpoint):
-        for _ in self.pool:
-            asyncio.create_task(self.looper())
-
         while True:
             self.connected_event.clear()
 
@@ -449,44 +422,143 @@ class GatewayClient:
             self.websocket = websocket
             self.connected_event.set()
 
-            # tell the gateway which job id's we're currently working on
-            await websocket.send(dumps(list(self.job_ids)))
+            await self.send(
+                events.GatewayClientHello(client_name=self.name, job_ids=[*self.recording_job_ids])
+            )
 
-            try:
-                while True:
-                    getter = asyncio.create_task(self.queue.get())
-                    waiter = asyncio.create_task(websocket.wait_closed())
-
-                    finished, _ = await asyncio.wait(
-                        [getter, waiter], return_when=asyncio.FIRST_COMPLETED
+            for game_name, queue in self.queues.items():
+                for _ in queue._getters:
+                    await self.send(
+                        events.GatewayClientWaiting(client_name=self.name, game=game_name)
                     )
 
-                    if waiter in finished:
-                        # websocket closed, cancel getter
-                        getter.cancel()
-                        # and this should raise ConnectionClosed
-                        await websocket.ensure_open()
-                    else:
-                        # getter finished first, cancel waiter
-                        waiter.cancel()
+            try:
+                async for message in self.websocket:
+                    _type, data = loads(message)
+                    message_type = self.message_type_lookup[_type]
+                    msg = message_type(**data)
+                    asyncio.create_task(self.bus.dispatch(msg))
 
-                    future = getter.result()
-
-                    await self.send("request", dict())
-                    message = await websocket.recv()
-
-                    data = loads(message)
-                    command = commands.RequestRecording(**data)
-                    future.set_result(command)
             except ConnectionClosed as exc:
                 if exc.code == 1008:
                     raise  # invalid auth
                 log.warn("Lost connection to gateway!")
 
-            # requeue the current future if we .get()'d it and then failed
-            if not future.done():
-                log.info("Putting current future back in queue...")
-                await self.queue.put(future)
+    async def send(self, message: commands.Command | events.Event):
+        if not self.connected_event.is_set():
+            await self.connected_event.wait()
+
+        name = message.__class__.__name__
+        dictified = asdict(message)
+        await self.websocket.send(dumps([name, dictified]))
+
+    async def start(self):
+        if self.sandboxed:
+            self.sb.terminate_all()
+
+            cfg = make_config(
+                user=config.SANDBOXIE_USER,
+                demo_dir=config.DEMO_DIR,
+                temp_dir=config.TEMP_DIR,
+                boxes=config.BOXES,
+            )
+
+            with open(config.SANDBOXIE_INI, "w", encoding="utf-16") as f:
+                f.write(cfg)
+
+            await asyncio.sleep(1.0)
+
+            self.sb.reload()
+
+            await asyncio.sleep(2.0)
+
+            setups = [
+                make_sandboxed_csgo(self.sb, box=box_name, sleep=idx * 5)
+                for idx, box_name in enumerate(config.BOXES)
+            ]
+
+            csgos = await asyncio.gather(*setups)
+        else:
+            csgos = [make_csgo(next(new_port))]
+
+        await asyncio.gather(*[prepare_csgo(csgo) for csgo in csgos])
+
+        for csgo in csgos:
+            self.instance_add(csgo)
+
+    def instance_add(self, instance: CSGO):
+        log.info("Added game instance: %s", instance.name)
+        self.instances[instance.name].add(instance)
+        instance.set_connection_lost_callback(self.instance_remove)
+        asyncio.create_task(self.instance_loop(instance))
+
+    async def instance_remove(self, instance, exc):
+        log.error("Removing instance for game %s", instance.name)
+        log.exception(exc)
+
+        event = self.instance_stop_event.pop(instance, None)
+        if event:
+            event.set()
+
+        instances = self.instances[instance.name]
+        try:
+            instances.remove(instance)
+        except KeyError:
+            pass
+
+        if not isinstance(instance, SandboxedCSGO):
+            raise TypeError("Unable to recreate non-sandboxed CSGO instances!")
+
+        new_instance = await make_sandboxed_csgo(self.sb, box=instance.box, sleep=None)
+        await prepare_csgo(new_instance)
+
+        self.instance_add(new_instance)
+
+        log.info("New instance created!")
+
+    async def instance_loop(self, instance):
+        queue = self.queues[instance.name]
+        event = self.instance_stop_event[instance]
+
+        while True:
+            await self.send(events.GatewayClientWaiting(client_name=self.name, game=instance.name))
+
+            queue_task = asyncio.create_task(queue.get())
+            event_task = asyncio.create_task(event.wait())
+            done, _ = await asyncio.wait(
+                [queue_task, event_task], return_when=asyncio.FIRST_COMPLETED
+            )
+
+            if event_task in done:
+                log.info("Stopping instance loop (direct) %s", instance)
+                queue_task.cancel()
+                return
+
+            if queue_task in done:
+                command: commands.RequestRecording = await queue_task
+                event_task.cancel()
+
+            self.recording_job_ids.add(command.job_id)
+
+            try:
+                await self.send(events.RecordingProgression(command.job_id, infront=0))
+                await handle_recording_request(command, self.session, instance)
+            except Exception as exc:
+                log.exception(exc)
+                reason = str(exc) if isinstance(exc, RecordingError) else "Recorder failed."
+                await self.send(events.RecorderFailure(job_id=command.job_id, reason=reason))
+            else:
+                await self.send(events.RecorderSuccess(job_id=command.job_id))
+            finally:
+                self.recording_job_ids.remove(command.job_id)
+
+            if event.is_set():
+                log.info("Stopping instance loop (post) %s", instance)
+                return
+
+    async def request_recording(self, command: commands.RequestRecording):
+        queue = self.queues[command.game]
+        await queue.put(command)
 
 
 async def main():
@@ -508,46 +580,9 @@ async def main():
     for path in (config.TEMP_DIR, config.DEMO_DIR):
         make_folder(path)
 
-    if config.SANDBOXED:
-        sb.terminate_all()
-
-        cfg = make_config(
-            user=config.SANDBOXIE_USER,
-            demo_dir=config.DEMO_DIR,
-            temp_dir=config.TEMP_DIR,
-            boxes=config.BOXES,
-        )
-
-        with open(config.SANDBOXIE_INI, "w", encoding="utf-16") as f:
-            f.write(cfg)
-
-        await asyncio.sleep(1.0)
-
-        sb.reload()
-
-        await asyncio.sleep(2.0)
-
-        setups = [
-            make_sandboxed_csgo(sb, box=box_name, sleep=idx * 5)
-            for idx, box_name in enumerate(config.BOXES)
-        ]
-
-        csgos = await asyncio.gather(*setups)
-    else:
-        csgos = [make_csgo(next(new_port))]
-
-    await asyncio.gather(*[prepare_csgo(csgo) for csgo in csgos])
-
-    pool = ResourcePool(on_removal=on_csgo_error)
-
-    for csgo in csgos:
-        pool.add(csgo)
-        csgo.set_connection_lost_callback(pool.on_removal)
-
-    g = GatewayClient(pool)
+    g = GatewayClient(sandboxed=config.SANDBOXED)
+    await g.start()
     await g.connect(config.API_ENDPOINT)
-
-    log.info("Ready to record!")
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ def random_string(length=64):
 
 
 class CSGO:
+    name: str = "CSGO"
     reader: asyncio.StreamReader
     writer: asyncio.StreamWriter
 
@@ -104,8 +105,9 @@ class CSGO:
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
         except asyncio.TimeoutError as exc:
-            self.checks.pop(check)
             raise exc
+        finally:
+            self.checks.pop(check, None)
 
         if self._exception:
             raise self._exception
