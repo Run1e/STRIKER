@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 
 from messages import events
-from shared.const import DEMOPARSE_VERSION
+from shared.const import CSGO_DEMOPARSE_VERSION
 from shared.utils import utcnow
 
 from .enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
@@ -61,7 +61,7 @@ class Demo(Entity):
 
     def is_up_to_date(self):
         # I don't like how this uses an external constant at all
-        return self.data_version == DEMOPARSE_VERSION
+        return self.data_version == CSGO_DEMOPARSE_VERSION
 
     def is_selectable(self):
         return self.has_data() and self.is_up_to_date()

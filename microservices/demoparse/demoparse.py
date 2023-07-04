@@ -16,7 +16,7 @@ from messages.broker import Broker, MessageError
 from messages.bus import MessageBus
 from messages.commands import RequestDemoParse, RequestPresignedUrl
 from messages.deco import handler
-from shared.const import DEMOPARSE_VERSION
+from shared.const import CSGO_DEMOPARSE_VERSION
 from shared.log import logging_config
 from shared.utils import (
     CurlError,
@@ -193,7 +193,7 @@ async def request_demo_parse(command: RequestDemoParse, publish, upload_demo, ge
             origin=origin,
             identifier=identifier,
             data=data,
-            version=DEMOPARSE_VERSION,
+            version=CSGO_DEMOPARSE_VERSION,
         )
     )
 

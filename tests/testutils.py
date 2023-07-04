@@ -3,7 +3,7 @@ from random import randint
 import pytest
 
 from domain.domain import Demo, DemoGame, DemoOrigin, DemoState, Job, JobState
-from shared.const import DEMOPARSE_VERSION
+from shared.const import CSGO_DEMOPARSE_VERSION
 from shared.utils import utcnow
 
 
@@ -41,7 +41,7 @@ def new_demo(
     if add_valve_data:
         with open("tests/data/valve.json", "r") as f:
             kwargs["data"] = loads(f.read())
-        kwargs["data_version"] = DEMOPARSE_VERSION
+        kwargs["data_version"] = CSGO_DEMOPARSE_VERSION
 
     return Demo(game=game, origin=origin, state=state, **kwargs)
 

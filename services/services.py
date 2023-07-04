@@ -6,13 +6,14 @@ from uuid import UUID
 from adapters.faceit import HTTPException, NotFound
 from domain import sequencer
 from domain.domain import Demo, Job, UserSettings, calculate_bitrate
-from domain.enums import DemoGame, DemoOrigin, DemoState, JobState, RecordingType
+from domain.enums import (DemoGame, DemoOrigin, DemoState, JobState,
+                          RecordingType)
 from domain.match import Match
 from messages import commands, dto, events
 from messages.deco import handler, listener
 from services import views
 from services.uow import SqlUnitOfWork
-from shared.const import DEMOPARSE_VERSION
+from shared.const import CSGO_DEMOPARSE_VERSION
 from shared.lockstore import LockStore
 from shared.utils import utcnow
 
@@ -267,7 +268,7 @@ async def demoparse_success(event: events.DemoParseSuccess, uow: SqlUnitOfWork, 
                 )
                 return
 
-            if event.version != DEMOPARSE_VERSION:
+            if event.version != CSGO_DEMOPARSE_VERSION:
                 await handle_demo_step(demo=demo, publish=publish)
             else:
                 demo.set_demo_data(loads(event.data), event.version)
@@ -363,7 +364,12 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
                 kills = match.get_player_round_kills(command.round_id)
                 break
         else:
-            raise ValueError("Match (demo %s, %s) does not have round id %s", demo.origin, demo.identifier, command.round_id)
+            raise ValueError(
+                "Match (demo %s, %s) does not have round id %s",
+                demo.origin,
+                demo.identifier,
+                command.round_id,
+            )
 
         half = match.halves[command.half]
         kills = half.get_player_kills_round(player, command.round_id)
@@ -382,6 +388,7 @@ async def record(command: commands.Record, uow: SqlUnitOfWork, publish, wait_for
 
         data = dict(
             job_id=job_id,
+            game=demo.game.name,
             demo_origin=demo.origin.name,
             demo_identifier=demo.identifier,
             upload_url=video_upload_url,

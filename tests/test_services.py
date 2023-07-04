@@ -11,7 +11,7 @@ from domain.match import Match
 from messages import commands, dto, events
 from messages.bus import MessageBus
 from services import services
-from shared.const import DEMOPARSE_VERSION
+from shared.const import CSGO_DEMOPARSE_VERSION
 from tests.testutils import *
 
 
@@ -348,7 +348,7 @@ async def test_demoparse_success(valve):
     job.demo = demo
     job.demo_id = demo.id
 
-    version = DEMOPARSE_VERSION
+    version = CSGO_DEMOPARSE_VERSION
     event = events.DemoParseSuccess(
         origin=demo.origin.name, identifier=demo.identifier, data=valve, version=version
     )
@@ -382,7 +382,7 @@ async def test_demoparse_success_outdated():
 
     job.demo_id = demo.id
 
-    version = DEMOPARSE_VERSION - 1
+    version = CSGO_DEMOPARSE_VERSION - 1
 
     event = events.DemoParseSuccess(
         origin=demo.origin.name, identifier=demo.identifier, data=valve, version=version

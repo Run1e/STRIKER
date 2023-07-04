@@ -81,6 +81,7 @@ class Record(Command):
 )
 class RequestRecording(Command):
     job_id: str
+    game: str
     demo_origin: str
     demo_identifier: str
     demo_url: str
