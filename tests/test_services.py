@@ -457,7 +457,7 @@ async def test_record():
     player = match.get_player_by_id(11)
 
     await bus.dispatch(
-        commands.Record(job_id=job.id, player_xuid=player.xuid, round_id=round_id, tier=0, half=0)
+        commands.Record(job_id=job.id, player_xuid=player.xuid, round_id=round_id, tier=0)
     )
 
     assert job.state is JobState.RECORDING
