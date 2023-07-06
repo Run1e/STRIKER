@@ -58,6 +58,10 @@ class GatewayServer:
         }
 
     def post_add_listeners(self):
+        # this is in its own method since we register these listeners
+        # after the broker has started, such that we
+        # don't listen to these events from rabbitmq but only via our
+        # internal .dispatch, which comes from the client
         self.bus.add_event_listener(events.RecorderSuccess, self.recorder_success)
         self.bus.add_event_listener(events.RecorderFailure, self.recorder_failure)
         self.bus.add_event_listener(events.RecordingProgression, self.recorder_progression)
@@ -207,12 +211,12 @@ class GatewayServer:
         await self.publish(event)
         future = self.get_future(event.job_id)
         future.set_result(None)
-        self.delete_future(event.job_id)
+        self.forget_job(event.job_id)
 
     async def recorder_failure(self, event: events.RecorderFailure):
         future = self.get_future(event.job_id)
         future.set_exception(RecorderError(event.reason))
-        self.delete_future(event.job_id)
+        self.forget_job(event.job_id)
 
     async def recorder_progression(self, event: events.RecordingProgression):
         await self.publish(event)

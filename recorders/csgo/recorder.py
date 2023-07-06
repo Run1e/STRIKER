@@ -488,6 +488,7 @@ class GatewayClient:
 
     def instance_add(self, instance: CSGO):
         log.info("Added game instance: %s", instance.name)
+
         self.instances[instance.name].add(instance)
         instance.set_connection_lost_callback(self.instance_remove)
         asyncio.create_task(self.instance_loop(instance))

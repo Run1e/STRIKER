@@ -390,8 +390,7 @@ class RecorderCog(commands.Cog):
                 value=(
                     "- Record FACEIT demos\n"
                     "- Record scrimmage/wingman demos\n"
-                    "- Record 1080p video\n"
-                    "- Remove HUD, change crosshair\n"
+                    "- High quality 1080p video\n"
                     "- Support the project! :partying_face:"
                 ),
             )
