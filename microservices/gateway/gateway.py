@@ -16,17 +16,13 @@ from websockets.datastructures import Headers
 from websockets.exceptions import ConnectionClosed
 
 from messages import commands, events
-from messages.broker import Broker
+from messages.broker import Broker, MessageError
 from messages.bus import MessageBus
 from shared.log import logging_config
 from shared.utils import sentry_init
 
 logging_config(config.DEBUG)
 log = logging.getLogger(__name__)
-
-
-class RecorderError(Exception):
-    pass
 
 
 class ClientMissingError(Exception):
@@ -215,7 +211,7 @@ class GatewayServer:
 
     async def recorder_failure(self, event: events.RecorderFailure):
         future = self.get_future(event.job_id)
-        future.set_exception(RecorderError(event.reason))
+        future.set_exception(MessageError(event.reason))
         self.forget_job(event.job_id)
 
     async def recorder_progression(self, event: events.RecordingProgression):

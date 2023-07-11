@@ -211,7 +211,7 @@ class RoundView(disnake.ui.View):
 
         table = self.gen_table(half)
         e.description = (
-            f"Table of {self.player.name}'s frags.\n"
+            f"Table of {self.player.name}'s frags on {self.match.map}.\n"
             f"```{table}```\n"
             "Click a round number below to record a highlight.\n"
             "Click the top row of buttons to change half."
