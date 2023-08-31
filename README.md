@@ -3,7 +3,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/Run1e/STRIKER)](https://github.com/Run1e/STRIKER/issues)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-# STRIKER
+# STRIKER - outdated July 11th 2023 version
 
 STRIKER is a Discord bot that can record your CS:GO highlights simply by giving it a matchmaking sharecode.
 
